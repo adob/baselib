@@ -1,0 +1,25 @@
+import("//build_overrides/pigweed.gni")
+import("$dir_pw_build/target_types.gni")
+
+#config("include_path") {
+#  include_dirs = [ ".." ]
+#}
+pw_source_set("io") {
+    sources = [
+        "io_stream.cc",
+        "utils.cc",
+    ]
+    public = [
+       "io_stream.h",
+    ]
+    
+    #public_configs = [
+    #    ":include_path"
+    #]
+    
+    deps = []
+    public_deps = [
+        "//sharedlib",
+        "//third_party/pigweed/pw_log",
+    ]
+}

@@ -1,0 +1,43 @@
+import("//build_overrides/pigweed.gni")
+import("$dir_pw_build/target_types.gni")
+import("$dir_pw_unit_test/test.gni")
+
+config("include_path") {
+  include_dirs = [ ".." ]
+}
+pw_source_set("fmt") {
+    sources = [
+        "quote.cc",
+        "isprint.cc",
+        "fmt.cc",
+    ]
+    public = [
+        "fmt.inlines.h",
+        "fmt.h",
+        "quote.h"
+    ]
+    public_configs = [
+        #":include_path"
+    ]
+    deps = [
+        "//sharedlib",
+        "//sharedlib/utf8",
+    ]
+    public_deps = [
+        "//sharedlib",
+        "//sharedlib/io",
+    ]
+}
+
+
+pw_test("fmt_test") {
+    sources = ["fmt_test.cc"]
+    deps = [
+        ":fmt",
+        "//hostlib",
+    ]
+}
+
+pw_test_group("tests") {
+  tests = [ ":fmt_test" ]
+}

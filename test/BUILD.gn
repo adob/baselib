@@ -1,0 +1,9 @@
+import("//build_overrides/pigweed.gni")
+import("$dir_pw_build/target_types.gni")
+
+#pw_executable("test_runner_app") {
+#    sources = ["main.cc"]
+#    deps = [
+#        "//sharedlib/serialrpc:tests",
+#    ]
+#}

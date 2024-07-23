@@ -1,0 +1,26 @@
+import("//build_overrides/pigweed.gni")
+import("$dir_pw_build/target_types.gni")
+
+pw_source_set("sync") {
+    sources = [
+        "chan.cc",
+        "cond.cc",
+        "lock.cc",
+        "mutex.cc",
+    ]
+    public = [
+       "chan.h",
+       "cond.h",
+       "go.h",
+       "lock.h",
+       "mutex.h",
+    ]
+    public_configs = [
+    ]
+    deps = [
+
+    ]
+    public_deps = [
+        "//sharedlib",
+    ]
+}
