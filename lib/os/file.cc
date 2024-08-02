@@ -9,6 +9,7 @@
 
 #include "file.h"
 #include "error.h"
+#include "../print.h"
 
 using namespace lib;
 using namespace os;
@@ -137,7 +138,11 @@ size os::File::direct_read(buf b, error& err) {
         err(io::EOF);
     }
     
-    //print "direct_read <%d> <%x>" % len(b), b[0];
+    // print "direct_read <%d> <%x>" % ret, b[0];
+    // for (size i = 0; i < ret; i++) {
+    //     printf("%02x ", b[i]);
+    // }
+    // printf("\n");
     return ret;
 }
 

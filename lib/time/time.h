@@ -31,8 +31,7 @@ namespace lib::time {
         float64 seconds() const;
         int64 milliseconds() const;
 
-        constexpr bool operator>(duration other) const { return nsecs > other.nsecs; }
-        constexpr bool operator<(duration other) const { return nsecs < other.nsecs; }
+        constexpr auto operator <=> (duration other) const { return nsecs <=> other.nsecs; }
     } ;
 
 
