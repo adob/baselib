@@ -5,6 +5,6 @@
     "build": {
         "includeDir": "../",
         "srcDir": ".",
-        "srcFilter":  "+<**/*.cc> -<**/*_test.cc> -<**/*_unix.cc> -<test/**>"
+        "srcFilter":  "+<**/*.cc> -<**/*_test.cc> -<**/*_unix.cc> -<test/**> -<lib/sync/**> -<lib/time/**> -<lib/os/**> -<lib/debug/**>"
     }
 }
