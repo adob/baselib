@@ -1,0 +1,6 @@
+[submodule "deps/backward-cpp"]
+	path = deps/backward-cpp
+	url = git@github.com:adob/backward-cpp.git
+[submodule "deps/libdebugme"]
+	path = deps/libdebugme
+	url = https://github.com/yugr/libdebugme.git

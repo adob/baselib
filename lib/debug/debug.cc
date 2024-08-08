@@ -6,7 +6,7 @@
 #define BACKWARD_HAS_BACKTRACE 0
 #define BACKWARD_HAS_BACKTRACE_SYMBOL 0
 #define BACKWARD_HAS_LIBUNWIND 0
-#include "backward.hpp"
+#include "../../deps/backward-cpp/backward.hpp"
 
 #include <execinfo.h>
 #include <exception>
@@ -17,7 +17,7 @@
 
 
 extern "C" {
-    #include <libdebugme/include/debugme.h>
+    #include "../../deps/libdebugme/include/debugme.h"
 }
 
 #include "./debug.h"

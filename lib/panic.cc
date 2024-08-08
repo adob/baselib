@@ -9,7 +9,7 @@
 #define BACKWARD_HAS_BACKTRACE 0
 #define BACKWARD_HAS_BACKTRACE_SYMBOL 0
 #define BACKWARD_HAS_LIBUNWIND 0
-#include "backward.hpp"
+#include "../deps/backward-cpp/backward.hpp"
 #endif
 #include "fmt.h"
 

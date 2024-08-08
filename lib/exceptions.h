@@ -7,7 +7,7 @@
 #include "./exception.h"
 
 #ifdef __cpp_exceptions
-#include "backward.hpp"
+#include "../deps/backward-cpp/backward.hpp"
 namespace backward {
     class StackTrace;
 }
