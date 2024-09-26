@@ -80,12 +80,12 @@ namespace lib {
     struct Array<byte, N> {
         byte data[N];
 
-        buf slice(size i) {
+        constexpr buf slice(size i) {
             assert(usize(i) <= N, exceptions::bad_index, i , N);
             return buf(data+i, N-i);
         }
 
-        buf slice(size i, size j) {
+        constexpr buf slice(size i, size j) {
             assert(usize(i) <= N, exceptions::bad_index, i , N);
             assert(i <= j, exceptions::bad_index, i, j);
             return buf(data+i, j-i);
@@ -98,6 +98,10 @@ namespace lib {
 
         constexpr buf operator [] (size i, size j) {
             return slice(i, j);
+        }
+
+        constexpr buf operator + (size offset) {
+            return slice(offset);
         }
 
         operator buf () {

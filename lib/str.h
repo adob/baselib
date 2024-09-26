@@ -80,6 +80,10 @@ namespace lib {
             return slice(i);
         }
 
+        constexpr str operator + (size i) const {
+            return slice(i);
+        }
+
         constexpr explicit operator bool () const {
             return len != 0;
         }
@@ -259,8 +263,12 @@ namespace lib {
             return slice(i);
         }
 
-        constexpr operator bool () const {
+        constexpr explicit operator bool () const {
             return len != 0;
+        }
+
+        constexpr buf operator + (size offset) {
+            return slice(offset);
         }
 
         operator str () const {
