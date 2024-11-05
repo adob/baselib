@@ -91,7 +91,7 @@ namespace lib {
             return buf(data+i, j-i);
         }
 
-        constexpr byte operator[] (size i) {
+        constexpr byte &operator[] (size i) {
             assert(usize(i) < N, exceptions::bad_index, i);
             return data[i];
         }
@@ -198,9 +198,56 @@ namespace lib {
             return arr + len;
         }
 
-    //     friend constexpr T *begin(array arr) { return arr.arr; }
+    };
 
-    //     friend constexpr T *end(array arr) { return arr.arr + arr.len; }
+    template <typename T>
+    struct view {
+        const T  *data;
+        size     len;
+
+
+        constexpr view() : data(nullptr), len(0) {}
+        constexpr view(const T *t, size len) : data(t), len(len) {}
+
+        template <size N>
+        constexpr view(const T (&data)[N])  : data(data), len(N) { }
+
+        template <size N>
+        constexpr view(T (&&data)[N]) : data(data), len(N) { }
+
+        view slice(size i) const {
+            assert(usize(i) <= usize(len), exceptions::bad_index, i, len);
+            return view(data+i, len-i);
+        }
+
+        view slice(size i, size j) const {
+            assert(usize(i) <= usize(len), exceptions::bad_index, i , len);
+            assert(i <= j, exceptions::bad_index, i, j);
+            return array(data+i, j-i);
+        }
+
+        view operator () (size i) const {
+            return slice(i);
+        }
+
+        view operator () (size i, size j) const {
+            return slice(i, j);
+        }
+
+        constexpr const T& operator [] (size i) const {
+            assert(usize(i) < usize(len), exceptions::bad_index, i, len-1);
+            return data[i];
+        }
+
+
+        constexpr const T* begin() const {
+            return data;
+        }
+
+        constexpr const T* end() const {
+            return data + len;
+        }
+
     };
 
     template <typename T>

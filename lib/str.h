@@ -250,7 +250,7 @@ namespace lib {
             len = 0;
         }
 
-        constexpr byte& operator [] (size i) const {
+        constexpr byte& operator [] (size i) {
             assert(usize(i) < usize(len), exceptions::bad_index, i,len-1);
             return data[i];
         }
@@ -351,7 +351,7 @@ namespace lib {
 
     // String
     struct String {
-        Buffer  buffer;
+        mutable Buffer  buffer;
         size    length;
 
         String()      : buffer(), length(0) {}

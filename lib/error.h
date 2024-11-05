@@ -44,6 +44,7 @@ namespace lib {
         }
         
         struct Panic;
+        struct Log;
         struct IgnoreAll;
         struct IgnoreOneImpl;
         struct IgnoreOne;
@@ -58,6 +59,7 @@ namespace lib {
         virtual ~error() {}
         
         static Panic panic;
+        static Log log;
     } ;
     
     struct error::IgnoreAll {
@@ -84,6 +86,11 @@ namespace lib {
     } ;
     
     struct error::Panic : error {
+        virtual void operator()(deferror const &err) override;
+        virtual void operator()(str msg) override;
+    };
+
+    struct error::Log : error {
         virtual void operator()(deferror const &err) override;
         virtual void operator()(str msg) override;
     };
