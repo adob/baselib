@@ -16,14 +16,14 @@ namespace lib::utf8 {
     //str encode(rune r, Allocator& alloc);
 
     // encoding
-    int encode(io::OStream &out, rune r, error &err);
+    int encode(io::OStream &out, rune r, error err);
 
     struct Encoder : io::WriterTo {
-        array<const wchar_t> data;
+        arr<const wchar_t> data;
 
-        Encoder(array<const wchar_t> data) : data(data) {}
+        Encoder(arr<const wchar_t> data) : data(data) {}
 
-        void write_to(io::OStream &out, error &err) const override;
+        void write_to(io::OStream &out, error err) const override;
     };
 }
     

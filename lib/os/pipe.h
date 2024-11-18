@@ -10,6 +10,6 @@ namespace lib::os {
         File writer;
     };
     
-    FilePair pipe(error &err);
-    FilePair pipe(int flags, error &err);
+    FilePair pipe(error2 &err);
+    FilePair pipe(int flags, error2 &err);
 }

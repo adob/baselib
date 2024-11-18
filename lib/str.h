@@ -218,9 +218,9 @@ namespace lib {
 //             len = sizeof(t);
 //         }
 
-        constexpr buf(char *data, usize len) : data( (byte*) (void*) data), len(len) {}
+        constexpr buf(char *data, size len) : data( (byte*) (void*) data), len(len) {}
 
-        constexpr buf(byte *data, usize len) : data(data), len(len) {}
+        constexpr buf(byte *data, size len) : data(data), len(len) {}
 
         template <size N> constexpr buf(char (&str)[N]) : data((byte*)str), len(N) {}
 
@@ -241,7 +241,15 @@ namespace lib {
             return data;
         }
 
+        constexpr const byte* begin() const {
+            return data;
+        }
+
         constexpr byte* end() {
+            return data + len;
+        }
+
+        constexpr const byte* end() const {
             return data + len;
         }
 
@@ -365,6 +373,11 @@ namespace lib {
              memcpy(buffer.data, s.data(), s.size());
         }
 
+        template <usize N>
+        constexpr String(const char (&str)[N]) : buffer(N-1), length(N-1) {
+            memcpy(buffer.data, str, N-1);
+        }
+
         String(String const &other) {
             (*this) = other;
         }
@@ -398,6 +411,21 @@ namespace lib {
             length = newlen;
         }
 
+        // expand expands string length by additional number of bytes
+        // and returns the newly-allocated data. New data is uninitialized.
+        buf expand(size additional) {
+            size newlen = length += additional;
+            ensure(newlen);
+
+            buf b = buffer[length, newlen];
+            length = newlen;
+            return b;
+        }
+
+        constexpr size cap() const {
+            return len(buffer);
+        }
+
         const char *c_str() const {
             const_cast<String*>(this)->ensure(length+1);
             buffer[length] = '\0';
@@ -405,6 +433,28 @@ namespace lib {
         }
 
         std::string std_string() const;
+
+        constexpr str slice(size i) const {
+            assert(usize(i) <= usize(length), exceptions::bad_index, i, length);
+            return str(buffer.data+i, length-i);
+        }
+
+        constexpr buf slice(size i) {
+            assert(usize(i) <= usize(length), exceptions::bad_index, i, length);
+            return buf(buffer.data+i, length-i);
+        }
+
+        constexpr str slice(size i, size j) const  {
+            assert(usize(i) <= usize(length), exceptions::bad_index, i , length);
+            assert(i <= j, exceptions::bad_index, i, j);
+            return str(buffer.data+i, j-i);
+        }
+
+        constexpr buf slice(size i, size j) {
+            assert(usize(i) <= usize(length), exceptions::bad_index, i , length);
+            assert(i <= j, exceptions::bad_index, i, j);
+            return buf(buffer.data+i, j-i);
+        }
 
         String& operator += (str s) {
             append(s);
@@ -434,6 +484,142 @@ namespace lib {
             other.length = 0;
             return *this;
         }
+
+        template <usize N>
+        String& operator =(const char (&s)[N]) {
+            ensure(N-1);
+            memmove(buffer.data, s, N-1);
+            length = N-1;
+            return *this;
+        }
+
+        constexpr char operator [] (size i) const {
+            assert(usize(i) < usize(length), exceptions::bad_index, i,length-1);
+            return buffer.data[i];
+        }
+
+        constexpr char& operator [] (size i) {
+            assert(usize(i) < usize(length), exceptions::bad_index, i,length-1);
+            return ((char*) buffer.data)[i];
+        }
+
+        constexpr str operator [] (size i, size j) const {
+            return slice(i, j);
+        }
+
+        constexpr buf operator [] (size i, size j) {
+            return slice(i, j);
+        }
+    };
+
+    // String
+    struct CString {
+        Buffer  buffer;
+        size    length;
+
+        CString()      : buffer(), length(0) {}
+        CString(str s) :
+                buffer(s.len+1),
+                length(s.len) {
+            memcpy(buffer.data, s.data, s.len);
+            buffer[len(s)] = '\0';
+        }
+
+        CString(std::string const& s) : buffer(s.size()), length(s.length()) {
+             memcpy(buffer.data, s.data(), s.size()+1);
+        }
+
+        template <usize N>
+        constexpr CString(const char (&str)[N]) : buffer(N-1), length(N-1) {
+            memcpy(buffer.data, str, N);
+        }
+
+        CString(CString const &other) {
+            (*this) = other;
+        }
+
+        explicit CString(size cap) :
+            buffer(cap+1),
+            length(0) {}
+
+        CString(CString &&other) {
+            buffer = std::move(other.buffer);
+            length = other.length;
+            other.length = 0;
+        }
+
+        void ensure(size newcap) {
+            newcap += 1;
+            if (newcap <= buffer.len) {
+                return;
+            }
+            if (newcap < 32) {
+                newcap = 32;
+            }
+            buffer.resize(std::max(newcap, buffer.len*2));
+        }
+
+        void append(str s) {
+            size newlen = length + s.len;
+            assert(newlen >= length, exceptions::overflow);
+
+            ensure(newlen);
+            memcpy(buffer.data + length, s.data, s.len);
+            length = newlen;
+            buffer[length] = '\0';
+        }
+
+        const char *c_str() const {
+            return (char *) buffer.data;
+        }
+
+        std::string std_string() const;
+
+        CString& operator += (str s) {
+            append(s);
+            return *this;
+        }
+
+        CString& operator = (str s) {
+            ensure(s.len);
+
+            memmove(buffer.data, s.data, s.len);
+            length = s.len;
+            buffer[length] = '\0';
+            return *this;
+        }
+
+        CString& operator = (const CString& other) {
+            if (other.length > buffer.len) {
+                buffer.resize(other.length);
+            }
+            length = other.length;
+            memcpy(buffer.data, other.buffer.data, length+1);
+            return *this;
+        }
+
+        CString& operator = (String&& other) {
+            buffer = std::move(other.buffer);
+            length = other.length;
+            other.length = 0;
+            return *this;
+        }
+
+        template <usize N>
+        CString& operator =(const char (&s)[N]) {
+            ensure(N-1);
+            memmove(buffer.data, s, N);
+            length = N-1;
+            return *this;
+        }
+
+        constexpr operator str() {
+            return buffer[0, length];
+        }
+
+        constexpr operator char *() {
+            return (char*) buffer.data;
+        }
     };
 
     // constexpr bool operator == (str s1, String const& s2) {
@@ -444,19 +630,19 @@ namespace lib {
             data((const char *) s.buffer.data),
             len(s.length) {}
 
-    struct CString {
-        char *data;
-        size len;
+    // struct CString {
+    //     char *data;
+    //     size len;
 
-        CString(str s);
-        CString(CString const&) = delete;
+    //     CString(str s);
+    //     CString(CString const&) = delete;
 
-        operator const char *() { return data; }
+    //     operator const char *() { return data; }
 
-        CString& operator = (CString const&) = delete;
+    //     CString& operator = (CString const&) = delete;
 
-        ~CString();
-    };
+    //     ~CString();
+    // };
 
     inline size copy(buf dst, str src) {
         size amt = std::min(len(dst), len(src));

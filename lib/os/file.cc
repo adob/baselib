@@ -9,122 +9,225 @@
 
 #include "file.h"
 #include "error.h"
-#include "../print.h"
+#include "lib/error.h"
+#include "lib/fs/fs.h"
+#include "lib/filepath/path.h"
+#include "lib/io/utils.h"
+#include "lib/os/file_posix.h"
+#include "lib/os/types.h"
+
+#include "lib/print.h"
+#include "lib/str.h"
+
 
 using namespace lib;
 using namespace os;
 
 os::File::File(File&& other)
-    : fd(other.fd)
-    , io::Buffered(std::move(other))
-     { 
-        other.fd = -1; 
+    : io::Buffered(std::move(other)),
+      fd(other.fd) { 
+    other.fd = -1; 
 }
 
-void os::File::close(error &err) {
+
+void os::File::close(error err) {
     if (fd == -1) {
-        return;
+        return err(PathError("close", this->name, ErrClosed()));
     }    
-    int ret = ::close(fd);
+
+    // invalidate the file descriptor early
+    // this is because Linux invalidates the file descriptor early even if there
+    // is a failure to close (such as an I/O error)
     fd = -1;
-    if (ret) {
-         err(os::from_errno(errno));
-         return;
+
+retry:
+    int ret = ::close(fd);
+    if (ret == -1) {
+        if (errno == EINTR) {
+            goto retry;
+        }
+
+        return err(fs::PathError("close", this->name, Errno(errno)));
     }
 }
 
-os::File os::open(str name, int flags, error &err) {
-    int fd = ::open(name.c_str(), flags);
+os::File os::open(str name, error err) {
+    return open_file(name, O_RDONLY, 0, err);
+}
+
+os::File os::open_file(str name, int flag, FileMode perm, error err) {
+    File f;
+    int fd;
+
+    f.name = name;
+
+retry:
+    fd = ::open(f.name, flag|O_CLOEXEC, syscall_mode(perm));
     if (fd == -1) {
-        err(os::from_errno(errno));
+        if (errno == EINTR) {
+            goto retry;
+        }
+
+        err(PathError("open", name, Errno(errno)));
+        return f;
     }
-    File f(fd);
-    
-    if (flags & (O_RDONLY | O_RDWR)) {
+
+    if (flag & (O_RDONLY | O_RDWR)) {
         f.resize_readbuf(4096);
     }
     
-    if (flags & (O_WRONLY | O_RDWR)) {
+    if (flag & (O_WRONLY | O_RDWR)) {
         f.resize_writebuf(4096);
     }
-    
-//     efd = ::eventfd(0, 0);
-//     if (efd == -1) {
-//         panic(os::from_errno(errno));
-//     }
-    
+
+    //f.flags = flags;
     return f;
 }
 
-FileInfo File::stat(error &err) {
-    struct stat statbuf;
+static void fill_file_info_from_sys(FileInfo *fi, str name) {
+    fi->name = filepath::base(name);
+    fi->size = fi->stat.st_size;
+    fi->mod_time = time::unix(fi->stat.st_mtim);
+    fi->mode = FileMode(fi->stat.st_mode & 0777);
 
-    int r = ::fstat(fd, &statbuf);
+    switch (fi->stat.st_mode & S_IFMT) {
+        case S_IFBLK: fi->mode |= ModeDevice; break;
+        case S_IFCHR: fi->mode |= ModeDevice | ModeCharDevice; break;
+        case S_IFDIR: fi->mode |= ModeDir; break;
+        case S_IFIFO: fi->mode |= ModeNamedPipe; break;
+        case S_IFLNK: fi->mode |= ModeSymlink; break;
+        case S_IFREG: /* do nothing */; break;
+        case S_IFSOCK: fi->mode |= ModeSocket; break;
+    }
+
+    if (fi->stat.st_mode & S_ISGID) {
+        fi->mode |= ModeSetgid;
+    }
+
+    if (fi->stat.st_mode & S_ISUID) {
+        fi->mode |= ModeSetuid;
+    }
+
+    if (fi->stat.st_mode & S_ISVTX ) {
+        fi->mode |= ModeSticky;
+    }
+}
+
+FileInfo File::stat(error err) {
+    FileInfo fi;
+
+retry:
+    int r = ::fstat(fd, &fi.stat);
     if (r == -1) {
-        err(from_errno(errno));
-        return {};
+        if (errno == EINTR) {
+            goto retry;
+        }
+        
+        err(PathError("stat", name, Errno(errno)));
+        return fi;
     }
 
-    return {
-        .size = statbuf.st_size,
-    };
+    fill_file_info_from_sys(&fi, name);
+
+    return fi;
 }
 
-size os::write_file(str name, str data, error &err) {
-    return write_file(name, data, 0666, err);
+void os::write_file(str name, str data, error err) {
+    write_file(name, data, 0666, err);
 }
 
-size os::write_file(str name, str data, int perm, error &err) {
-    int fd = ::open(name.c_str(), O_WRONLY|O_CREAT|O_TRUNC, perm);
-    if (fd == -1) {
-        err(os::from_errno(errno));
-    }
-
-    File f(fd);
-    size total = f.direct_write(data, err);
+void os::write_file(str name, str data, FileMode perm, error err) {
+    File f = open_file(name, O_WRONLY|O_CREAT|O_TRUNC, perm, err);
     if (err) {
-        return total;
+        return;
+    }
+
+    f.direct_write(data, err);
+    if (err) {
+        return;
     }
 
     f.close(err);
-    return total;
 }
 
-String os::read_file(str path, error &err) {
-    os::File f = open(path, O_RDONLY, err);
+String os::read_file(str path, error err) {
+    os::File f = open(path, err);
+    if (err) {
+        return "";
+    }
+
     
-    size sz = 0;
-    error staterr;
-
-    FileInfo info = f.stat(staterr);
-    if (!staterr) {
-        sz = info.size;
+    FileInfo info = f.stat(error::ignore);
+    size file_size = size(info.size);
+    if (file_size != info.size) {
+        file_size = 0;
     }
+    //file_size++; // one byte for final read at EOF
 
-    if (sz < 512) {
-        sz = 512;
-    }
+    // If a file claims a small size, read at least 512 bytes.
+	// In particular, files in Linux's /proc claim size 0 but
+	// then do not work right if read in small pieces,
+	// so an initial read of 1 byte would not work correctly.
+	if (file_size < 512) {
+		file_size = 512;
+	}
 
-    String s(sz);
+    String s;
+    s.ensure(file_size);
+    size bytes_read = 0;
     
     for (;;) {
-        size n = f.direct_read(s.buffer[len(s), len(s.buffer)], err);
-        s.length += n;
-        if (err) {
-            if (err == io::EOF) {
-                err = {};
+        bool eof = false;
+        bytes_read += f.direct_read(s.buffer+bytes_read, ErrorReporter([&](const Error &e) {
+            if (e.is<io::EOF>()) {
+                eof = true;
+                return;
             }
-            return s;
+            err(e);
+        }));
+
+        if (err || eof) {
+            break;
         }
 
-        if (len(s) >= len(s.buffer)) {
-            s.buffer.resize(len(s.buffer)*2);
-        }
-    } 
+        s.ensure(bytes_read+1);
+    }
+
+    s.expand(bytes_read);
+    return s;
+
+        
+    // }
+    // size size = info.size;
+
+    // if (!staterr) {
+    //     sz = info.size;
+    // }
+
+    // if (sz < 512) {
+    //     sz = 512;
+    // }
+
+    // String s(sz);
+    
+    // for (;;) {
+    //     size n = f.direct_read(s.buffer[len(s), len(s.buffer)], err);
+    //     s.length += n;
+    //     if (err) {
+    //         if (err == io::EOF) {
+    //             err = {};
+    //         }
+    //         return s;
+    //     }
+
+    //     if (len(s) >= len(s.buffer)) {
+    //         s.buffer.resize(len(s.buffer)*2);
+    //     }
+    // } 
 
 }
 
-size os::File::direct_read(buf b, error& err) {
+size os::File::direct_read(buf b, error err) {
   retry:
     size ret = ::read(fd, b.data, b.len);
     if (ret == -1) {
@@ -170,7 +273,7 @@ size os::File::direct_read(buf b, error& err) {
 //     return total;
 // }
 
-size os::File::direct_write(str data, error& err) {
+size os::File::direct_write(str data, error err) {
     // printf("DIRECT WRITE %d\n", int(len(data)));
     size total = 0;
     size want = len(data);
@@ -212,7 +315,7 @@ File& File::operator = (File&& other) {
 
 os::File::~File() {
     if (fd != -1) {
-        flush(error::ignore());
+        flush(error2::ignore());
         ::close(fd);  // ignore error
     }
 }

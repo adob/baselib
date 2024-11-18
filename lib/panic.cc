@@ -1,4 +1,6 @@
 #include "panic.h"
+#include "lib/io/io_stream.h"
+#include "lib/str.h"
 
 #ifdef __cpp_exceptions
 #define BACKWARD_HAS_UNWIND 1
@@ -31,13 +33,11 @@ void lib::panic() {
     #endif
 }
 
-void lib::panic(error err) {
-    auto s = fmt::stringifier(err);
-    panic(s);
-}
-
-void lib::panic(deferror const& e) {
-    panic(e.msg);
+void lib::panic(Error const& e) {
+    io::Buffer b;
+    e.describe(b);
+    
+    panic(b.str());
 }
 
 void lib::panic(str msg) {
@@ -59,9 +59,8 @@ void lib::panic(str msg) {
 
 
 void lib::panic(io::WriterTo const& writable) {
-    io::Buffer buffer;
-    writable.write_to(buffer, error::ignore());
+    io::Buffer b;
+    writable.write_to(b, error::ignore);
 
-    String s = buffer.to_string();
-    panic(s);
+    panic(b.str());
 }

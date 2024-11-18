@@ -49,7 +49,7 @@ namespace lib::utf8 {
 //     }
 }
 
-int utf8::encode(io::OStream &out, rune r, error &err) {
+int utf8::encode(io::OStream &out, rune r, error err) {
     if (r <= rune1_max) {
         out.write(byte(r), err);
         return 1;
@@ -79,7 +79,7 @@ int utf8::encode(io::OStream &out, rune r, error &err) {
     return 4;
 }
 
-void Encoder::write_to(io::OStream &out, error &err) const {
+void Encoder::write_to(io::OStream &out, error err) const {
     for (wchar_t c : data) {
         encode(out, c, err);
         if (err) {

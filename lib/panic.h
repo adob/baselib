@@ -11,6 +11,5 @@ namespace lib {
     void panic();
     void panic(str msg);
     void panic(io::WriterTo const&);
-    void panic(error e);
-    void panic(deferror const&);
+    void panic(Error const& e);
 }

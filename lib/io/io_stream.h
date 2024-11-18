@@ -1,12 +1,13 @@
 #pragma once
-#include "lib/base.h"
+
+#include "lib/error.h"
 #include "lib/array.h"
 
-#ifdef EOF
-    const auto EOF_ = EOF;
-    #undef EOF
-    const auto EOF = EOF_;
-#endif
+// #ifdef EOF
+//     const auto EOF_ = EOF;
+//     #undef EOF
+//     const auto EOF = EOF_;
+// #endif
 
 // #ifdef stdout
 //     struct {
@@ -41,6 +42,11 @@ namespace lib::io {
     struct IStream;
     struct OStream;
 
+    struct ReadResult {
+        size nbytes = 0;
+        bool eof    = false;
+    } ;
+
     struct Stream {
         constexpr Stream() = default;
 
@@ -69,26 +75,34 @@ namespace lib::io {
         //      ^                   ^                 ^
         //    writebuf           writeptr          writeend
 
+        // if writebuf == 0: there is no write buffer
+        // if writebuf < 0 and writebuf == writeptr: write buffer has not been created yet but should be -writebuf
+        // if wirtebuf > 0: write buffer exists
+
+        // if readbuf.data == 0: there is no read buffer
+        // if readbuf.data < 0 and readend == readbuf.data: read buffer has not been created yet
+        // if readbuf.data > 0: read buffer exsits
+
         void setbuf(buf);
 
       public:
-        virtual size direct_read(buf bytes, error &err) = 0;
-        virtual size direct_write(str data, error &err) = 0;
+        virtual ReadResult direct_read(buf bytes, error err) = 0;
+        virtual size       direct_write(str data, error err) = 0;
 
-        size read(buf bytes, error &err);
+        ReadResult read(buf bytes, error err);
 
-        size write(str data, error &err);
-        size write(byte byte, error &err);
+        size write(str data, error err);
+        size write(byte byte, error err);
 
-        size write_repeated(str data, size cnt, error &err);
-        size write_repeated(char c, size cnt, error &err);
+        size write_repeated(str data, size cnt, error err);
+        size write_repeated(char c, size cnt, error err);
 
-        byte read_byte(error &err);
+        byte read_byte(error err);
 
         size write_available();
-        size flush(error &err);
+        size flush(error err);
 
-        virtual void close(error &) {}
+        virtual void close(error ) {}
 
         inline operator IStream&();
         inline operator OStream&();
@@ -98,15 +112,19 @@ namespace lib::io {
         virtual ~Stream() {}
 
         friend struct Forwarder;
+
+    private:
+        bool check_readbuf(size);
+        bool check_writebuf(size);
     };
 
     struct IStream : Stream {
     private:
-        size direct_write(str, error&) override final;
+        size direct_write(str, error) override final;
     };
 
     struct OStream : Stream {
-        size direct_read(buf, error&) override final;
+        ReadResult direct_read(buf, error) override final;
     };
 
     Stream::operator IStream&() {
@@ -145,20 +163,22 @@ namespace lib::io {
     };
 
     struct Buffer : Stream {
-        size direct_read(buf bytes, error &err) override;
-        size direct_write(str data, error &err) override;
+        ReadResult direct_read(buf bytes, error err) override;
+        size       direct_write(str data, error err) override;
 
         using Stream::write;
         size write(str data);
 
         void grow(size n);
 
-        size capacity();
-        size used();
-        size available();
-        size length();
+        size capacity() const;
+        size used() const;
+        size available() const;
+        size length() const;
 
         String to_string();
+        lib::str str() const;
+        lib::buf buf();
 
         ~Buffer();
 
@@ -167,16 +187,26 @@ namespace lib::io {
     struct StrStream : IStream {
         StrStream(str s);
 
-        size direct_read(buf bytes, error &err) override;
+        ReadResult direct_read(buf bytes, error err) override;
     };
+
+    // needs optimization to reuse the String's buffer
+    // struct StringStream : Stream {
+    //     String &contents;
+
+    //     StringStream(String &s) : contents(s) {}
+
+    //     size direct_read(buf bytes, error err) override;
+    //     size direct_write(str data, error err) override;
+    // } ;
 
     struct BufStream : Stream {
         BufStream(buf b);
 
         buf bytes();
 
-        size direct_read(buf bytes, error &err) override;
-        size direct_write(str data, error &err) override;
+        ReadResult direct_read(buf bytes, error err) override;
+        size       direct_write(str data, error err) override;
     };
 
     struct StdStream : Stream {
@@ -184,15 +214,15 @@ namespace lib::io {
 
         constexpr StdStream(FILE* file) : file(file) {}
 
-        size direct_read(buf bytes, error &err) override;
-        size direct_write(str data, error &err) override;
+        ReadResult direct_read(buf bytes, error err) override;
+        size       direct_write(str data, error err) override;
     };
 
-    extern StdStream out;
-    extern StdStream err;
+    extern StdStream stdout;
+    extern StdStream stderr;
 
     struct WriterTo {
-        virtual void write_to(io::OStream &out, error &) const = 0;
+        virtual void write_to(io::OStream &out, error) const = 0;
         virtual ~WriterTo() {}
     };
 
@@ -202,9 +232,9 @@ namespace lib::io {
 
         Forwarder(IStream &reader, OStream &writer);
 
-        size direct_read(buf bytes, error &err) override;
-        size direct_write(str data, error &err) override;
+        ReadResult direct_read(buf bytes, error err) override;
+        size       direct_write(str data, error err) override;
 
-        void close(error &) override;
+        void close(error) override;
     };
 }

@@ -2,7 +2,7 @@
 
 namespace lib::fmt {
     
-    const array<uint16> IsPrint16 = (uint16[]) {
+    const arr<uint16> IsPrint16 = (uint16[]) {
         0x0020, 0x007e,
         0x00a1, 0x0377,
         0x037a, 0x037e,
@@ -240,7 +240,7 @@ namespace lib::fmt {
         0xfffc, 0xfffd
     };
     
-    const array<uint16> IsNotPrint16 = (uint16[]) {
+    const arr<uint16> IsNotPrint16 = (uint16[]) {
         0x00ad,
         0x038b,
         0x038d,
@@ -379,7 +379,7 @@ namespace lib::fmt {
         0xffe7
     };
     
-    const array<uint32> IsPrint32 = (uint32[]) {
+    const arr<uint32> IsPrint32 = (uint32[]) {
         0x010000, 0x01004d,
         0x010050, 0x01005d,
         0x010080, 0x0100fa,
@@ -491,7 +491,7 @@ namespace lib::fmt {
         0x0e0100, 0x0e01ef
     };
     
-    const array<uint16> IsNotPrint32 = (uint16[]) {
+    const arr<uint16> IsNotPrint32 = (uint16[]) {
         0x000c,
         0x0027,
         0x003b,

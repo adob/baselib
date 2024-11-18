@@ -1,10 +1,10 @@
 #pragma once
 
 #include <sstream>
-#include <type_traits>
+#include <tuple>
 #include <utility>
-#include "lib/io.h"
-#include "lib/io/io_stream.h"
+
+#include "../io/io_stream.h"
 
 #ifdef __GXX_RTTI
 #include <typeinfo>
@@ -35,7 +35,7 @@ namespace lib::fmt {
     constexpr bool is_formattable(...) { return false; }
 
     template <typename T>
-    void write(io::OStream &out, T const &t, error &err);
+    void write(io::OStream &out, T const &t, error err);
 
     template <typename... Args>
     void printf(str format, const Args &... args);
@@ -55,7 +55,7 @@ namespace lib::fmt {
     struct Stringifier final : io::WriterTo  {
         T const& t;
         Stringifier(T const& t) : t(t) {}
-        void write_to(io::OStream &out, error &) const override;
+        void write_to(io::OStream &out, error) const override;
     };
 
     template <typename T>
@@ -95,7 +95,7 @@ namespace lib::fmt {
             } ;
         } ;
 
-        Fmt(io::OStream &out, error &err) : out(out), err(err) {}
+        Fmt(io::OStream &out, error err) : out(out), err(err) {}
 
         void write(byte b);
         void write(char c);
@@ -136,15 +136,15 @@ namespace lib::fmt {
                 return;
             }
             constexpr bool is_formattable1 = requires(const T& t2) {
-                t.fmt(std::declval<io::OStream&>(), std::declval<error&>());
+                t.fmt(std::declval<io::OStream&>(), std::declval<error>());
             };
             if constexpr (is_formattable1) {
                 struct WriterToWrapper : io::WriterTo {
                     const T &obj;
                     WriterToWrapper(T const& t) : obj(t) {}
 
-                    void write_to(io::OStream &ostream, error &err2) const override {
-                        obj.fmt(ostream, err2);
+                    void write_to(io::OStream &ostream, error err) const override {
+                        obj.fmt(ostream, err);
                     }
                 };
                 WriterToWrapper w(t);
@@ -226,12 +226,12 @@ namespace lib::fmt {
     }
 
     template <typename T>
-    void Stringifier<T>::write_to(io::OStream &out, error &err) const {
+    void Stringifier<T>::write_to(io::OStream &out, error err) const {
         fmt::write(out, t, err);
     }
 
     template <typename T>
-    void write(io::OStream &out, T const &t, error &err) {
+    void write(io::OStream &out, T const &t, error err) {
         Fmt fmt(out, err);
         fmt.write(t);
     }
@@ -302,7 +302,7 @@ namespace lib::fmt {
 
     template <typename... Args>
     void printf(str format, const Args  & ... args) {
-        fprintf(io::out, format, args...);
+        fprintf(io::stdout, format, args...);
     }
 
     template <typename... Args>
@@ -326,13 +326,63 @@ namespace lib::fmt {
 
       return buffer.to_string();
     }
+
+    // template <typename... Args>
+    // void sprintf(String &s, str format, const Args & ... args) {
+    //     io::StrStream sstream(s);
+    //     fprintf(sstream, format, args...);
+    // }
+
+    namespace detail {
+
+        template<typename Tuple, usize... I>
+        void fprintf_apply(io::OStream &out, str format, Tuple &&t, std::index_sequence<I...>) {
+            fmt::fprintf(out, format, std::get<I>(t)...);
+        }
+    }
+
+    template <typename... Args>
+    struct FmtWriterTo : io::WriterTo {
+        str format;
+        std::tuple<Args...> args;
+
+        FmtWriterTo(str format, const Args & ... args) : format(format), args(args...) {}
+
+        void write_to(io::OStream &out, error) const override {
+            detail::fprintf_apply(
+                out,
+                format,
+                args,
+                std::make_index_sequence< 
+                    std::tuple_size_v<std::tuple<Args...>>>());
+        }
+
+        operator String() {
+             io::Buffer buffer;
+             write_to(buffer, error::ignore);
+             return buffer.to_string();
+        }
+    } ;
+
+    template<typename... Args>
+    FmtWriterTo<> sprintf(str format, const Args & ... args) {
+        return FmtWriterTo<Args...>(format, args...);
+    }
 }
 
-template <typename... Args>
-void lib::error::operator()(str fmt, const Args  & ...args) {
-    String s = fmt::sprintf(fmt, args...);
-    (*this)(s);
+namespace lib {
+    template<typename ...Args>
+    void error::operator()(str f, const Args &... args) {
+        auto writer = fmt::sprintf(f, args...);
+        reporter.report(FormattedError(writer));
+    }
 }
+
+// template <typename... Args>
+// void lib::error::operator()(str fmt, const Args  & ...args) {
+//     String s = fmt::sprintf(fmt, args...);
+//     (*this)(s);
+// }
 
 
 //#include "fmt.inlines.h"

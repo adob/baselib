@@ -27,9 +27,10 @@ extern "C" {
 #include "lib/exceptions.h"
 #include "lib/fmt.h"
 #include "lib/mem.h"
-//#include "sharedlib/print.h"
+//#include "../print.h"
 
 using namespace lib;
+using namespace debug;
 
 static void crash_handler() {
     
@@ -38,7 +39,7 @@ static void crash_handler() {
     std::exception_ptr excep = std::current_exception();
     try {
         std::rethrow_exception(excep);
-    } catch (error const& err) {
+    } catch (Error const& err) {
         fmt::fprintf(stderr, " error: %s", err);
     }  catch (Exception &e) {
         //fmt::printf("ptr %d\n", (uintptr_t) e.msg.buffer.data);
@@ -113,7 +114,7 @@ static void sigsegv_handler(int /*signum*/, siginfo_t *siginfo, void*) {
 }
 
 static void sigquit_handler(int /*signum*/, siginfo_t *siginfo, void*) {
-    fmt::fprintf(io::err, "caught SIGQUIT\n");
+    fmt::fprintf(io::stderr, "caught SIGQUIT\n");
     debugme_debug(0, "");
 }
 
@@ -167,4 +168,26 @@ void debug::init() {
     if (err) {
          perror("debug::init: sigaltstack");
     }
+}
+
+Backtrace debug::backtrace(int offset) {
+    panic("unimplemented");
+    return {};
+}
+
+SymInfo debug::get_symbol_info(void *ptr) {
+    backward::Trace trace(ptr, 0);
+
+    backward::TraceResolver resolver;
+    backward::ResolvedTrace resolved = resolver.resolve(trace);
+
+    //fmt::printf("function %q\n", resolved.object_function);
+    // fmt::printf("filename %q\n", resolved.source.filename);
+    
+    return SymInfo {
+        .demangled = resolved.object_function,
+        .filename  = resolved.source.filename,
+        .lineno    = int(resolved.source.line),
+        .colno     = int(resolved.source.col),
+    } ;
 }

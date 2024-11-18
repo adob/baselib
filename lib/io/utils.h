@@ -5,15 +5,14 @@
 
 namespace lib::io {
     using namespace lib;
+
+    //struct EOF : ErrorBase<EOF, "EOF"> {};
+    struct ErrUnexpectedEOF : ErrorBase<ErrUnexpectedEOF, "unexpected EOF"> {};
+    struct ErrShortWrite    : ErrorBase<ErrShortWrite, "short write"> {};
+    struct ErrShortBuffer   : ErrorBase<ErrShortBuffer, "short buffer"> {};
+    struct ErrIO            : ErrorBase<ErrIO, "IO error"> {};
     
-    extern deferror EOF;
-    extern deferror ErrUnexpectedEOF;
-    extern deferror ErrShortWrite;
-    extern deferror ErrShortBuffer;
+    size read_full(io::IStream &in, buf buffer, error err);
     
-    extern deferror ErrIO;
-    
-    size read_full(io::IStream &in, buf buffer, error &err);
-    
-    size read_at_least(io::IStream &in, buf buffer, size min, error &err);
+    size read_at_least(io::IStream &in, buf buffer, size min, error err);
 }

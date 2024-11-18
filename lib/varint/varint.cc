@@ -2,11 +2,11 @@
 
 using namespace lib;
 
-deferror varint::ErrOverflow("varint overflow");
+Error varint::ErrOverflow("varint overflow");
 
 //const int MaxVarintLen64 = 10;
 
-uint32 varint::read_uint32(io::IStream &in, error &err) {
+uint32 varint::read_uint32(io::IStream &in, error2 &err) {
     byte b = in.read_byte(err);
     if (b < 0x80) {
         return uint32(b);
@@ -49,7 +49,7 @@ uint32 varint::read_uint32(io::IStream &in, error &err) {
     return result;
 }
 
-int32 varint::read_sint32(io::IStream &in, error &err) {
+int32 varint::read_sint32(io::IStream &in, error2 &err) {
     uint32 value = read_uint32(in, err);
     
     if (value & 1) {
@@ -64,7 +64,7 @@ int32 varint::read_sint32(io::IStream &in, error &err) {
 //     return varint::read_uint32(in, err);
 // }
 
-void varint::write_uint32(io::OStream &out, uint32 i, error &err) {
+void varint::write_uint32(io::OStream &out, uint32 i, error2 &err) {
     while (i >= 0x80) {
         out.write(byte(i) | 0x80, err);
         if (err) {
@@ -76,7 +76,7 @@ void varint::write_uint32(io::OStream &out, uint32 i, error &err) {
     out.write(byte(i), err);
 }
 
-void varint::write_sint32(io::OStream &out, int32 value, error &err) {
+void varint::write_sint32(io::OStream &out, int32 value, error2 &err) {
     uint32 zigzagged;
     const uint32 mask = -1 >> 1;
     

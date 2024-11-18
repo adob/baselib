@@ -7,7 +7,7 @@ using namespace lib;
 using namespace fmt;
 
 State::State(io::OStream &out, str format) :
-    Fmt(out, error::ignore()),
+    Fmt(out, error::ignore),
     begin(format.begin()),
     end(format.end()) {}
 
@@ -114,11 +114,11 @@ void Fmt::write_integer(T n, bool negative) {
         out.write_repeated(padchar, pad_width, err);
     }
     if (negative)
-        out.write('-', error::ignore());
+        out.write('-', error::ignore);
     else if (plus)
-        out.write('+', error::ignore());
+        out.write('+', error::ignore);
     else if (space)
-        out.write(' ', error::ignore());
+        out.write(' ', error::ignore);
     if (sharp) {
         if (base == 8)       out.write('0', err);
         else if (base == 2)  out.write("0b", err);
@@ -329,7 +329,7 @@ void Fmt::write(char *p) {
 void Fmt::write(const wchar_t *p) {
     // const rune *rp = (const rune*) p;
     size length = wcslen(p);
-    array<const wchar_t> data(p, length);
+    arr<const wchar_t> data(p, length);
 
     utf8::Encoder enc { data };
     write((io::WriterTo &) enc);

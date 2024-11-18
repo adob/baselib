@@ -70,7 +70,7 @@ static void quote_with(io::OStream &out, str s, char quote, bool ascii_only, err
 // bsearch returns the smallest i such that a[i] >= x.
 // If there is no such i, bsearch returns len(a).
 template <typename T>
-static size bsearch(array<T> a, uint32 x) {
+static size bsearch(arr<T> a, uint32 x) {
     size i = 0, j = len(a);
     while (i < j) {
         size h = i + (j-i)/2;
@@ -83,7 +83,7 @@ static size bsearch(array<T> a, uint32 x) {
     return i;
 }
 
-void StrQuoter::write_to(io::OStream &out, error &err) const {
+void StrQuoter::write_to(io::OStream &out, error err) const {
     quote_with(out, s, '"', ascii_only, err);
 }
 
@@ -92,7 +92,7 @@ StrQuoter fmt::quote(str s, bool ascii_only) {
 }
 
 
-void RuneQuoter::write_to(io::OStream &out, error &err) const {
+void RuneQuoter::write_to(io::OStream &out, error err) const {
     Array<char, utf8::UTFMax> buf;
     quote_with(out, utf8::encode(r, buf), '\'', ascii_only, err);
 }

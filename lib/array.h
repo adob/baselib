@@ -1,10 +1,12 @@
 #pragma once
 
 #include "assert.h"
+#include "lib/types.h"
 #include "str.h"
 #include "buf.h"
 #include "assert.h"
 #include "exceptions.h"
+#include <initializer_list>
 namespace lib {
 
     template <typename T, size N>
@@ -140,118 +142,221 @@ namespace lib {
     }
 
     template <typename T>
-    struct array {
-        T       *arr;
+    struct arr {
+        T       *data;
         size     len;
 
-
-        constexpr array() : arr(nullptr), len(0) {}
-        constexpr array(T *t, usize len) : arr(t), len(len) {}
-
-        template <size N>
-        constexpr array(T (&arr)[N])  : arr(arr), len(N) { }
+        constexpr arr() : data(nullptr), len(0) {}
+        constexpr arr(T *t, usize len) : data(t), len(len) {}
 
         template <size N>
-        constexpr array(T (&&arr)[N]) : arr(arr), len(N) { }
+        constexpr arr(T (&arr)[N])  : data(arr), len(N) { }
 
-        array slice(size i) const {
+        template <size N>
+        constexpr arr(T (&&arr)[N]) : data(arr), len(N) { }
+
+        arr slice(size i) const {
             assert(usize(i) <= usize(len), exceptions::bad_index, i, len);
-            return array(arr+i, len-i);
+            return arr(data+i, len-i);
         }
 
-        array slice(size i, size j) const {
+        arr slice(size i, size j) const {
             assert(usize(i) <= usize(len), exceptions::bad_index, i , len);
             assert(i <= j, exceptions::bad_index, i, j);
-            return array(arr+i, j-i);
+            return arr(data+i, j-i);
         }
 
-        array operator () (size i) const {
+        arr operator () (size i) const {
             return slice(i);
         }
 
-        array operator () (size i, size j) const {
+        arr operator () (size i, size j) const {
             return slice(i, j);
         }
 
         T& operator [] (size i) {
             assert(usize(i) < usize(len), exceptions::bad_index, i, len-1);
-            return arr[i];
+            return data[i];
         }
-        constexpr const T& operator [] (size i) const {
-            assert(usize(i) < usize(len), exceptions::bad_index, i, len-1);
-            return arr[i];
-        }
-
-        constexpr T* begin() {
-            return arr;
-        }
-
-        constexpr const T* begin() const {
-            return arr;
-        }
-
-        constexpr T* end() {
-            return arr + len;
-        }
-
-        constexpr const T* end() const {
-            return arr + len;
-        }
-
-    };
-
-    template <typename T>
-    struct view {
-        const T  *data;
-        size     len;
-
-
-        constexpr view() : data(nullptr), len(0) {}
-        constexpr view(const T *t, size len) : data(t), len(len) {}
-
-        template <size N>
-        constexpr view(const T (&data)[N])  : data(data), len(N) { }
-
-        template <size N>
-        constexpr view(T (&&data)[N]) : data(data), len(N) { }
-
-        view slice(size i) const {
-            assert(usize(i) <= usize(len), exceptions::bad_index, i, len);
-            return view(data+i, len-i);
-        }
-
-        view slice(size i, size j) const {
-            assert(usize(i) <= usize(len), exceptions::bad_index, i , len);
-            assert(i <= j, exceptions::bad_index, i, j);
-            return array(data+i, j-i);
-        }
-
-        view operator () (size i) const {
-            return slice(i);
-        }
-
-        view operator () (size i, size j) const {
-            return slice(i, j);
-        }
-
         constexpr const T& operator [] (size i) const {
             assert(usize(i) < usize(len), exceptions::bad_index, i, len-1);
             return data[i];
         }
 
+        constexpr arr operator + (size offset) const {
+            return slice(offset);
+        }
+
+        constexpr T* begin() {
+            return data;
+        }
 
         constexpr const T* begin() const {
             return data;
+        }
+
+        constexpr T* end() {
+            return data + len;
         }
 
         constexpr const T* end() const {
             return data + len;
         }
 
+        constexpr bool operator == (const arr<T> &other) const {
+            if (len != other.len) {
+                return false;
+            }
+
+            for (size i = 0; i < len; i++) {
+                if (data[i] != other.data[i]) {
+                    return false;
+                }
+            }
+
+            return true;
+        }
     };
 
     template <typename T>
-    constexpr size len(array<T> arr) {
+    struct view : arr<const T> {
+
+        constexpr view() {}
+        constexpr view(const T *t, usize len) : arr<const T>(t, len) {}
+
+        template <size N>
+        constexpr view(const T (&data)[N])  : arr<const T>(data, N) {}
+
+        constexpr view(std::initializer_list<T> list) : arr<const T>(list.begin(), list.size()) {}
+
+        // view slice(size i) const {
+        //     assert(usize(i) <= usize(len), exceptions::bad_index, i, len);
+        //     return arr(data+i, len-i);
+        // }
+
+        // view slice(size i, size j) const {
+        //     assert(usize(i) <= usize(len), exceptions::bad_index, i , len);
+        //     assert(i <= j, exceptions::bad_index, i, j);
+        //     return arr(data+i, j-i);
+        // }
+
+        // view operator () (size i) const {
+        //     return slice(i);
+        // }
+
+        // view operator () (size i, size j) const {
+        //     return slice(i, j);
+        // }
+
+        // T& operator [] (size i) {
+        //     assert(usize(i) < usize(len), exceptions::bad_index, i, len-1);
+        //     return data[i];
+        // }
+        // constexpr const T& operator [] (size i) const {
+        //     assert(usize(i) < usize(len), exceptions::bad_index, i, len-1);
+        //     return data[i];
+        // }
+
+        // constexpr view operator + (size offset) const {
+        //     return slice(offset);
+        // }
+
+        // constexpr T* begin() {
+        //     return data;
+        // }
+
+        // constexpr const T* begin() const {
+        //     return data;
+        // }
+
+        // constexpr T* end() {
+        //     return data + len;
+        // }
+
+        // constexpr const T* end() const {
+        //     return data + len;
+        // }
+
+        // constexpr bool operator == (const arr<T> &other) const {
+        //     if (len != other.len) {
+        //         return false;
+        //     }
+
+        //     for (size i = 0; i < len; i++) {
+        //         if (data[i] != other.data[i]) {
+        //             return false;
+        //         }
+        //     }
+
+        //     return true;
+        // }
+    };
+
+    // template <typename T>
+    // struct view {
+    //     const T  *data;
+    //     size     len;
+
+
+    //     constexpr view() : data(nullptr), len(0) {}
+    //     constexpr view(const T *t, size len) : data(t), len(len) {}
+
+    //     template <size N>
+    //     constexpr view(const T (&data)[N])  : data(data), len(N) { }
+
+    //     template <size N>
+    //     constexpr view(T (&&data)[N]) : data(data), len(N) { }
+
+    //     view slice(size i) const {
+    //         assert(usize(i) <= usize(len), exceptions::bad_index, i, len);
+    //         return view(data+i, len-i);
+    //     }
+
+    //     view slice(size i, size j) const {
+    //         assert(usize(i) <= usize(len), exceptions::bad_index, i , len);
+    //         assert(i <= j, exceptions::bad_index, i, j);
+    //         return array(data+i, j-i);
+    //     }
+
+    //     view operator () (size i) const {
+    //         return slice(i);
+    //     }
+
+    //     view operator () (size i, size j) const {
+    //         return slice(i, j);
+    //     }
+
+    //     constexpr const T& operator [] (size i) const {
+    //         assert(usize(i) < usize(len), exceptions::bad_index, i, len-1);
+    //         return data[i];
+    //     }
+
+    //     constexpr view operator + (size offset) {
+    //         return slice(offset);
+    //     }
+
+    //     constexpr view operator + (size offset) const {
+    //         return slice(offset);
+    //     }
+
+
+    //     constexpr const T* begin() const {
+    //         return data;
+    //     }
+
+    //     constexpr const T* end() const {
+    //         return data + len;
+    //     }
+
+    // };
+
+    template <typename T>
+    constexpr size len(arr<T> arr) {
+        return arr.len;
+    }
+
+    template <typename T>
+    constexpr size len(view<T> arr) {
         return arr.len;
     }
 

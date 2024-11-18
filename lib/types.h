@@ -2,8 +2,6 @@
 #include <stdint.h>
 #include <stddef.h>
 
-//#include "pw_span/span.h"
-
 namespace lib {
 
     using uint    = unsigned int;
@@ -29,14 +27,32 @@ namespace lib {
     using float32 = float;
     using float64 = double;
 
+    using intptr  = intptr_t;
+    using uintptr = uintptr_t;
+
     const decltype(nullptr) nil = nullptr;
 
-    //using bytes = pw::span<const byte>;
 
     struct noncopyable {
         constexpr noncopyable() noexcept {}
         noncopyable(noncopyable const&) = delete;
         noncopyable& operator = (noncopyable const&) = delete;
+    } ;
+
+    template<size_t N>
+    struct StringLiteral {
+        constexpr StringLiteral(const char (&str)[N]) {
+            for (size i = 0; i < N; i++) {
+                value[i]= str[i];
+            }
+        }
+        
+        char value[N];
+    } ;
+
+    template<>
+    struct StringLiteral<0> {
+        constexpr StringLiteral() {}
     } ;
 
 }

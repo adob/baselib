@@ -114,12 +114,12 @@ size utf8::count(str s) {
 size utf8::count(io::WriterTo const& writable) {
     RuneCounter counter;
     
-    writable.write_to(counter, error::ignore());
+    writable.write_to(counter, error::ignore);
     
     return counter.runecount;
 }
 
-size RuneCounter::direct_write(str s, error &err) {
+size RuneCounter::direct_write(str s, error err) {
     runecount += state.count(s);
     
     if (!out) {

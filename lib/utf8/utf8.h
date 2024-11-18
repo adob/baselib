@@ -42,7 +42,7 @@ namespace lib::utf8 {
         RuneCounter()                 : out(nil) {}
         RuneCounter(io::OStream &out) : out(&out) {};
         
-        size direct_write(str data, error &err) override;
+        size direct_write(str data, error err) override;
         
       private:
           RuneCounterState state;

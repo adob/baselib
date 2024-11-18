@@ -5,18 +5,19 @@
 #include <unistd.h>
 
 #include "error.h"
+#include "lib/os/file.h"
 
 using namespace lib;
 using namespace os;
 
-FileInfo os::stat(str path, error &err) {
-    struct stat statbuf;
+// FileInfo os::stat(str path, error err) {
+//     FileInfo fi;
 
-    int r = ::stat(path.c_str(), &statbuf);
-    if (r) {
-        err(os::from_errno(errno));
-        return {};
-    }
+//     int r = ::stat(path.c_str(), &fi.stat);
+//     if (r) {
+//         err(os::from_errno(errno));
+//         return {};
+//     }
 
-    return {};
-}
+//     return {};
+// }

@@ -1,12 +1,9 @@
 #pragma once
 
-#include "lib/base.h"
+#include "types.h"
+#include "lib/fs/fs.h"
 
 
 namespace lib::os {
-    struct FileInfo { 
-        int64 size;
-    } ;
-
-    FileInfo stat(str path, error&);
+    // FileInfo stat(str path, error&);
 }

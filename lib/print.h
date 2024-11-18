@@ -24,8 +24,8 @@ namespace prettyprint {
         
         template <typename T>
         PrintUnformatted& operator , (T const &t) {
-            out.write(' ', error::ignore());
-            fmt::write(out, t, error::ignore());
+            out.write(' ', error::ignore);
+            fmt::write(out, t, error::ignore);
             return *this;
         }
     } ;
@@ -46,7 +46,7 @@ namespace prettyprint {
             PrintUnformatted pu(printer.out);
             
             str format = str(printer.begin, printer.end - printer.begin);
-            printer.out.write(format, error::ignore());
+            printer.out.write(format, error::ignore);
             
             pu, t;
             
@@ -57,7 +57,7 @@ namespace prettyprint {
         ~PrintUndecided() {
             str s(printer.begin, printer.end - printer.begin);
             if (s) {
-                printer.out.write(s, error::ignore());
+                printer.out.write(s, error::ignore);
             }
         }
 
@@ -82,11 +82,11 @@ namespace prettyprint {
         }
         
         ~Print() {
-             out.write('\n', error::ignore());
+             out.write('\n', error::ignore);
         }
 
     } ;
 }
 
-#define print  (::prettyprint::Print(::lib::io::out))*
-#define eprint (::prettyprint::Print(::lib::io::err))*
+#define print  (::prettyprint::Print(::lib::io::stdout))*
+#define eprint (::prettyprint::Print(::lib::io::stderr))*

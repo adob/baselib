@@ -9,7 +9,7 @@ namespace lib::fmt {
         bool ascii_only;
         
         StrQuoter(str s, bool ascii_only) : s(s), ascii_only(ascii_only) {}
-        void write_to(io::OStream &out, error &err) const override;
+        void write_to(io::OStream &out, error err) const override;
     };
     
     struct RuneQuoter : io::WriterTo {
@@ -17,7 +17,7 @@ namespace lib::fmt {
         bool ascii_only;
         
         RuneQuoter(rune r, bool ascii_only) : r(r), ascii_only(ascii_only) {}
-        void write_to(io::OStream &out, error &err) const override;
+        void write_to(io::OStream &out, error err) const override;
     };
 
 //     struct StreamQuoter : io::OStream, io::WriterTo {

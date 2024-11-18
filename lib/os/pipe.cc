@@ -7,11 +7,11 @@
 
 using namespace lib;
 
-os::FilePair os::pipe(error &err) {
+os::FilePair os::pipe(error2 &err) {
     return pipe(0, err);
 }
 
-os::FilePair os::pipe(int flags, error &err) {
+os::FilePair os::pipe(int flags, error2 &err) {
     int pipefds[2];
     
     int r = ::pipe2(pipefds, flags);
