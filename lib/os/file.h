@@ -23,7 +23,7 @@ namespace lib::os {
         
         // read reads up to len(b) bytes into b and returns the number of bytes read. At end of 
         // file, 0 is returned.
-        size direct_read(buf b, error err) override;
+        io::ReadResult direct_read(buf b, error err) override;
 
         size direct_write(str data, error err) override;
         
@@ -39,6 +39,9 @@ namespace lib::os {
         ~File();
         
         friend File open(str, int, error);
+
+      private:
+        void wrap_err(str op, const Error &wrapped, error err);
     };
     
     // Open opens the named file for reading. If successful, methods on
@@ -66,4 +69,5 @@ namespace lib::os {
     void write_file(str name, str data, error err);
 
     String read_file(str name, error err);
+
 }

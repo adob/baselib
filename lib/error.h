@@ -85,7 +85,7 @@ namespace lib {
     struct ErrorBase<T, StringLiteral<0>{}> : Error {
         //static constexpr TypeID type = type_id<T>;
 
-        ErrorBase() : error(type_id<T>) {}
+        ErrorBase() : Error(type_id<T>) {}
     } ;
 
     // //template <StringLiteral lit = StringLiteral<0>{}>

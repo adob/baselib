@@ -46,8 +46,8 @@ namespace lib::fmt {
     template <typename... Args>
     void fprintf(io::OStream&, str format, const Args & ... args);
 
-    template <typename... Args>
-    String sprintf(str format, const Args & ... args);
+    // template <typename... Args>
+    // String sprintf(str format, const Args & ... args);
 
 
     // stringifier
@@ -157,6 +157,25 @@ namespace lib::fmt {
             };
             if constexpr (is_formattable2) {
                 t.fmt(*this);
+                return;
+            }
+
+            constexpr bool is_describable = requires {
+                t.describe(std::declval<io::OStream&>);
+            };
+            if constexpr (is_describable) {
+                // struct WriterToWrapper : io::WriterTo {
+                //     const T &obj;
+                //     WriterToWrapper(T const& t) : obj(t) {}
+
+                //     void write_to(io::OStream &ostream, error) const override {
+                //         obj.describe(ostream);
+                //     }
+                // };
+                // WriterToWrapper w(t);
+                // write((io::WriterTo &) w);
+                t.describe(out);
+
                 return;
             }
 
@@ -318,14 +337,14 @@ namespace lib::fmt {
         (printer << ... << args).flush();
     }
 
-    template <typename... Args>
-    String sprintf(str format, const Args & ... args) {
-      io::Buffer buffer;
+    // template <typename... Args>
+    // String sprintf(str format, const Args & ... args) {
+    //   io::Buffer buffer;
 
-      fprintf(buffer, format, args...);
+    //   fprintf(buffer, format, args...);
 
-      return buffer.to_string();
-    }
+    //   return buffer.to_string();
+    // }
 
     // template <typename... Args>
     // void sprintf(String &s, str format, const Args & ... args) {
@@ -365,7 +384,7 @@ namespace lib::fmt {
     } ;
 
     template<typename... Args>
-    FmtWriterTo<> sprintf(str format, const Args & ... args) {
+    auto sprintf(str format, const Args & ... args) {
         return FmtWriterTo<Args...>(format, args...);
     }
 }

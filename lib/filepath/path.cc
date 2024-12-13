@@ -54,7 +54,7 @@ int filepath::volume_name_len(str /*path*/) {
 
 String filepath::from_slash(str path) {
     if (Separator == '/') {
-		return path
+		return path;
 	}
 
 	return strings::replace_all(path, '/', Separator);

@@ -10,8 +10,10 @@
 #include "file.h"
 #include "error.h"
 #include "lib/error.h"
+#include "lib/fmt/fmt.h"
 #include "lib/fs/fs.h"
 #include "lib/filepath/path.h"
+#include "lib/io/io_stream.h"
 #include "lib/io/utils.h"
 #include "lib/os/file_posix.h"
 #include "lib/os/types.h"
@@ -47,7 +49,7 @@ retry:
             goto retry;
         }
 
-        return err(fs::PathError("close", this->name, Errno(errno)));
+        return err(PathError("close", this->name, Errno(errno)));
     }
 }
 
@@ -177,16 +179,10 @@ String os::read_file(str path, error err) {
     size bytes_read = 0;
     
     for (;;) {
-        bool eof = false;
-        bytes_read += f.direct_read(s.buffer+bytes_read, ErrorReporter([&](const Error &e) {
-            if (e.is<io::EOF>()) {
-                eof = true;
-                return;
-            }
-            err(e);
-        }));
+        io::ReadResult r = f.direct_read(s.buffer+bytes_read, err);
+        bytes_read += r.nbytes;
 
-        if (err || eof) {
+        if (err || r.eof) {
             break;
         }
 
@@ -227,26 +223,31 @@ String os::read_file(str path, error err) {
 
 }
 
-size os::File::direct_read(buf b, error err) {
+io::ReadResult os::File::direct_read(buf b, error err) {
+    io::ReadResult r;
   retry:
     size ret = ::read(fd, b.data, b.len);
     if (ret == -1) {
         if (errno == EINTR) {
             goto retry;
         }
-        err(os::from_errno(errno));
-        return 0;
+        err(PathError("read", this->name, Errno(errno)));
+        return r;
     }
+
     if (ret == 0) {
-        err(io::EOF);
+        r.eof = true;
     }
     
+    r.nbytes += ret;
+
+
     // print "direct_read <%d> <%x>" % ret, b[0];
     // for (size i = 0; i < ret; i++) {
     //     printf("%02x ", b[i]);
     // }
     // printf("\n");
-    return ret;
+    return r;
 }
 
 // size os::File::read_full(buf b, error& err) {
@@ -279,22 +280,27 @@ size os::File::direct_write(str data, error err) {
     size want = len(data);
 
     retry:
-    size ret = ::write(fd, data.data, data.len);
-    if (ret == -1) {
+    size n = ::write(fd, data.data, data.len);
+    if (n == -1) {
         if (errno == EINTR) {
             goto retry;
         }
-        err(os::from_errno(errno));
+        wrap_err("write", Errno(errno), err);
+
         return total;
     }
+
+    if (n > len(data)) {
+        panic(fmt::sprintf("invalid return from write: got %d from write of %d", n, len(data)));
+    }
     
-    total += ret;
+    total += n;
     if (total < want) {
-        if (ret == 0) {
-            err(io::ErrUnexpectedEOF);
+        if (n == 0) {
+            wrap_err("write", io::ErrUnexpectedEOF(), err);
             return total;
         }
-        data = data(total);
+        data = data+total;
         goto retry;
     }
     return total;
@@ -314,8 +320,14 @@ File& File::operator = (File&& other) {
 }
 
 os::File::~File() {
-    if (fd != -1) {
-        flush(error2::ignore());
-        ::close(fd);  // ignore error
+    if (fd == -1) {
+        return;
     }
+
+    flush(error::ignore);
+    ::close(fd);  // ignore error
+}
+
+void File::wrap_err(str op, const Error &wrapped, error err) {
+    err(PathError(op, this->name, wrapped));
 }

@@ -5,6 +5,7 @@
 #include <time.h>
 
 #include "lib/os.h"
+#include "lib/os/error.h"
 
 
 using namespace lib;
@@ -61,7 +62,7 @@ time::monotime time::clock() {
     struct timespec ts;
     int ret = clock_gettime(CLOCK_BOOTTIME, &ts);
     if (ret) {
-        panic(os::from_errno(errno));
+        panic(os::Errno(errno));
     }
 
     return { ts.tv_sec*1'000'000'000 + ts.tv_nsec };
@@ -71,7 +72,7 @@ time::time time::now() {
     struct timespec boottime;
     int ret = clock_gettime(CLOCK_BOOTTIME, &boottime);
     if (ret) {
-        panic(os::from_errno(errno));
+        panic(os::Errno(errno));
     }
 
     int64 mono = boottime.tv_sec*1'000'000'000 + boottime.tv_nsec;
@@ -79,7 +80,7 @@ time::time time::now() {
     struct timespec walltime;
     ret = clock_gettime(CLOCK_REALTIME, &walltime);
     if (ret) {
-        panic(os::from_errno(errno));
+        panic(os::Errno(errno));
     }
 
     int64 sec = walltime.tv_sec;
@@ -94,7 +95,7 @@ time::time time::now() {
 		return time{uint64(nsec), sec + MinWall};
     }
 
-    return {HasMonotonic | uint64(sec) << NsecShift | uint64(nsec), mono, &Local};
+    return {HasMonotonic | uint64(sec) << NsecShift | uint64(nsec), mono, /*&Local*/};
 }
 
 void time::sleep(duration d) {

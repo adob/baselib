@@ -34,6 +34,15 @@ namespace lib::os {
 
         return false;
     }
+
+    void SyscallError::describe(io::OStream &out) const {
+        char buf[1024];
+
+        char *s = strerror_r(this->code, buf, sizeof(buf));
+
+        fmt::fprintf(out, "%s: %s", this->syscall, s);
+    }
+
 //     Error ErrPERM("Operation not permitted");
 //     Error ErrNOENT("No such file or directory");
 //     Error ErrSRCH("No such process");

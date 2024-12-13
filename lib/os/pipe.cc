@@ -7,16 +7,16 @@
 
 using namespace lib;
 
-os::FilePair os::pipe(error2 &err) {
-    return pipe(0, err);
+os::FilePair os::pipe(error err) {
+    return pipe(O_CLOEXEC, err);
 }
 
-os::FilePair os::pipe(int flags, error2 &err) {
+os::FilePair os::pipe(int flags, error err) {
     int pipefds[2];
     
     int r = ::pipe2(pipefds, flags);
-    if (r) {
-        err(os::from_errno(errno));
+    if (r != 0) {
+        err(SyscallError("pipe2", errno));
         return {};
     }
     

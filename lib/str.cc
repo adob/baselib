@@ -14,16 +14,16 @@ CString str::c_str() const {
     return CString(*this);
 }
 
-CString::CString(str s) {
-    len = s.len;
-    data = (char *) malloc(len+1);
-    if (data == nil) {
-        exceptions::out_of_memory();
-    }
-    memmove(data, s.data, s.len);
-    data[len] = '\0';
-}
+// CString::CString(str s) {
+//     len = s.len;
+//     data = (char *) malloc(len+1);
+//     if (data == nil) {
+//         exceptions::out_of_memory();
+//     }
+//     memmove(data, s.data, s.len);
+//     data[len] = '\0';
+// }
 
-CString::~CString() {
-    free(data);
-}
+// CString::~CString() {
+//     free(data);
+// }

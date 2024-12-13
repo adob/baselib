@@ -16,6 +16,14 @@ namespace lib::os {
         
     } ;
 
+    struct SyscallError : ErrorBase<SyscallError> {
+        str syscall;
+        int code;
+
+        SyscallError(str syscall, int code) : syscall(syscall), code(code) {}
+        virtual void describe(io::OStream &out) const override;
+    } ;
+
     using fs::PathError;
 
     using fs::ErrInvalid;
