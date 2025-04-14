@@ -3,58 +3,24 @@
 #include "lib/error.h"
 #include "lib/array.h"
 
-// #ifdef EOF
-//     const auto EOF_ = EOF;
-//     #undef EOF
-//     const auto EOF = EOF_;
-// #endif
-
-// #ifdef stdout
-//     struct {
-//         operator FILE* () {
-//             return stdout;
-//         }
-//         #undef stdout
-//     } const stdout;
-// #endif
-//
-// #ifdef stderr
-//     struct {
-//         operator FILE* () {
-//             return stderr;
-//         }
-//         #undef stderr
-//     } const stderr;
-// #endif
-//
-// #ifdef stdin
-//     struct {
-//         operator FILE* () {
-//             return stdin;
-//         }
-//         #undef stdin
-//     } const stdin;
-// #endif
-
-
 
 namespace lib::io {
-    struct IStream;
-    struct OStream;
+    struct Writer;
+    struct Reader;
 
     struct ReadResult {
         size nbytes = 0;
         bool eof    = false;
     } ;
 
-    struct Stream {
-        constexpr Stream() = default;
+    struct ReaderWriter {
+        constexpr ReaderWriter() = default;
 
-        Stream(Stream const&) = delete;
-        Stream(Stream &&other);
+        ReaderWriter(ReaderWriter const&) = delete;
+        ReaderWriter(ReaderWriter &&other);
 
-        Stream& operator=(Stream const&) = delete;
-        Stream& operator=(Stream&&);
+        ReaderWriter& operator=(ReaderWriter const&) = delete;
+        ReaderWriter& operator=(ReaderWriter&&);
 
       protected:
         buf         readbuf;
@@ -102,14 +68,14 @@ namespace lib::io {
         size write_available();
         size flush(error err);
 
-        virtual void close(error ) {}
+        virtual void close(error) {}
 
-        inline operator IStream&();
-        inline operator OStream&();
+        inline operator Writer&();
+        inline operator Reader&();
 
         void reset();
 
-        virtual ~Stream() {}
+        virtual ~ReaderWriter() {}
 
         friend struct Forwarder;
 
@@ -118,24 +84,24 @@ namespace lib::io {
         bool check_writebuf(size);
     };
 
-    struct IStream : Stream {
+    struct Reader : ReaderWriter {
     private:
         size direct_write(str, error) override final;
     };
 
-    struct OStream : Stream {
+    struct Writer : ReaderWriter {
         ReadResult direct_read(buf, error) override final;
     };
 
-    Stream::operator IStream&() {
-        return static_cast<IStream&>(*this);
+    ReaderWriter::operator Writer&() {
+        return static_cast<Writer&>(*this);
     }
 
-    Stream::operator OStream&() {
-        return static_cast<OStream&>(*this);
+    ReaderWriter::operator Reader&() {
+        return static_cast<Reader&>(*this);
     }
 
-    struct Buffered : Stream {
+    struct Buffered : ReaderWriter {
         Buffered() = default;
         Buffered(Buffered &&other) = default;
         Buffered& operator=(Buffered &&) = default;
@@ -147,7 +113,7 @@ namespace lib::io {
     };
 
     template<int readbuf_size, int writebuf_size>
-    struct StaticBuffered : Stream {
+    struct StaticBuffered : ReaderWriter {
         Array<byte, readbuf_size>  backing_readbuf;
         Array<byte, writebuf_size> backing_writebuf;
 
@@ -162,18 +128,26 @@ namespace lib::io {
         }
     };
 
-    struct Buffer : Stream {
+    struct Buffer : ReaderWriter {
         ReadResult direct_read(buf bytes, error err) override;
         size       direct_write(str data, error err) override;
 
-        using Stream::write;
+        using ReaderWriter::write;
         size write(str data);
+        size write(char c);
 
         void grow(size n);
 
         size capacity() const;
         size used() const;
+
+        // available returns how many bytes are unused in the buffer.
+        // i.e. number of bytes available for writing
         size available() const;
+
+        // length returns the number of bytes of the unread portion of the buffer; b.Len() == len(b.Bytes()).
+        // i.e. number of bytes available for reading
+        // given by writeptr - readptr;
         size length() const;
 
         String to_string();
@@ -181,11 +155,10 @@ namespace lib::io {
         lib::buf buf();
 
         ~Buffer();
-
     };
 
-    struct StrStream : IStream {
-        StrStream(str s);
+    struct Str : Reader {
+        Str(str s);
 
         ReadResult direct_read(buf bytes, error err) override;
     };
@@ -200,41 +173,106 @@ namespace lib::io {
     //     size direct_write(str data, error err) override;
     // } ;
 
-    struct BufStream : Stream {
-        BufStream(buf b);
+    struct Buf : ReaderWriter {
+        Buf(buf b);
 
+        // bytes returns bytes available for reading
+        // given by buf(readptr, writeptr - readptr)
         buf bytes();
 
         ReadResult direct_read(buf bytes, error err) override;
         size       direct_write(str data, error err) override;
+
+        // length returns the number of bytes of the unread portion of the buffer; b.Len() == len(b.Bytes()).
+        // i.e. number of bytes available for reading
+        // given by writeptr - readptr;
+        size length() const;
     };
-
-    struct StdStream : Stream {
-        FILE *file;
-
-        constexpr StdStream(FILE* file) : file(file) {}
-
-        ReadResult direct_read(buf bytes, error err) override;
-        size       direct_write(str data, error err) override;
-    };
-
-    extern StdStream stdout;
-    extern StdStream stderr;
 
     struct WriterTo {
-        virtual void write_to(io::OStream &out, error) const = 0;
+        virtual void write_to(io::Writer &out, error) const = 0;
         virtual ~WriterTo() {}
+
+        void fmt(io::Writer &w, error) const;
     };
 
-    struct Forwarder : Stream {
-        IStream &reader;
-        OStream &writer;
+    struct Forwarder : ReaderWriter {
+        Reader &reader;
+        Writer &writer;
 
-        Forwarder(IStream &reader, OStream &writer);
+        Forwarder(Reader &reader, Writer &writer);
 
         ReadResult direct_read(buf bytes, error err) override;
         size       direct_write(str data, error err) override;
 
         void close(error) override;
     };
+
+    
+
+}
+
+namespace lib {
+    // StringPlus
+
+    template <int N>
+    struct StringPlus : io::WriterTo {
+        std::array<str, N> data;
+        String materialized;
+
+        // template <typename ...Args>
+        constexpr StringPlus(str a, str b) : data({a, b}) {
+            static_assert(N == 2, "wrong numbe of args");
+        }
+
+        constexpr StringPlus(StringPlus<N-1> a, str b) {
+            std::copy(a.data.begin(), a.data.end(), this->data.begin());
+            data[N-1] = b;
+        }
+
+        void write_to(io::Writer &w, error err) const override {
+            for (str s : data) {
+                w.write(s, err);
+                if (err) {
+                    return;
+                }
+            }
+        }
+
+        constexpr StringPlus<N+1> operator + (str other) {
+            return StringPlus<N+1>(*this, other);
+        }
+
+        operator String() {
+            io::Buffer b;
+            this->write_to(b, error::ignore);
+            String materialized = b.to_string();
+            return materialized;
+        }
+
+        operator str() {
+            io::Buffer b;
+            this->write_to(b, error::ignore);
+            this->materialized = b.to_string();
+            return str(materialized);
+        }
+    };
+
+    constexpr StringPlus<2> operator + (str a, str b) {
+        return StringPlus<2>(a, b);
+    }
+
+    template <int N>
+    String& String::operator = (StringPlus<N> const& other) {
+        return *this = String(other);
+    }
+
+    // template <int N>
+    // str::str(StringPlus<N> const &o) {
+    //     io::Buffer b;
+    //     o.write_to(b, error::ignore);
+    //     o.materialized = b.to_string();
+    //     this->data = o.materialized.buffer.data;
+    //     this->len = o.materialized.length;
+    // }
 }

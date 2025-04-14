@@ -11,7 +11,7 @@ namespace lib::os {
 
         Errno(int code) : code(code) {}
 
-        virtual void describe(io::OStream &out) const override;
+        virtual void fmt(io::Writer &out, error err) const override;
         virtual bool is(TypeID) const override;
         
     } ;
@@ -21,14 +21,21 @@ namespace lib::os {
         int code;
 
         SyscallError(str syscall, int code) : syscall(syscall), code(code) {}
-        virtual void describe(io::OStream &out) const override;
+        virtual void fmt(io::Writer &out, error err) const override;
+    } ;
+
+    struct Error : ErrorBase<Error> {
+        str function_name;
+        int code;  // errno code
+
+        Error(str function_name, int code) : function_name(function_name), code(code) {}
+        virtual void fmt(io::Writer &out, error err) const override;
     } ;
 
     using fs::PathError;
 
     using fs::ErrInvalid;
     using fs::ErrPermission;
-    using fs::ErrExist;
     using fs::ErrExist;
     using fs::ErrClosed;
     

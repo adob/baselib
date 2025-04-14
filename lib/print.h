@@ -1,15 +1,17 @@
 #pragma once
 #include <stdio.h>
-#include "io.h"
-#include "fmt.h"
+#include "lib/error.h"
+#include "lib/fmt/fmt.h"
+#include "lib/os/stdio.h"
 
 namespace prettyprint {
     using namespace lib;
     
     struct PrintFormatted {
-        fmt::State printer;
+        ::lib::fmt::State printer;
+        IgnoringError error_handler;
         
-        PrintFormatted(io::OStream &f, str format) :  printer(f, format) {}
+        PrintFormatted(io::Writer &f, str format) :  printer(f, format, error_handler) {}
         
         template <typename T>
         PrintFormatted& operator , (T const &t) {
@@ -19,20 +21,20 @@ namespace prettyprint {
     } ;
     
     struct PrintUnformatted {
-        io::OStream &out;
-        PrintUnformatted(io::OStream &f) : out(f) {}
+        io::Writer &out;
+        PrintUnformatted(io::Writer &f) : out(f) {}
         
         template <typename T>
         PrintUnformatted& operator , (T const &t) {
             out.write(' ', error::ignore);
-            fmt::write(out, t, error::ignore);
+            ::lib::fmt::write(out, t, error::ignore);
             return *this;
         }
     } ;
     
     struct PrintUndecided : PrintFormatted {
         
-        PrintUndecided(io::StdStream &f, str format) : PrintFormatted(f, format) {}
+        PrintUndecided(io::Writer &f, str format) : PrintFormatted(f, format) {}
         
         template <typename T>
         PrintFormatted& operator % (T const& t) {
@@ -64,8 +66,8 @@ namespace prettyprint {
     };
     
     struct Print {
-        io::StdStream &out;
-        Print(io::StdStream &f) : out(f) {}
+        fmt::detail::BufferedWriter out;
+        Print(io::Writer &f) : out(f) {}
         
         template <size_t N>
         PrintUndecided operator * (const char (&str)[N]) {
@@ -77,16 +79,17 @@ namespace prettyprint {
         template <typename T>
         PrintUnformatted operator * (T const& t) {
             PrintUnformatted p(out);
-            p, t;
+            ::lib::fmt::write(out, t, error::ignore);
             return p;
         }
         
         ~Print() {
              out.write('\n', error::ignore);
+             out.flush(error::ignore);
         }
 
     } ;
 }
 
-#define print  (::prettyprint::Print(::lib::io::stdout))*
-#define eprint (::prettyprint::Print(::lib::io::stderr))*
+#define print  (::prettyprint::Print(::lib::os::stdout))*
+#define eprint (::prettyprint::Print(::lib::os::stderr))*

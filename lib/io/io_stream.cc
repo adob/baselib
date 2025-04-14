@@ -1,5 +1,6 @@
 #include <string.h>
 #include <stdio.h>
+#include <sys/types.h>
 
 #include "io_stream.h"
 #include "lib/mem.h"
@@ -15,17 +16,17 @@ using namespace io;
 
 // static deferror ErrNegativeRead("io: read returned negative count");
 
-StdStream io::stdout(::stdout);
-StdStream io::stderr(::stderr);
-
 #pragma GCC diagnostic ignored "-Wshadow"
 
-io::Stream::Stream(io::Stream &&other) {
+// #define LOGF(...) printf(__VA_ARGS__)
+#define LOGF(...)
+
+io::ReaderWriter::ReaderWriter(io::ReaderWriter &&other) {
     // printf("<MC>");
     (*this) = std::move(other);
 }
 
-io::Stream& io::Stream::operator=(Stream&& other) {
+io::ReaderWriter& io::ReaderWriter::operator=(ReaderWriter&& other) {
     // printf("<MA>");
     readbuf = other.readbuf;
     readptr = other.readptr;
@@ -44,7 +45,7 @@ io::Stream& io::Stream::operator=(Stream&& other) {
     return *this;
 }
 
-byte io::Stream::read_byte(error err) {
+byte io::ReaderWriter::read_byte(error err) {
     if (readptr == readend) [[unlikely]] {
         bool use_readbuf = check_readbuf(1);
         
@@ -72,7 +73,7 @@ byte io::Stream::read_byte(error err) {
     return *(readptr++);
 }
 
-ReadResult io::Stream::read(buf p, error err) {
+ReadResult io::ReaderWriter::read(buf p, error err) {
     if (readptr == readend) [[unlikely]] {
         // buffer is empty
 
@@ -114,7 +115,7 @@ ReadResult io::Stream::read(buf p, error err) {
 }
 
 
-bool Stream::check_readbuf(size nbytes) {
+bool ReaderWriter::check_readbuf(size nbytes) {
     intptr ptr = intptr(readbuf.data);
     if (ptr >= 0) {
         // large read
@@ -138,7 +139,7 @@ bool Stream::check_readbuf(size nbytes) {
 }
 
 
-size io::Stream::write(str p, error err) {
+size io::ReaderWriter::write(str p, error err) {
     //::printf("<W>: [%s]\n", p.c_str().data);
     buf avail(writeptr, writeend - writeptr);
 
@@ -199,20 +200,25 @@ size io::Stream::write(str p, error err) {
     return n;
 }
 
-size io::Stream::write(byte b, error err) {
-    // printf("<1-%d/%lx/%lx>", writeptr == writeend, this, writeptr);
+size io::ReaderWriter::write(byte b, error err) {
+    LOGF("io::Stream::write(byte) this %p, writeptr %p; writeend %p\n", this, writeptr, writeend);
+
     if (writeptr == writeend) {
         bool use_writebuf = check_writebuf(1);
 
         if (!use_writebuf) {
             // no buffer
+            LOGF("io::Stream::write(byte) %p 1\n", this);
             return direct_write(buf(&b, 1), err);
         }
         flush(err);
         if (err) {
+            LOGF("io::Stream::write(byte) %p 2\n", this);
             return 0;
         }
     }
+
+    LOGF("io::Stream::write(byte) %p 3\n", this);
 
     (*writeptr++) = b;
     //print "write writeptr", writeptr;
@@ -224,7 +230,8 @@ size io::Stream::write(byte b, error err) {
 
 
 
-bool Stream::check_writebuf(size nbytes) {
+bool ReaderWriter::check_writebuf(size nbytes) {
+    LOGF("io::Stream::check_writebuf this %lx, ptr %ld; size %ld\n", this, intptr(writebuf), nbytes);
     intptr ptr = intptr(writebuf);
     if (ptr > 0) {
         return true;
@@ -248,7 +255,7 @@ bool Stream::check_writebuf(size nbytes) {
     return true;
 }
 
-size io::Stream::write_repeated(str data, size cnt, error err) {
+size io::ReaderWriter::write_repeated(str data, size cnt, error err) {
     size nn = 0;
     for (size i = 0; i < cnt; i++) {
         nn += write(data, err);
@@ -259,7 +266,7 @@ size io::Stream::write_repeated(str data, size cnt, error err) {
     return nn;
 }
 
-size io::Stream::write_repeated(char c, size cnt, error err) {
+size io::ReaderWriter::write_repeated(char c, size cnt, error err) {
     size nn = 0;
     for (size i = 0; i < cnt; i++) {
         nn += write(c, err);
@@ -271,14 +278,15 @@ size io::Stream::write_repeated(char c, size cnt, error err) {
 }
 
 
-size io::Stream::flush(error err) {
+size io::ReaderWriter::flush(error err) {
+    LOGF("io::Stream::flush %p\n", this);
     // printf("<flush>");
     if (!writebuf) {
         return 0;
     }
 
     buf data(writebuf, writeptr - writebuf);
-    //print "data to go", writeptr - writebuf;
+    LOGF("io::Stream::flush %p flush size %ld\n", this, len(data));
     if (!data) {
         return 0;
     }
@@ -307,7 +315,7 @@ size io::Stream::flush(error err) {
     return n;
 }
 
-void io::Stream::reset() {
+void io::ReaderWriter::reset() {
     // print "reset";
     readptr  = readend;
     writeptr = writebuf;
@@ -324,8 +332,8 @@ void io::Stream::reset() {
 
 }
 
-void io::Stream::setbuf(buf buf) {
-    // printf("<setbuf>");
+void io::ReaderWriter::setbuf(buf buf) {
+    LOGF("<setbuf>\n");
     //size readptr_idx = std::min(readptr - readbuf.data, len(buf));
     size readptr_idx = readptr - readbuf.data;
     //size readend_idx = std::min(readend - readbuf.data, len(buf));
@@ -344,11 +352,13 @@ void io::Stream::setbuf(buf buf) {
 }
 
 void Buffered::resize_readbuf(size newsize) {
-    uintptr ptr = uintptr(readbuf.data);
+    LOGF("io::Buffered::resize_readbuf this %p\n", this);
+
+    intptr ptr = intptr(readbuf.data);
     if (ptr <= 0) {
         ptr = -newsize;
         readbuf.data = (byte*) ptr;
-        readend = (byte*) ptr;
+        //readend = (byte*) ptr;
         return;
     }
 
@@ -362,11 +372,14 @@ void Buffered::resize_readbuf(size newsize) {
 }
 
 void Buffered::resize_writebuf(size newsize) {
-    uintptr ptr = uintptr(writebuf);
+    LOGF("io::Buffered::resize_writebuf this %p; size %ld\n", this, newsize);
+
+    intptr ptr = intptr(writebuf);
     if (ptr <= 0) {
+        //LOGF("io::Buffered::resize_writebuf 1\n");
         ptr = -newsize;
         writebuf = (byte*) ptr;
-        writeend = (byte*) ptr;
+        //writeend = (byte*) ptr;
         return;
     }
 
@@ -381,12 +394,12 @@ void Buffered::resize_writebuf(size newsize) {
 }
 
 Buffered::~Buffered() {
-    if (readbuf.data) {
+    if (intptr(readbuf.data) > 0) {
         ::free(readbuf.data);
         readbuf.data = nil;
     }
 
-    if (writebuf) {
+    if (intptr(writebuf) > 0) {
         ::free(writebuf);
         writebuf = nil;
     }
@@ -414,6 +427,11 @@ size io::Buffer::write(lib::str s) {
     return write(s, error::ignore);
 }
 
+size io::Buffer::write(char c) {
+    return write(c, error::ignore);
+}
+
+
 // static void dump_buffer(str data) {
 //     // ::printf("BUFFER contents: <<<");
 //     for (int i = 0; i < len(data); i++) {
@@ -423,6 +441,7 @@ size io::Buffer::write(lib::str s) {
 // }
 
 size io::Buffer::direct_write(struct str data, error) {
+    LOGF("io::Buffer::direct_write len %ld\n", len(data));
     // ::printf("Buffer::direct_write <%s> readend %ld\n", data.c_str().data, readend - readbuf.data);
     // dump_buffer(readbuf);
 
@@ -442,6 +461,8 @@ size io::Buffer::direct_write(struct str data, error) {
 }
 
 void io::Buffer::grow(size n) {
+    LOGF("io::Buffer::grow(%ld) capacity %ld\n", n, capacity());
+
     size newcap = used() + n;
     size curcap = capacity();
     if (newcap <= curcap) {
@@ -455,12 +476,12 @@ void io::Buffer::grow(size n) {
     if (newcap < 32) {
         newcap = 32;
     }
-    // ::printf("Buffer newcap is %ld\n", newcap);
 
     byte *newdata = (byte*) ::realloc(readbuf.data, newcap);
     if (newdata == nil) {
         exceptions::out_of_memory();
     }
+    LOGF("io::Buffer::grow allocated %p %ld\n", newdata, newcap);
 
     struct buf newbuf(newdata, newcap);
     setbuf(newbuf);
@@ -474,19 +495,13 @@ size io::Buffer::available() const {
     return writeend - writeptr;
 }
 
-size IStream::direct_write(str, error) {
+size Reader::direct_write(str, error) {
     panic("unimplemented");
     return 0;
 }
 
-ReadResult OStream::direct_read(buf, error) {
-    panic("unimplemented");
-    return {};
-}
-
-
 size io::Buffer::capacity() const {
-    return len(readbuf);
+    return writeend - readbuf.data;
 }
 
 size io::Buffer::length() const {
@@ -520,13 +535,18 @@ io::Buffer::~Buffer() {
     }
 }
 
+ReadResult Writer::direct_read(buf, error) {
+    panic("unimplemented");
+    return {};
+}
 
-StrStream::StrStream(str s) {
+
+Str::Str(str s) {
     readptr = (const byte *) s.begin();
     readend = (const byte *) s.end();
 }
 
-ReadResult StrStream::direct_read(buf buffer, error err) {
+ReadResult Str::direct_read(buf buffer, error err) {
     size amt = readend - readptr;
     if (amt == 0) {
         return {0, true};
@@ -539,7 +559,7 @@ ReadResult StrStream::direct_read(buf buffer, error err) {
     return {n, eof};
 }
 
-BufStream::BufStream(buf b) {
+Buf::Buf(buf b) {
     readptr = b.begin();
     readend = b.end();
 
@@ -547,13 +567,13 @@ BufStream::BufStream(buf b) {
     writeend = b.end();
 }
 
-buf BufStream::bytes() {
+buf Buf::bytes() {
     return buf(
         const_cast<byte*>(readptr),
         writeptr - readptr);
 }
 
-ReadResult BufStream::direct_read(buf buffer, error err) {
+ReadResult Buf::direct_read(buf buffer, error err) {
     readend = writeptr;
 
     size amt = readend - readptr;
@@ -568,58 +588,20 @@ ReadResult BufStream::direct_read(buf buffer, error err) {
     return {n, eof};
 }
 
-size BufStream::direct_write(str, error err) {
+size Buf::direct_write(str, error err) {
     err(ErrShortBuffer());
     return 0;
 }
 
-// StdStream
-
-ReadResult io::StdStream::direct_read(buf bytes, error err) {
-   size n = size(::fread(bytes.data, 1, usize(len(bytes)), file));
-
-    if (n != len(bytes)) {
-        if (::ferror(file)) {
-            err(ErrIO());
-            return {n, false};
-        }
-
-        if (::feof(file)) {
-            return {n, true};
-        }
-   }
-
-   return {n, false};
+size Buf::length() const {
+    return writeptr - readptr;
 }
 
-size io::StdStream::direct_write(str data, error err) {
-    size n = size(::fwrite(data.data, 1, usize(len(data)), file));
-
-    if (n != len(data)) {
-        if (::ferror(file)) {
-            err(ErrIO());
-            return n;
-        }
-
-        if (::feof(file)) {
-            err(ErrUnexpectedEOF());
-            return n;
-        }
-
-       err(ErrIO());
-       return n;
-   }
-
-   return n;
+void WriterTo::fmt(io::Writer &w, error err) const {
+    this->write_to(w, err);
 }
 
-// size io::StringStream::direct_write(str data, error) {
-//     contents.append(data);
-//     return len(data);
-// }
-
-
-io::Forwarder::Forwarder(io::IStream &reader, io::OStream &writer)
+io::Forwarder::Forwarder(io::Reader &reader, io::Writer &writer)
         : reader(reader),
           writer(writer) {
 

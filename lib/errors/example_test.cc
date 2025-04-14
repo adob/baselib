@@ -8,7 +8,7 @@ struct MyError : ErrorBase<MyError> {
     time::time when;
     String     what;
 
-    virtual void describe(io::OStream &out) const override {
+    virtual void describe(io::Reader &out) const override {
         fmt::fprintf(out, "%v: %v", this->when, this->what);
     }
 } ;

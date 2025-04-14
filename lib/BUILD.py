@@ -1,1 +1,1 @@
-LINKFLAGS = ["-ldw"]
+#LINKFLAGS = ["-ldw"]

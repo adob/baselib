@@ -11,14 +11,20 @@
 namespace lib {
     namespace exceptions {
         void out_of_memory();
-        void bad_index(size go);
         void bad_index(size got, size max);
         void overflow();
+    }
+
+    namespace io {
+        struct WriterTo;
     }
 
 
     struct String;
     struct CString;
+
+    template <int N>
+    struct StringPlus;
 
     // str
     struct str {
@@ -43,7 +49,10 @@ namespace lib {
         //str(std::string&&) = delete;
 
         inline str(String const& s);
-        //str(String &&) = delete;
+        // str(String &&);
+
+        // template <int N>
+        // str(StringPlus<N> const &);
 
         constexpr str(const char *str, size strlen) : data(str), len(strlen) {}
         constexpr str(const byte *data, size strlen) : data((const char*) (const void *) data), len(strlen) {}
@@ -54,7 +63,7 @@ namespace lib {
         }
 
         constexpr str slice(size i, size j) const {
-            assert(usize(i) <= usize(len), exceptions::bad_index, i, len);
+            assert(usize(j) <= usize(len), exceptions::bad_index, i, len);
             assert(i <= j, exceptions::bad_index, i, j);
             return str(data+i, j-i);
         }
@@ -112,6 +121,16 @@ namespace lib {
                 return true;
             }
             return ::memcmp(data, p, N-1) == 0 && p[N-1] == '\0';
+        }
+
+        auto operator<=>(const str other) const {
+            std::size_t min_length = std::min(this->len, other.len);
+            int cmp = std::memcmp(this->data, other.data, min_length);
+    
+            if (cmp != 0) {
+                return cmp <=> 0;  // Compare based on data
+            }
+            return this->len <=> other.len;  // Compare based on length
         }
 
         CString c_str() const;
@@ -172,7 +191,7 @@ namespace lib {
 //         }
 //
 //         slice slice(size i, size j) const {
-//             assert(usize(i) <= usize(len), exceptions::bad_index, i , len);
+//             assert(usize(j) <= usize(len), exceptions::bad_index, i , len);
 //             assert(i <= j, exceptions::bad_index, i, j);
 //             return slice(arr+i, j-i);
 //         }
@@ -207,8 +226,8 @@ namespace lib {
 
     // buf
     struct buf {
-        byte *data;
-        ssize len;
+        byte *data = nil;
+        ssize len = 0   ;
 
         constexpr buf() : data(0), len(0) {}
 
@@ -232,7 +251,7 @@ namespace lib {
         }
 
         constexpr buf slice(size i, size j) const  {
-            assert(usize(i) <= usize(len), exceptions::bad_index, i , len);
+            assert(usize(j) <= usize(len), exceptions::bad_index, i , len);
             assert(i <= j, exceptions::bad_index, i, j);
             return buf(data+i, j-i);
         }
@@ -285,7 +304,7 @@ namespace lib {
     };
 
 
-    constexpr size len(buf b)                { return b.len; }
+    // constexpr size len(buf b)                { return b.len; }
     constexpr const byte *begin(buf b)       { return b.data; }
     constexpr const byte *end(buf b)         { return b.data+b.len; }
 
@@ -321,7 +340,7 @@ namespace lib {
             other.len = 0;
         }
 
-        Buffer() {}
+        Buffer() : buf() {}
         Buffer(size n) : buf((byte*) ::malloc(n), n) {
             if (data == nil) {
                 exceptions::out_of_memory();
@@ -358,12 +377,17 @@ namespace lib {
     };
 
     // String
-    struct String {
+    struct  String {
         mutable Buffer  buffer;
-        size    length;
+        size    length = 0;
 
         String()      : buffer(), length(0) {}
         String(str s) :
+                buffer(s.len),
+                length(s.len) {
+            memcpy(buffer.data, s.data, s.len);
+        }
+        String(buf s) :
                 buffer(s.len),
                 length(s.len) {
             memcpy(buffer.data, s.data, s.len);
@@ -373,6 +397,8 @@ namespace lib {
              memcpy(buffer.data, s.data(), s.size());
         }
 
+        String(io::WriterTo const&);
+
         template <usize N>
         constexpr String(const char (&str)[N]) : buffer(N-1), length(N-1) {
             memcpy(buffer.data, str, N-1);
@@ -381,6 +407,8 @@ namespace lib {
         String(String const &other) {
             (*this) = other;
         }
+
+        explicit String(rune r);
 
         explicit String(size cap) :
             buffer(cap),
@@ -404,10 +432,18 @@ namespace lib {
 
         void append(str s) {
             size newlen = length + s.len;
-            assert(newlen >= length, exceptions::overflow);
+            // assert(newlen >= length, exceptions::overflow);
 
             ensure(newlen);
             memcpy(buffer.data + length, s.data, s.len);
+            length = newlen;
+        }
+
+        void append(char c) {
+            size newlen = length + 1;
+            ensure(newlen);
+
+            buffer.data[length] = c;
             length = newlen;
         }
 
@@ -445,21 +481,37 @@ namespace lib {
         }
 
         constexpr str slice(size i, size j) const  {
-            assert(usize(i) <= usize(length), exceptions::bad_index, i , length);
+            assert(usize(j) <= usize(length), exceptions::bad_index, i , length);
             assert(i <= j, exceptions::bad_index, i, j);
             return str(buffer.data+i, j-i);
         }
 
         constexpr buf slice(size i, size j) {
-            assert(usize(i) <= usize(length), exceptions::bad_index, i , length);
+            assert(usize(j) <= usize(length), exceptions::bad_index, i , length);
             assert(i <= j, exceptions::bad_index, i, j);
             return buf(buffer.data+i, j-i);
         }
 
-        String& operator += (str s) {
+        constexpr str operator + (size i) const {
+            return slice(i);
+        }
+
+        constexpr String& operator += (str s) {
             append(s);
             return *this;
         }
+
+        constexpr String& operator += (char c) {
+            append(c);
+            return *this;
+        }
+
+        String&& operator+(this String &&s, String const &other) {
+            s.append(other);
+            return s;
+        }
+
+        String& operator += (io::WriterTo const &writer_to);
 
         String& operator = (str s) {
             ensure(s.len);
@@ -469,12 +521,18 @@ namespace lib {
             return *this;
         }
 
+        String& operator = (buf b) {
+            return *this = str(b);
+        }
+
         String& operator = (const String& other) {
             if (other.length > buffer.len) {
                 buffer.resize(other.length);
             }
             length = other.length;
-            memcpy(buffer.data, other.buffer.data, length);
+            if (length > 0) {
+                memcpy(buffer.data, other.buffer.data, length);
+            }
             return *this;
         }
 
@@ -484,6 +542,9 @@ namespace lib {
             other.length = 0;
             return *this;
         }
+
+        template <int N>
+        String& operator = (StringPlus<N> const&);
 
         template <usize N>
         String& operator =(const char (&s)[N]) {
@@ -510,6 +571,40 @@ namespace lib {
         constexpr buf operator [] (size i, size j) {
             return slice(i, j);
         }
+        
+
+        constexpr bool operator == (str s) const {
+            if (this->length != s.len) {
+                return false;
+            }
+
+            if (this->buffer.data == (byte*) s.data) {
+                return true;
+            }
+            return ::memcmp(this->buffer.data, s.data, this->length) == 0;
+        }
+
+        constexpr bool operator == (String const& other) const {
+            return *this == str(other.buffer.data, other.length);
+        }
+
+        template <size N>
+        constexpr bool operator == (const char (&p)[N]) const {
+            if (this->length != N-1) {
+                return false;
+            }
+            return ::memcmp(this->buffer.data, p, N-1) == 0 && p[N-1] == '\0';
+        }
+
+        auto operator<=>(const String &other) const {
+            std::size_t min_length = std::min(this->length, other.length);
+            int cmp = std::memcmp(this->buffer.data, other.buffer.data, min_length);
+    
+            if (cmp != 0) {
+                return cmp <=> 0;  // Compare based on data
+            }
+            return this->length <=> other.length;  // Compare based on length
+        }
     };
 
     // String
@@ -522,6 +617,7 @@ namespace lib {
                 buffer(s.len+1),
                 length(s.len) {
             memcpy(buffer.data, s.data, s.len);
+            
             buffer[len(s)] = '\0';
         }
 
@@ -647,6 +743,19 @@ namespace lib {
     inline size copy(buf dst, str src) {
         size amt = std::min(len(dst), len(src));
         ::memmove(dst.data, src.data, amt);
+        
         return amt;
     }
+
+    // inline bool operator==(String const&a, String const&) {
+    //     return false;
+    // }
 }
+
+template <>
+struct std::hash<lib::String> {
+    std::size_t operator()(const lib::String &s) const {
+        std::hash<string_view> h;
+        return h(std::string_view((char*) s.buffer.data, s.length));
+    }
+} ;

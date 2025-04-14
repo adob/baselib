@@ -55,9 +55,9 @@ namespace lib::math {
             return m;
         }
 
-        void fmt(io::OStream &out, error &err) const {
+        void fmt(io::Writer &out, error &err) const {
             fmt::Fmt f(out, err);
-            f.width = 20;
+            f.wid = 20;
             //f.zero = true;
 
             for (size i = 0; i < N; i++) {

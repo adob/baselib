@@ -1,343 +1,513 @@
 #pragma once
 
-#include <queue>
+#include <boost/circular_buffer.hpp>
+#include "deps/atomic_queue/include/atomic_queue/atomic_queue.h"
+#include <atomic>
+#include <pthread.h>
 
 #include "lib/base.h"
+#include "atomic.h"
+#include "lib/io/io_stream.h"
 #include "mutex.h"
 #include "cond.h"
 #include "lock.h"
 
 namespace lib::sync {
     using namespace lib;
-    
-    namespace internal {
-        struct Guard {
-            Mutex mutex;
-            Cond  cond;
-            bool  value = false;
-            
-        } ;
-        
-        struct GuardList {
-            Guard     *guard;
-            GuardList *next;
-            GuardList *prev;
-        } ;
-    } // namespace internal
-    using namespace internal;
-    
-    const int MaxChanSize = 100000;
-    
+
     template <typename T>
-    struct Chan  {
+    struct Chan;
+
+    struct SelectOp;
+    struct Recv;
+    struct Send;
+
+    namespace internal {
+        constexpr bool DebugChecks = false;
+        constexpr bool DebugLog = false;
+
+        template <typename T>
+        struct IntrusiveList {
+            struct Element {
+                T *prev = nil;
+                T *next = nil;
+            } ;
+
+            void push(T *e) {
+                // printf("PUSH this(%p) %p\n", this, e);
+                e->next = this->head;
+                e->prev = nil;
+
+                if (this->head) {
+                    this->head->prev = e;
+                }
+
+                // this->head = e;
+                sync::store(this->head, e);
+                // dump();
+            }
+
+            T *pop() {
+                // printf("POP this(%p)\n", this);
+                T *e = this->head;
+                sync::store(this->head, e->next);
+
+                if (e->next) {
+                    e->next->prev = nil; 
+                }
+                // dump();
+                return e;
+            }
+
+            void remove(T *e) {
+                // printf("REMOVE this(%p) %p\n", this, e);
+                if constexpr (DebugChecks) {
+                    bool found = false;
+                    for (T *elem = this->head; elem != nil; elem = elem->next) {
+                        if (e == elem) {
+                            found = true;
+                            break;
+                        }
+                    }
+                    if (!found) {
+                        printf("PANIC!!! %p\n", this);
+                        dump();
+
+                        panic("element not found");
+                    }
+                }
+                if (!e->prev) {
+                    this->head = e->next;
+                } else {
+                    e->prev->next = e->next;
+                }
+
+                if (e->next) {
+                    e->next->prev = e->prev;
+                }
+            }
+
+            bool empty() const {
+                return this->head == nil;
+            }
+
+            bool empty_atomic() const {
+                return sync::load(this->head) == nil;
+            }
+
+            T *head = nil;
+
+            void dump() {
+                if (!this->head) {
+                    fmt::printf("IntrusiveList %p empty\n", this);
+                    return;
+                }
+                io::Buffer b;
+                fmt::fprintf(b,"InstursveList %p contents: [%p", this, this->head);
+                for (T *elem = this->head->next; elem != nil; elem = elem->next) {
+                    fmt::fprintf(b, " -> %p", elem);
+                }
+
+                fmt::fprintf(b, "]\n");
+                os::stdout.write(b.str(), error::ignore);
+            }
+
+            bool contains(T *e) {
+                for (T *elem = this->head; elem != nil; elem = elem->next) {
+                    if (e == elem) {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+        } ;
+
+        struct Allocator {
+            // void *allocate(size n) {}
+            // void deallocated(void *p, size n) noexcept {}
+        } ;
+
+        template <typename T>
+        struct AllocatorT {
+            typedef T value_type;
+            
+            Allocator alloc;
+
+            AllocatorT() = default;
+            
+            template <typename U>
+            constexpr AllocatorT(const AllocatorT<U>&) noexcept {}
+
+            T *allocate(size_t n) {
+                fmt::printf("ALLOCATE %v %v\n", sizeof(T), n);
+                return (T*) ::malloc(sizeof(T) * n);
+            }
+
+            void deallocate(T *p, size n) noexcept {
+                fmt::printf("FREE %#X %v\n", (intptr) p, n);
+                ::free(p);
+            }
+
+            template<class U>
+            bool operator==(const AllocatorT <U>&) { return true; }
+ 
+        } ;
+
+        struct Selector : IntrusiveList<Selector>::Element {
+            void    *value = nil;
+            bool    *ok = nil;
+            bool    move = false;
+
+            int      id = 0;
+
+            std::atomic<bool>      *active = nil;
+            std::atomic<Selector*> *completed = nil;
+            bool done = false;
+
+            bool panic = false;
+        };
+
+        struct ChanBase {
+            // int       unread = 0;
+            const int capacity = 0;
+            atomic<int> q = 0;
+
+            internal::IntrusiveList<internal::Selector>  receivers;
+            internal::IntrusiveList<internal::Selector>    senders;
         
-        std::queue<T>  queue;
-        Cond           enqcond;
-        Cond           deqcond;
-        Mutex          mutex;
-        const size     max_size;
-        GuardList     *guards    = nullptr;
-        bool           closed    = false;
+            enum State : byte {
+                Open,
+                Closed
+            };
+
+            atomic<State> state = atomic<State>(Open);
+            
+            Mutex    lock;
+
+            ChanBase(int capacity);
+
+            void close(this ChanBase &c);
+
+            bool closed(this ChanBase const& c);
+            
+            bool is_buffered(this ChanBase const& c);
+            bool is_empty(this ChanBase const& c);
+            bool is_full(this ChanBase const& c);
+            int length() const;
+
+        protected:
+            // virtual void buffer_push(void *elem, bool move) = 0;
+            virtual void push(void *data, bool move) = 0; 
+            virtual void pop(void *out) = 0;
+            virtual void set(void *dest, void *val, bool move) = 0;
+            // virtual void buffer_pop(void *out) = 0;
+            virtual int unread() const = 0;
+
+            void send_i(this ChanBase &c, void *elem, bool move);
+            bool send_nonblocking_i(this ChanBase &c, void *elem, bool move);
+            bool send_nonblocking(this ChanBase &c, void *elem, bool move, bool try_locks, bool *lock_fail, sync::Lock &lock);
+            // bool send_nonblocking_locked(this ChanBase &c, void *elem, bool move, sync::Lock &lock);
+
+            void send_blocking(this ChanBase &c, void *elem, bool move);
+
+            // bool recv_nonblocking_locked(this ChanBase &c, void *out, bool *ok, Lock&);
+            bool recv_nonblocking(this ChanBase &c, void *out, bool *ok, Lock&);
+            void recv_blocking(this ChanBase &c, void *out, bool *ok);
+
+            bool try_recv(this ChanBase &c, void *out, bool *ok, bool try_locks, bool *lock_fail);
+            // bool try_send(this ChanBase &c, void *out, bool move, bool try_locks, bool *lock_fail);
+
+            // bool can_recv(this ChanBase &c, Selector **selout, bool try_locks, bool *lock_fail, sync::Lock sendlock, sync::Lock &);
+            // bool can_send(this ChanBase &c, Selector **selout, bool try_locks, bool *lock_fail, sync::Lock recvlock, sync::Lock &);
+
+            // void recv_now(this ChanBase &c, void *out, bool *ok, Selector *sel, sync::Lock sendlock, sync::Lock &chanlock);
+            // void send_now(this ChanBase &c, void *out, bool move, Selector *sel, sync::Lock sendlock, sync::Lock &chanlock);
+
+            bool subscribe_recv(this ChanBase &c, internal::Selector &receiver, Lock&);
+            bool subscribe_send(this ChanBase &c, internal::Selector &sender, Lock&);
+
+            void unsubscribe_recv(this ChanBase &c, internal::Selector &receiver, Lock&);
+            void unsubscribe_send(this ChanBase &c, internal::Selector &sender, Lock&);
+
+            void send(ChanBase &c, void *elem, void(*)(ChanBase &c, void *elem));
+
+            // bool notify_receiver(this ChanBase &c, void *elem, bool move, Lock&);
+            // void notify_sender(this ChanBase &c, sync::Lock&);
+
+            friend Recv;
+            friend Send;
+        };
+    }
+    
+    //using namespace internal;
+
+    // https://github.com/golang/go/blob/master/src/runtime/chan.go
+    // https://medium.com/womenintechnology/exploring-the-internals-of-channels-in-go-f01ac6e884dc
+    // https://github.com/tylertreat/chan/blob/master/src/chan.h
+
+    template <typename T>
+    struct Chan : internal::ChanBase {
+        // boost::circular_buffer<T> buffer;
+        // https://github.com/max0x7ba/atomic_queue?tab=readme-ov-file
+        atomic_queue::AtomicQueueB2<T/*, internal::AllocatorT<T>*/> buffer;
+
+        Chan(int capacity = 0) : ChanBase(capacity), buffer(capacity) {
+            //printf("BUFFER SIZE %lu\n", sizeof(buffer));
+            //printf("capacity %u\n", buffer.capacity());
+        }
+
+        void send(this Chan &c, T &&elem) {
+            c.send_i(&elem, true);
+        }
+
+        void send(this Chan &c, T const& elem) {
+            if constexpr (internal::DebugLog) {
+                fmt::printf("%d %#x send %v\n", pthread_self(), (uintptr) &c, elem);
+            }
+            c.send_i((void*) &elem, false);
+        }
+
+        T recv(this Chan &c, bool *ok = nil) {
+            T t = {};
+            c.recv_blocking(&t, ok);
+            return t;
+        }
+
+        bool recv_nonblocking(this Chan &c, T *out=nil, bool *ok = nil) {
+            return c.recv_nonblocking(out, nil, ok);
+        }
+
+        protected:
+        // void buffer_push(void *elem, bool move) override {
+        //     // printf("buffer push\n");
+        //     // this->unread++;
+        //     if (move) {
+        //         this->buffer.try_push(std::move(*((T*) elem)));
+        //     } else {
+        //         this->buffer.try_push(*((const T*) elem));
+        //     }
+        // }
+
+        void push(void *elem, bool move) override {
+            if (move) {
+                this->buffer.push(std::move(*((T*) elem)));
+            } else {
+                this->buffer.push(*((const T*) elem));
+            }
+
+            if constexpr (internal::DebugLog) {
+                fmt::printf("%d %#x pushed %v\n", pthread_self(), (uintptr) this, (T*) elem);
+            }
+                
+        }
+
+        void pop(void *out) override {
+            if constexpr (internal::DebugLog) {
+                fmt::printf("%d %#x about to pop...\n", pthread_self(), (uintptr) this);
+            }
+            if (out) {
+                *((T*) out) = buffer.pop();
+            } else {
+                buffer.pop();
+            }
+            if constexpr (internal::DebugLog) {
+                fmt::printf("%d %#x popped %v\n", pthread_self(), (uintptr) this, (T*) out);
+            }
+        }
+
+        // void buffer_pop(void *out) override {
+        //     // printf("buffer pop\n");
+        //     // this->unread--;
+        //     if (out) {
+        //         *((T*) out) = this->buffer.pop();
+        //         // *((T*) out) = std::move(this->buffer[this->unread]);
+        //     } else {
+        //         this->buffer.pop();
+        //     }
+        // }
+
+        int unread() const override {
+            return buffer.was_size();
+        }
+
+        void set(void *dest, void *val, bool move) override {
+            if constexpr (internal::DebugLog) {
+                fmt::printf("%d %#x set %v\n", pthread_self(), (uintptr) this, (T*) val);
+            }
+            if (val == nil) {
+                *((T*) dest) = {};
+            } else if (move) {
+                *((T*) dest) = std::move(*(T*) val);
+            } else {
+                *((T*) dest) = *(const T*) val;
+            }
+        }
+    } ;
+
+    template <>
+    struct Chan<void> : internal::ChanBase {
+        Chan(int capacity = 0) : ChanBase(capacity) {}
+        atomic<int> unread_v = atomic<int>(0);
+
+        void send(this Chan &c) {
+            c.send_i(0, false);
+        }
+
+        bool recv(this Chan &c, bool *ok = nil) {
+            bool b;
+            if (!ok) {
+                ok = &b;
+            }
+
+            c.recv_blocking(0, ok);
+
+            return *ok;
+        }
+
+        bool recv_nonblocking(this Chan &c) {
+            sync::Lock lock;
+            return c.ChanBase::recv_nonblocking(nil, nil, lock);
+        }
+
+        protected:
+        // void buffer_push(void*, bool) override {}
+
+        void push(void *, bool) override;
+        // bool try_
+
+        // void buffer_pop(void *) override {}
+
+        int unread() const override;
+
+        void set(void *, void *, bool) override {}
+    } ;
+
+    struct SelectOp {
+        internal::ChanBase *chan;
+        void *data;
         
-        Chan(size max_size=MaxChanSize);
+        virtual bool poll(bool try_locks, bool *lock_fail) const = 0;
+
+        virtual bool subscribe(sync::internal::Selector &receiver, Lock&) const = 0;
+        virtual void unsubscribe(sync::internal::Selector &receiver, Lock&) const = 0;
         
-        void send(T const& t);
-        void send(T && t);
-        
-        T    recv();
-        bool recv(T&);
-        
-        bool poll(T&);
-        
-        void close();
-        
-        Chan(Chan&&) = delete;
+        virtual bool select(bool blocking) const = 0;
+    } ;  
+
+    struct Recv : SelectOp {
+        bool *ok;
+
+        template <typename T>
+        Recv(Chan<T> &chan, T *data = nil, bool *ok = nil)  {
+            init(&chan, data, ok);
+        }
+
+        template <typename T>
+        Recv(Chan<T> *chan, T *data = nil, bool *ok = nil)  {
+
+            init(chan, data, ok);
+        }
+
+        void init(internal::ChanBase *chan, void *data, bool *ok) {
+            this->chan = chan;
+            this->data = data;
+            // this->mtx = chan.lock;
+            this->ok = ok;
+        }
+
+        bool poll(bool try_locks, bool *lock_fail) const override;
+
+        bool subscribe(sync::internal::Selector &receiver, Lock&) const override;
+        void unsubscribe(sync::internal::Selector &receiver, Lock&) const override;
+
+        bool select(bool blocking) const override;
     } ;
     
-    template <typename T, typename... Args>
-    bool wait(Chan<T>& chan, Args&...);
-    
-    template <typename RetType, typename T, typename... Args>
-    RetType select(RetType ret, Chan<T>& chan, T& item, Args&&... args);
-    
-    
-    
-    //
-    // inline definitions
-    //
-    
-    template <typename T>
-    Chan<T>::Chan(size max_size)
-    : max_size(max_size)
-    {}
-    
-    template <typename T>
-    void Chan<T>::send(T const& t) { 
-        {
-            Lock lock(mutex);
-            if (closed)
-                panic("can't send on a closed channel");
-            
-            while (queue.size() > max_size) {
-                enqcond.wait(mutex);
-            }
-            queue.push(t);
-            
-            if (guards) {
-                Guard *guard = guards->guard;
-                Lock guardlock(guard->mutex);
-                guard->value = true;
-                guardlock.unlock();
-                guard->cond.signal();
-            }
+    struct Send : SelectOp {
+        bool move = false;
+
+        template <typename T>
+        Send(sync::Chan<T> &chan, T const &data)  : move(false) {
+            init(&chan, (void*) &data);
         }
-        deqcond.signal();
-    }
-    
-    template <typename T>
-    void Chan<T>::send(T && t) {
-        {
-            Lock lock(mutex);
-            if (closed)
-                panic("can't send on a closed channel");
-            
-            while (queue.size() > max_size) {
-                enqcond.wait(mutex);
-            }
-            queue.push(std::move(t));
-            
-            if (guards) {
-                Guard *guard = guards->guard;
-                Lock guardlock(guard->mutex);
-                guard->value = true;
-                guardlock.unlock();
-                guard->cond.signal();
-            }
+
+        template <typename T>
+        Send(sync::Chan<T> &chan, T &&data)  : move(true) {
+            init(&chan, &data);
         }
-        deqcond.signal();
-    }
-    
-    template <typename T>
-    T Chan<T>::recv() {
-        Lock lock(mutex);
-        
-        while (queue.empty()) {
-            if (closed)
-                return T();
-            
-            deqcond.wait(mutex);
+
+        template <typename T>
+        Send(sync::Chan<T> *chan, T const &data)  : move(false) {
+            init(chan, (void*) &data);
         }
-        
-        T item = queue.front();
-        size oldqueuesize = queue.size();
-        queue.pop();
-        
-        lock.unlock();
-        
-        if (oldqueuesize == max_size) {
-            enqcond.signal();
+
+        template <typename T>
+        Send(sync::Chan<T> *chan, T &&data)  : move(true) {
+            init(chan, &data);
         }
-        
-        return item;
-    }
-    template <typename T>
-    bool Chan<T>::recv(T& t) {
-        Lock lock(mutex);
-        
-        while (queue.empty()) {
-            if (closed)
-                return false;
-            
-            deqcond.wait(mutex);
+    
+        void init(internal::ChanBase *chan, void *data) {
+            this->chan = chan;
+            this->data = data;
+            // this->mtx = &chan.lock;
         }
-        
-        t = queue.front();
-        queue.pop();
-        size queuesize = queue.size();
-        
-        lock.unlock();
-        
-        if (queuesize >= max_size)
-            enqcond.signal();
-        
-        return true;
-    }
-    
-    template <typename T>
-    bool Chan<T>::poll(T& item) {
-        Lock lock(mutex);
-        if (queue.empty())
-            return false;
-        
-        item = queue.front();
-        queue.pop();
-        size queuesize = queue.size();
-        
-        lock.unlock();
-        
-        if (queuesize >= max_size)
-            enqcond.signal();
-        
-        return true;
-    }
-    
-    template <typename T>
-    void Chan<T>::close() {
-        Lock lock(mutex);
-        closed = true;
-        lock.unlock();
-        deqcond.broadcast();
-    }
-    
-    template <typename T, typename... Args>
-    bool wait(Guard *guard, Chan<T>& chan) {
-        Lock lock(chan.mutex);
-        
-        if (!chan.queue.empty())
-            return true;
-        
-        if (chan.closed)
-            return false;
-        
-        GuardList curr {guard, nullptr, chan.guards};
-        if (chan.guards)
-            chan.guards->prev = &curr;
-        chan.guards = &curr;
-        
-        lock.unlock();
-        
-        {
-            Lock guardlock(guard->mutex);
-            while (!guard->value) 
-                guard->cond.wait(guard->mutex);
-        }
-        
-        lock.relock();
-        
-        if (curr.prev)
-            curr.prev->next = curr.next;
-        else
-            chan.guards = curr.next;
-        if (curr.next)
-            curr.next->prev = curr.prev;
-        
-        return true;
-    }
-    
-    template <typename T, typename... Args>
-    bool wait(Guard *guard, Chan<T>& chan, Args&... args) {
-        Lock lock(chan.mutex);
-        
-        if (!chan.queue.empty())
-            return true;
-        
-        if (chan.closed)
-            return wait(guard, args...);
-        
-        GuardList curr {guard, nullptr, chan.guards};
-        if (chan.guards)
-            chan.guards->prev = &curr;
-        chan.guards = &curr;
-        
-        lock.unlock();
-        wait(guard, args...);
-        lock.relock();
-        
-        if (curr.prev)
-            curr.prev->next = curr.next;
-        else
-            chan.guards = curr.next;
-        if (curr.next)
-            curr.next->prev = curr.prev;
-        
-        return true;
-    }
-    
-    template <typename T, typename... Args>
-    bool wait(Chan<T>& chan, Args&... args) {
-        Guard guard;
-        return wait(&guard, chan, args...);
-    }
-    
+
+        bool poll(bool try_locks, bool *lock_fail) const override;
+
+        bool subscribe(sync::internal::Selector &receiver, Lock&) const override;
+        void unsubscribe(sync::internal::Selector &receive, Lock&) const override;
+
+        bool select(bool blocking) const override;
+    } ;
+
+
     namespace internal {
-        template <typename RetType>
-        bool select(sync::Guard *guard, bool success, RetType& retback, RetType ret) {
-            if (!success) {
-                retback = ret;
-                return true;
-            }
+        struct OpData {
+            sync::Lock chanlock;
+            sync::Lock selector_lock;
+
+            SelectOp const& op;
+
+            Selector selector;
+            Selector *ready_selector = nil;
             
-            sync::Lock guradlock(guard->mutex);
-            while (!guard->value)
-                guard->cond.wait(guard->mutex);
-            
-            return false;
-        }
-        template <typename RetType, typename T, typename... Args>
-        bool select(sync::Guard *guard, bool success, RetType& retback, RetType ret, sync::Chan<T>& chan, T& item, Args&&... args) {
-            sync::Lock lock(chan.mutex);
-            
-            if (!chan.queue.empty()) {
-                item = chan.queue.front();
-                chan.queue.pop();
-                size queuesize = chan.queue.size();
-                
-                lock.unlock();
-                
-                if (queuesize >= chan.max_size)
-                    chan.enqcond.signal();
-                
-                retback = ret;
-                return true;
-            }
-            
-            if (chan.closed) {
-                return internal::select(guard, success, retback, args...);
-            }
-            
-            sync::GuardList curr {guard, nullptr, chan.guards};
-            if (chan.guards)
-                chan.guards->prev = &curr;
-            chan.guards = &curr;
-            
-            lock.unlock();
-            bool b = internal::select(guard, true, retback, args...);
-            lock.relock();
-            
-            if (curr.prev)
-                curr.prev->next = curr.next;
-            else
-                chan.guards = curr.next;
-            if (curr.next)
-                curr.next->prev = curr.prev;
-            
-            if (!b && !chan.queue.empty()) {
-                item = chan.queue.front();
-                chan.queue.pop();
-                size queuesize = chan.queue.size();
-                
-                lock.unlock();
-                
-                if (queuesize >= chan.max_size)
-                    chan.enqcond.signal();
-                
-                retback = ret;
-                return true;
-            }
-            
-            return b;
-        }
+
+            OpData(SelectOp const& op) : op(op) {}
+        } ;
+
+        int select_i(arr<OpData> ops, arr<OpData*> ops_ptrs, arr<OpData*> lockfail_ptrs, bool blocking);
+        bool select_one(OpData const &op, bool blocking);
     }
-    
-    template <typename RetType, typename T, typename... Args>
-    RetType select(RetType ret, sync::Chan<T>& chan, T& item, Args&&... args) {
-        RetType retback;
-        sync::Guard guard;
-        while (!internal::select(&guard, false, retback, ret, chan, item, args...)) {
-            fprintf(stderr, "repeat\n");
+
+    template <typename... Args>
+    int select(Args&&... ops) {
+        if constexpr (sizeof...(ops) == 1) {
+            internal::select_one(ops..., true);
+            return 0;
         }
-        
-        return retback;
+        std::array<internal::OpData, sizeof...(Args)> ops_data = {ops...};
+        std::array<internal::OpData*, sizeof...(Args)> ops_ptrs = {};
+        std::array<internal::OpData*, sizeof...(Args)> ops_ptrs2 = {};
+
+        return internal::select_i(arr(ops_data.data(), ops_data.size()), arr(ops_ptrs.data(), ops_ptrs.size()), arr(ops_ptrs2.data(), ops_ptrs2.size()), true);
+
     }
-    
+
+    template <typename... Args>
+    int poll(Args&&... ops) {
+        if constexpr (sizeof...(ops) == 1) {
+            bool b = internal::select_one(ops..., false);
+            return b ? 0 : -1;
+        }
+        std::array<internal::OpData, sizeof...(Args)> ops_data = {ops...};
+        std::array<internal::OpData*, sizeof...(Args)> ops_ptrs = {};
+        std::array<internal::OpData*, sizeof...(Args)> ops_ptrs2 = {};
+
+        return internal::select_i(arr(ops_data.data(), ops_data.size()), arr(ops_ptrs.data(), ops_ptrs.size()), arr(ops_ptrs2.data(), ops_ptrs2.size()), false);
+    }
+
+
+
+   
 }

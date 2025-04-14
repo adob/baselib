@@ -5,6 +5,7 @@
 #include "exceptions.h"
 
 using namespace lib;
+using namespace lib::mem;
 
 byte *mem::alloc(size size) {
     void *p = ::malloc(size);
@@ -20,4 +21,16 @@ byte *mem::realloc(byte *p, size newsize) {
         exceptions::out_of_memory();
     }
     return (byte*) p;
+}
+
+void mem::touch(str s) {
+
+    volatile char *ptr = (volatile char*)s.data; // forces a read
+    const char *end = s.data + s.len;
+    
+    while (ptr != end) {
+        volatile char x = *ptr;
+        (void) x;
+        ptr++;
+    }
 }

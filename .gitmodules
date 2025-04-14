@@ -4,3 +4,9 @@
 [submodule "deps/libdebugme"]
 	path = deps/libdebugme
 	url = https://github.com/yugr/libdebugme.git
+[submodule "deps/fmt"]
+	path = deps/fmt
+	url = git@github.com:adob/fmt.git
+[submodule "deps/atomic_queue"]
+	path = deps/atomic_queue
+	url = git@github.com:adob/atomic_queue.git

@@ -1,19 +1,30 @@
-#define BACKWARD_HAS_UNWIND 1
-#define BACKWARD_HAS_DW 1
+// #define BACKWARD_HAS_UNWIND 1
 
-#define BACKWARD_HAS_BFD 0
-#define BACKWARD_HAS_DWARF 0
-#define BACKWARD_HAS_BACKTRACE 0
-#define BACKWARD_HAS_BACKTRACE_SYMBOL 0
-#define BACKWARD_HAS_LIBUNWIND 0
-#include "../../deps/backward-cpp/backward.hpp"
+// #define BACKWARD_HAS_DW 1
+// #define BACKWARD_HAS_BFD 0
+// #define BACKWARD_HAS_DWARF 0
+// #define BACKWARD_HAS_BACKTRACE 0
+// #define BACKWARD_HAS_BACKTRACE_SYMBOL 0
+// #define BACKWARD_HAS_LIBUNWIND 0
+// #include "../../deps/backward-cpp/backward.hpp"
 
+#include "lib/sync/lock.h"
+#include "lib/sync/mutex.h"
+#include <cpptrace/forward.hpp>
 #include <execinfo.h>
 #include <exception>
 #include <iostream>
 #include <unistd.h>
 #include <signal.h>
 #include <typeinfo>
+#include <cxxabi.h>
+#include <cpptrace/cpptrace.hpp>
+#include <cpptrace/formatting.hpp>
+
+// namespace cpptrace::detail {
+//     std::vector<stacktrace_frame> resolve_frames(const std::vector<object_frame>& frames);
+//     std::vector<stacktrace_frame> resolve_frames(const std::vector<frame_ptr>& frames);
+// }
 
 
 extern "C" {
@@ -32,47 +43,75 @@ extern "C" {
 using namespace lib;
 using namespace debug;
 
-static void crash_handler() {
-    
-    fmt::fprintf(stderr, "Terminated due to unhandled");
-    
-    std::exception_ptr excep = std::current_exception();
+extern "C" {
+    char*
+    __cxa_demangle(const char* __mangled_name, char* __output_buffer,
+                   size_t* __length, int* __status);
+
+}
+
+static void print_stack_trace() {
+    //fmt::printf("capture stack trace start\n");
+    cpptrace::stacktrace st = cpptrace::generate_trace();
+    st.print_with_snippets(std::cerr);
+    //fmt::printf("capture stack trace end\n");
+}
+
+void debug::print_exception(std::exception_ptr excep) {
     try {
         std::rethrow_exception(excep);
     } catch (Error const& err) {
-        fmt::fprintf(stderr, " error: %s", err);
+        fmt::fprintf(stderr, "error: %s", err);
     }  catch (Exception &e) {
-        //fmt::printf("ptr %d\n", (uintptr_t) e.msg.buffer.data);
-        fmt::fprintf(stderr, " exception %q\n\n", e.msg);
+        // std::string type_name;
+
+        fmt::fprintf(stderr, "%s\n", e);
         
-        backward::Printer p;
-        if (e.stacktrace) {
-            p.print(*e.stacktrace, stderr);
-        } else {
-            backward::StackTrace st;
-            st.load_here(1024);
-            p.print(st, stderr);
-        }
+        print_stack_trace();
         
         //return;
     } catch (std::exception const& ex) {
-        fmt::fprintf(stderr, " exception: %s", ex.what());
+        fmt::fprintf(stderr, "exception: %s", ex.what());
 
-        backward::Printer p;
-        backward::StackTrace st;
-        st.load_here(1024);
-        p.print(st, stderr);
+        print_stack_trace();
+
     } catch (...) {
         std::type_info *t = abi::__cxa_current_exception_type();
         //std::string type = demangle(t->name());
         //std::string type = backward::demangler.demangle(t->name());
-        fmt::fprintf(stderr, " exception of type %s.\n", t);
+        fmt::fprintf(stderr, "exception of type %s.\n", t);
         
-        backward::Printer p;
-        backward::StackTrace st;
-        st.load_here(1024);
-        p.print(st, stderr);
+        // {backward::Printer p;
+        // backward::StackTrace st;
+        // st.load_here(1024);
+        // }p.print(st, stderr);
+        print_stack_trace();
     }
+}
+
+struct sigaction old_fpe, old_segv, old_pipe, old_quit;
+//bool is_crashing = false;
+
+sync::Mutex crash_mu;
+
+static void crash_handler() {
+    // prevent two threads that crash around the same time from printing out at the same time
+    sync::Lock lock(crash_mu);
+
+    // if (is_crashing) {
+    //     fprintf(stderr, "\n\nCrashed while crashing!!!\n");
+    //     std::abort();
+    // }
+    // is_crashing = true;
+    // sigaction(SIGFPE, &old_fpe, nil);
+    // sigaction(SIGSEGV, &old_segv, nil);
+    // sigaction(SIGPIPE, &old_pipe, nil);
+    // sigaction(SIGQUIT, &old_quit, nil);
+    // std::set_terminate(nil);
+
+    fmt::fprintf(stderr, "\nTerminated due to ");
+    
+    debug::print_exception(std::current_exception());
 
     std::abort();
 }
@@ -113,10 +152,12 @@ static void sigsegv_handler(int /*signum*/, siginfo_t *siginfo, void*) {
     (void) siginfo;
 }
 
-static void sigquit_handler(int /*signum*/, siginfo_t *siginfo, void*) {
-    fmt::fprintf(io::stderr, "caught SIGQUIT\n");
+static void sigquit_handler(int /*signum*/, siginfo_t */*siginfo*/, void*) {
+    fmt::fprintf(os::stderr, "caught SIGQUIT\n");
     debugme_debug(0, "");
 }
+
+
 
 void debug::init() {
     // https://github.com/yugr/libdebugme
@@ -132,28 +173,28 @@ void debug::init() {
     action.sa_sigaction = sigfpe_handler;
     action.sa_flags = SA_SIGINFO;
 
-    int err = sigaction(SIGFPE, &action, nil);
+    int err = sigaction(SIGFPE, &action, &old_fpe);
     if (err) {
         perror("debug::init: error installing SIGFPE handler");
         exit(1);
     }
     
     action.sa_sigaction = sigsegv_handler;    
-    err = sigaction(SIGSEGV, &action, nil);
+    err = sigaction(SIGSEGV, &action, &old_segv);
     if (err) {
         perror("debug::init: error installing SIGFPE handler");
         exit(1);
     }
     
     action.sa_sigaction = sigpipe_handler;
-    err = sigaction(SIGPIPE, &action, nil);
+    err = sigaction(SIGPIPE, &action, &old_pipe);
     if (err) {
         perror("debug::init: error installing SIGPIPE handler");
         exit(1);
     }
 
     action.sa_sigaction = sigquit_handler;
-    err = sigaction(SIGQUIT, &action, nil);
+    err = sigaction(SIGQUIT, &action, &old_quit);
     if (err) {
         perror("debug::init: error installing SIGQUIT handler");
         exit(1);
@@ -162,7 +203,7 @@ void debug::init() {
     stack_t stack = {
         .ss_sp    = mem::alloc(SIGSTKSZ),
         .ss_flags = 0,
-        .ss_size = SIGSTKSZ,
+        .ss_size = size_t(SIGSTKSZ),
     };
     err = sigaltstack(&stack, nil);
     if (err) {
@@ -170,24 +211,57 @@ void debug::init() {
     }
 }
 
-Backtrace debug::backtrace(int offset) {
+Backtrace debug::backtrace(int /*offset*/) {
     panic("unimplemented");
     return {};
 }
 
+void Backtrace::fmt(io::Writer &/*out*/, error) const {
+    // backward::Printer p;
+        
+        
+    // //p.print(this->addrs, stderr);
+    // out.write("Backtrace::fmt unimplemented", err);
+}
+
 SymInfo debug::get_symbol_info(void *ptr) {
-    backward::Trace trace(ptr, 0);
-
-    backward::TraceResolver resolver;
-    backward::ResolvedTrace resolved = resolver.resolve(trace);
-
-    //fmt::printf("function %q\n", resolved.object_function);
-    // fmt::printf("filename %q\n", resolved.source.filename);
+    std::vector<cpptrace::frame_ptr> raw_frames = { cpptrace::frame_ptr(ptr)};
+    cpptrace::raw_trace trace;
+    trace.frames = raw_frames;
     
+    cpptrace::stacktrace st = trace.resolve();
+    if (st.frames.size() == 0) {
+        panic("resolved stracktrace has no frames");
+    }
+
+    cpptrace::stacktrace_frame resolved = st.frames[0];
+
     return SymInfo {
-        .demangled = resolved.object_function,
-        .filename  = resolved.source.filename,
-        .lineno    = int(resolved.source.line),
-        .colno     = int(resolved.source.col),
+        .demangled = resolved.symbol,
+        .filename  = resolved.filename,
+        .lineno    = int(resolved.line.value_or(-1)),
+        .colno     = int(resolved.column.value_or(-1)),
     } ;
+
+
+    //auto result = cpptrace::detail::resolve_frames(frames);
+
+    //fmt::printf("result: %v\n", st.frames[0].to_string());
+
+    //panic("unimplemented");
+    //return {};
+    // backward::Trace trace(ptr, 0);
+
+    // backward::TraceResolver resolver;
+    // backward::ResolvedTrace resolved = resolver.resolve(trace);
+
+    // //fmt::printf("function %q\n", resolved.object_function);
+    // // fmt::printf("filename %q\n", resolved.source.filename);
+    
+    // return SymInfo {
+    //     .demangled = resolved.object_function,
+    //     .filename  = resolved.source.filename,
+    //     .lineno    = int(resolved.source.line),
+    //     .colno     = int(resolved.source.col),
+    // } ;
 }

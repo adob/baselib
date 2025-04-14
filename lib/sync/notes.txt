@@ -1,0 +1,60 @@
+~/devel/goroot/bin/go test -run='^$' -bench='^Benchmark(Select|Recv|Chan).*$' -v
+goos: linux
+goarch: amd64
+pkg: runtime
+cpu: 13th Gen Intel(R) Core(TM) i9-13900KF
+BenchmarkChanNonblocking
+BenchmarkChanNonblocking-32         	1000000000	         0.1859 ns/op
+
+BenchmarkSelectUncontended
+BenchmarkSelectUncontended-32       	429081612	         2.842 ns/op
+benchmark_select_uncontended         	379723567	         2.898 ns/op
+
+
+BenchmarkSelectSyncContended
+BenchmarkSelectSyncContended-32     	 1000000	      2259 ns/op
+benchmark_select_sync_contended           516408	      4789 ns/op
+
+
+BenchmarkSelectAsyncContended
+BenchmarkSelectAsyncContended-32    	         3993795	       290.3 ns/op
+benchmark_select_async_contended            	 3750675	       316.7 ns/op
+
+BenchmarkSelectNonblock
+BenchmarkSelectNonblock-32          	1000000000	         0.5830 ns/op
+benchmark_select_nonblock            	 5663394	       217.3 ns/op
+benchmark_select_nonblock            	810459459	         1.662 ns/op
+
+
+BenchmarkChanUncontended
+BenchmarkChanUncontended-32         	 9896336	       122.9 ns/op
+BenchmarkChanContended
+BenchmarkChanContended-32           	  246579	     14014 ns/op
+BenchmarkChanSync
+BenchmarkChanSync-32                	 4806842	       241.8 ns/op
+BenchmarkChanSyncWork
+BenchmarkChanSyncWork-32            	 1309803	       848.0 ns/op
+BenchmarkChanProdCons0
+BenchmarkChanProdCons0-32           	 1210353	       982.9 ns/op
+BenchmarkChanProdCons10
+BenchmarkChanProdCons10-32          	 3814861	       314.7 ns/op
+BenchmarkChanProdCons100
+BenchmarkChanProdCons100-32         	 6745350	       194.5 ns/op
+BenchmarkChanProdConsWork0
+BenchmarkChanProdConsWork0-32       	 1000000	      1345 ns/op
+BenchmarkChanProdConsWork10
+BenchmarkChanProdConsWork10-32      	 1781619	       571.0 ns/op
+BenchmarkChanProdConsWork100
+BenchmarkChanProdConsWork100-32     	 2530852	       423.1 ns/op
+BenchmarkSelectProdCons
+BenchmarkSelectProdCons-32          	 1153546	      1017 ns/op
+BenchmarkChanCreation
+BenchmarkChanCreation-32            	46003579	        25.22 ns/op
+BenchmarkChanSem
+BenchmarkChanSem-32                 	14491124	       158.7 ns/op
+BenchmarkChanPopular
+BenchmarkChanPopular-32             	     567	   1975373 ns/op
+BenchmarkChanClosed
+BenchmarkChanClosed-32              	1000000000	         0.2582 ns/op
+PASS
+ok  	runtime	33.835s

@@ -2,8 +2,8 @@
 
 #include "assert.h"
 #include "lib/types.h"
-#include "str.h"
 #include "buf.h"
+#include "concepts.h"
 #include "assert.h"
 #include "exceptions.h"
 #include <initializer_list>
@@ -50,7 +50,7 @@ namespace lib {
 //         }
 //
 //         slice<T> slice(size i, size j) const {
-//             assert(usize(i) <= usize(len), exceptions::bad_index, i , len);
+//             assert(usize(j) <= usize(len), exceptions::bad_index, i , len);
 //             assert(i <= j, exceptions::bad_index, i, j);
 //             return slice(data+i, j-i);
 //         }
@@ -88,13 +88,13 @@ namespace lib {
         }
 
         constexpr buf slice(size i, size j) {
-            assert(usize(i) <= N, exceptions::bad_index, i , N);
+            assert(usize(j) <= N, exceptions::bad_index, i , N);
             assert(i <= j, exceptions::bad_index, i, j);
             return buf(data+i, j-i);
         }
 
         constexpr byte &operator[] (size i) {
-            assert(usize(i) < N, exceptions::bad_index, i);
+            assert(usize(i) < N, exceptions::bad_index, i, N);
             return data[i];
         }
 
@@ -118,7 +118,15 @@ namespace lib {
             return data;
         }
 
+        constexpr const byte* begin() const {
+            return data;
+        }
+
         constexpr byte* end() {
+            return data + N;
+        }
+
+        constexpr const byte* end() const {
             return data + N;
         }
     };
@@ -141,6 +149,7 @@ namespace lib {
         return N;
     }
 
+
     template <typename T>
     struct arr {
         T       *data;
@@ -155,13 +164,16 @@ namespace lib {
         template <size N>
         constexpr arr(T (&&arr)[N]) : data(arr), len(N) { }
 
+        template <concepts::SimpleVector V>
+        arr(V &vec) : data(vec.data()), len(vec.size()) {}
+
         arr slice(size i) const {
             assert(usize(i) <= usize(len), exceptions::bad_index, i, len);
             return arr(data+i, len-i);
         }
 
         arr slice(size i, size j) const {
-            assert(usize(i) <= usize(len), exceptions::bad_index, i , len);
+            assert(usize(j) <= usize(len), exceptions::bad_index, i , len);
             assert(i <= j, exceptions::bad_index, i, j);
             return arr(data+i, j-i);
         }
@@ -219,78 +231,81 @@ namespace lib {
     };
 
     template <typename T>
-    struct view : arr<const T> {
+    using view = arr<const T>;
 
-        constexpr view() {}
-        constexpr view(const T *t, usize len) : arr<const T>(t, len) {}
+    // template <typename T>
+    // struct view : arr<const T> {
 
-        template <size N>
-        constexpr view(const T (&data)[N])  : arr<const T>(data, N) {}
+    //     constexpr view() {}
+    //     constexpr view(const T *t, usize len) : arr<const T>(t, len) {}
 
-        constexpr view(std::initializer_list<T> list) : arr<const T>(list.begin(), list.size()) {}
+    //     template <size N>
+    //     constexpr view(const T (&data)[N])  : arr<const T>(data, N) {}
 
-        // view slice(size i) const {
-        //     assert(usize(i) <= usize(len), exceptions::bad_index, i, len);
-        //     return arr(data+i, len-i);
-        // }
+    //     constexpr view(std::initializer_list<T> list) : arr<const T>(list.begin(), list.size()) {}
 
-        // view slice(size i, size j) const {
-        //     assert(usize(i) <= usize(len), exceptions::bad_index, i , len);
-        //     assert(i <= j, exceptions::bad_index, i, j);
-        //     return arr(data+i, j-i);
-        // }
+    //     // view slice(size i) const {
+    //     //     assert(usize(i) <= usize(len), exceptions::bad_index, i, len);
+    //     //     return arr(data+i, len-i);
+    //     // }
 
-        // view operator () (size i) const {
-        //     return slice(i);
-        // }
+    //     // view slice(size i, size j) const {
+    //     //     assert(usize(j) <= usize(len), exceptions::bad_index, i , len);
+    //     //     assert(i <= j, exceptions::bad_index, i, j);
+    //     //     return arr(data+i, j-i);
+    //     // }
 
-        // view operator () (size i, size j) const {
-        //     return slice(i, j);
-        // }
+    //     // view operator () (size i) const {
+    //     //     return slice(i);
+    //     // }
 
-        // T& operator [] (size i) {
-        //     assert(usize(i) < usize(len), exceptions::bad_index, i, len-1);
-        //     return data[i];
-        // }
-        // constexpr const T& operator [] (size i) const {
-        //     assert(usize(i) < usize(len), exceptions::bad_index, i, len-1);
-        //     return data[i];
-        // }
+    //     // view operator () (size i, size j) const {
+    //     //     return slice(i, j);
+    //     // }
 
-        // constexpr view operator + (size offset) const {
-        //     return slice(offset);
-        // }
+    //     // T& operator [] (size i) {
+    //     //     assert(usize(i) < usize(len), exceptions::bad_index, i, len-1);
+    //     //     return data[i];
+    //     // }
+    //     // constexpr const T& operator [] (size i) const {
+    //     //     assert(usize(i) < usize(len), exceptions::bad_index, i, len-1);
+    //     //     return data[i];
+    //     // }
 
-        // constexpr T* begin() {
-        //     return data;
-        // }
+    //     // constexpr view operator + (size offset) const {
+    //     //     return slice(offset);
+    //     // }
 
-        // constexpr const T* begin() const {
-        //     return data;
-        // }
+    //     // constexpr T* begin() {
+    //     //     return data;
+    //     // }
 
-        // constexpr T* end() {
-        //     return data + len;
-        // }
+    //     // constexpr const T* begin() const {
+    //     //     return data;
+    //     // }
 
-        // constexpr const T* end() const {
-        //     return data + len;
-        // }
+    //     // constexpr T* end() {
+    //     //     return data + len;
+    //     // }
 
-        // constexpr bool operator == (const arr<T> &other) const {
-        //     if (len != other.len) {
-        //         return false;
-        //     }
+    //     // constexpr const T* end() const {
+    //     //     return data + len;
+    //     // }
 
-        //     for (size i = 0; i < len; i++) {
-        //         if (data[i] != other.data[i]) {
-        //             return false;
-        //         }
-        //     }
+    //     // constexpr bool operator == (const arr<T> &other) const {
+    //     //     if (len != other.len) {
+    //     //         return false;
+    //     //     }
 
-        //     return true;
-        // }
-    };
+    //     //     for (size i = 0; i < len; i++) {
+    //     //         if (data[i] != other.data[i]) {
+    //     //             return false;
+    //     //         }
+    //     //     }
+
+    //     //     return true;
+    //     // }
+    // };
 
     // template <typename T>
     // struct view {
@@ -313,7 +328,7 @@ namespace lib {
     //     }
 
     //     view slice(size i, size j) const {
-    //         assert(usize(i) <= usize(len), exceptions::bad_index, i , len);
+    //         assert(usize(j) <= usize(len), exceptions::bad_index, i , len);
     //         assert(i <= j, exceptions::bad_index, i, j);
     //         return array(data+i, j-i);
     //     }
@@ -358,6 +373,11 @@ namespace lib {
     template <typename T>
     constexpr size len(view<T> arr) {
         return arr.len;
+    }
+
+    template <concepts::Sizeable T>
+    constexpr size len(T const &t) {
+        return t.size();
     }
 
 }

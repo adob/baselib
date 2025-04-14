@@ -5,17 +5,16 @@
 using namespace lib;
 using namespace errors;
 
-void JoinError::describe(io::OStream &out) const {
+void JoinError::fmt(io::Reader &out, error err) const {
     if (len(this->errs) == 0) {
         return;
     }
 
-    this->errs[0]->describe(out);
+    this->errs[0]->fmt(out, err);
 
-
-    for (const Error *err : this->errs+1) {
-        out.write('\n', error::ignore);;
-        err->describe(out);
+    for (const Error *e : this->errs+1) {
+        out.write('\n', err);;
+        e->fmt(out, err);
     }
 }
 

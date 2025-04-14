@@ -3,12 +3,12 @@
 namespace lib {
     using TypeID = void*;
 
-    namespace detail {
+    namespace libdetail {
         template <typename T>
         inline constexpr char type = 0;
     }
     
 
     template <typename T>
-    inline constexpr TypeID type_id = (TypeID) &detail::type<T>;
+    inline constexpr TypeID type_id = (TypeID) &libdetail::type<T>;
 }

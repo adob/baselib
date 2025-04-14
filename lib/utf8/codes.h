@@ -1,5 +1,6 @@
 #pragma once
 #include "lib/types.h"
+#include "utf8.h"
 
 namespace lib::utf8::internal {
 
@@ -61,4 +62,9 @@ namespace lib::utf8::internal {
         rune1_max = (1<<7) - 1,
         rune2_max = (1<<11) - 1,
         rune3_max = (1<<16) - 1;
+
+    const byte
+        rune_error_byte_0 = t3 | (RuneError >> 12),
+        rune_error_byte_1 = tx | (RuneError>>6)&maskx,
+        rune_error_byte_2 = tx | RuneError&maskx;
 }

@@ -5,3 +5,4 @@
 #include "sync/go.h"
 #include "sync/mutex.h"
 #include "sync/waitgroup.h"
+#include "sync/once.h"

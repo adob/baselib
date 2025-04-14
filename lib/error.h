@@ -1,6 +1,7 @@
 #pragma once
 
 #include <functional>
+#include <type_traits>
 
 #include "types.h"
 #include "str.h"
@@ -16,11 +17,19 @@ namespace lib {
     }
 
     namespace io {
-        struct OStream;
-        struct WriterTo;
+        struct Writer;
+    }
+
+    
+    struct Error;
+
+    namespace errors {
+        void log_error(const Error &);
     }
 
     struct Error;
+    
+    template <typename T>
     struct ErrorReporter;
 
     void panic(const Error &e);
@@ -28,14 +37,16 @@ namespace lib {
     namespace errors {
         bool is(Error const& err, TypeID target);
         Error const *as(Error const &err, TypeID target);
+        Error &cast(Error &err, TypeID target);
     }
 
     struct Error {
-        TypeID type;
+        TypeID type = nil;
 
+        Error() {}
         explicit Error(TypeID type) : type(type) {}
 
-        virtual void describe(io::OStream &out) const = 0;
+        virtual void fmt(io::Writer &out, error err) const = 0;
         virtual view<Error*> unwrap() const {
             return {};
         }
@@ -47,11 +58,29 @@ namespace lib {
 
         template <typename T>
         const T *as() const requires std::derived_from<T, Error> {
-            return errors::as(*this, type_id<T>);
+            return static_cast<T const *>(errors::as(*this, type_id<T>));
         }
 
+        template <typename T>
+        T &cast() requires std::derived_from<T, Error> {
+            return static_cast<T&>(errors::cast(*this, type_id<T>));
+        }
+
+        template <typename T>
+        void init(this T &e) {
+            if (e.type) {
+                return;
+            }
+            if constexpr (std::is_same_v<T, Error>) {
+                panic("can't init Error");
+            }
+            e.type = type_id<T>;
+        }
+
+        virtual ~Error() {}
+
       private:
-        virtual bool is(TypeID) const { return false; }
+        virtual bool is(TypeID type) const { return type == this->type; }
 
         friend Error const *errors::as(Error const &, TypeID);
         friend bool errors::is(Error const& err, TypeID target);
@@ -63,15 +92,7 @@ namespace lib {
         BasicError(str msg, TypeID type) : Error(type), msg(msg) {}
         BasicError(str msg) : Error(type_id<BasicError>), msg(msg) {}
 
-        virtual void describe(io::OStream &out) const;
-    } ;
-    
-    struct WriterToError : Error {
-        io::WriterTo &writer_to;
-
-        WriterToError(io::WriterTo &w) : Error(type_id<WriterToError>), writer_to(w) {}
-
-        virtual void describe(io::OStream &out) const;
+        virtual void fmt(io::Writer &out, error err) const;
     } ;
 
     template <typename T, StringLiteral lit = StringLiteral<0>{}>
@@ -123,18 +144,75 @@ namespace lib {
     //     }
     // } ;
 
-    struct HandlingErrorReporter;
+    // struct HandlingErrorReporter;
 
-    struct ErrorReporter {
+    struct ErrorReporterInterface {
         bool has_error = false;
-        std::function<void(const Error&)> handler;
+        virtual void report(Error&) = 0;
 
-        ErrorReporter(std::invocable<const Error &> auto &&callable) : handler(callable) {}
+        void report(Error &&e) {
+            report((Error&) e);
+        }
 
-        void report(const Error&);
-
-        //ErrorReporter handle(std::function<bool(Error&)> const &f);
+        template<typename ...Args>
+        void report(str f, const Args &... args);
     } ;
+
+    template <typename T>
+    struct ErrorReporter : ErrorReporterInterface {
+        
+        //std::function<void(const Error&)> handler;
+
+        //constexpr ErrorReporter(std::invocable<const Error &> auto &&callable) : handler(callable) {}
+
+        T handler;
+
+        ErrorReporter(T &&handler) : handler(handler) {};
+        ErrorReporter(T &handler) : handler(handler) {};
+        void report(Error &e) override {
+            if (this->has_error) {
+                return;
+            }
+        
+            this->has_error = true;
+            
+            this->handler(e);
+        }
+
+        using ErrorReporterInterface::report;
+
+        void operator()(Error &e) {
+            this->report(e);
+        }
+        void operator()(Error &&e) {
+            this->report(e);
+        }
+
+        template<typename ...Args>
+        void operator()(str f, const Args &... args) {
+            this->report(f, args...);
+        }
+
+        explicit operator bool() const {
+            return this->has_error;
+        }
+
+    } ;
+
+    template <typename T>
+    struct ErrorReporterTmp : ErrorReporterInterface {
+        const T *handler = nil;
+        
+        void report(Error &e) override {
+            if (this->has_error) {
+                return;
+            }
+        
+            this->has_error = true;
+            
+            (*this->handler)(e);
+        }
+    };
 
     // struct HandlingErrorReporter : ErrorReporter {
     //     ErrorReporter           *upstream;
@@ -146,142 +224,120 @@ namespace lib {
     //     virtual void report(error const& err) const override;
     // } ;
 
-    struct error {
-        ErrorReporter &reporter;
+    struct error;
+    struct IgnoringError;
+    struct PanickingError;
+    struct LoggingError;
 
-        error(ErrorReporter &&reporter) : reporter(reporter) {}
-        error(ErrorReporter &reporter) : reporter(reporter) {}
+    struct error {
+        constexpr error(ErrorReporterInterface &&reporter) : reporter(reporter) {}
+        constexpr error(ErrorReporterInterface &reporter) : reporter(reporter) {}
+        
+        template <typename T>
+        constexpr error(T const &fn, ErrorReporterTmp<T> &&tmp = {}) 
+        requires (std::is_invocable_v<T, Error&> && !std::is_base_of_v<error, T> && !std::is_base_of_v<ErrorReporterInterface, T>)
+        // requires (std::is_invocable_v<T, Error&> && !std::is_base_of_v<error, T>())
+        : reporter(tmp) {
+            tmp.handler = &fn;
+        }
+
+        error(error const& other) : reporter(other.reporter) {}
+        error(error &other) : reporter(other.reporter) {}
+        error(error &&other) : reporter(other.reporter) {}
+
         //error(std::function<void(const Error&)> const &f) : reporter(ErrorReporter(f)) {}
 
-        void operator()(Error const &e) const {
-            reporter.report(e);
+        void operator()(str s) const {
+            reporter.report(s);
         }
 
-        void operator()(Error &&e) const {
+        template <typename T>
+        void operator()(T &&e) const requires std::is_base_of_v<Error, std::remove_cvref_t<T>> {
+            e.init();
             reporter.report(e);
         }
+        // void operator()(Error &&e) const {
+        //     reporter.report(e);
+        // }
 
-        template<typename ...Args>
-        void operator()(str f, const Args &... args);
+        // void operator()(Error &&e) const {
+        //     reporter.report(e);
+        // }
+
+        template<typename Arg, typename ...Args>
+        void operator()(str f, Arg const & arg, const Args &... args) {
+            reporter.report(f, arg, args...);
+        }
         
         explicit operator bool() const {
             return reporter.has_error;
         }
 
-        static struct {
-            operator error() { return ErrorReporter([](const Error &) {}); }
+        inline static struct {
+            operator IgnoringError();
         } ignore;
 
-        static struct {
-            operator error() { return ErrorReporter([](const Error &e) { lib::panic(e); }); }
+        inline static struct {
+            operator PanickingError(); // { return ErrorReporter([](const Error &e) { lib::panic(e); }); }
         } panic;
+
+        inline static struct {
+            operator LoggingError(); // { return ErrorReporter([](const Error &e) { errors::log_error(e); }); }
+        } log;
+
+    private:
+        ErrorReporterInterface &reporter;
     } ;
 
-    
-    // struct Error2 {
-    //     str msg;
+    struct IgnoringError : error {
+        ErrorReporter<void(*)(const Error&)> error_reporter;
+
+        IgnoringError();
+    };
+
+    struct PanickingError : error {
+        ErrorReporter<void(*)(const Error&)> error_reporter;
+
+        PanickingError();
+    };
+
+    struct LoggingError : error {
+        ErrorReporter<void(*)(const Error&)> error_reporter;
+
+        LoggingError();
+    };
+
+    struct ErrorRecorder : ErrorReporterInterface {
+
+        // template <typename ClassType, typename Signature>
+        // class BoundMethod {
+        // private:
+        //     ClassType* instance;
+        //     Signature ClassType::* method;
+
+        // public:
+        //     // Constructor to bind an instance and a member function
+        //     BoundMethod(ClassType* obj, Signature ClassType::* func)
+        //         : instance(obj), method(func) {}
+
+        //     // Callable operator to invoke the bound function
+        //     template <typename... Args>
+        //     auto operator()(Args&&... args) const -> decltype((instance->*method)(std::forward<Args>(args)...)) {
+        //         return (instance->*method)(std::forward<Args>(args)...);
+        //     }
+        // };
+
+        String msg;
+        // ErrorReporter<BoundMethod<ErrorRecorder, void(Error const&)>> error_reporter = BoundMethod(this, &ErrorRecorder::handle_error);
+        // ErrorRecorder();
         
-    //     constexpr Error2(str message) : msg(message) {}
-    // };
-
-    // using Error = Error2;
-
-
-    //extern const Error2 ErrUnspecified;
-
-    // struct error2 {
-    //     const Error2 *ref = nil;
-        
-    //     virtual void operator()(Error2 const &err) {
-    //         this->ref = &err;
-    //     }
-
-    //     virtual void operator()(str) {
-    //         this->ref = &ErrUnspecified;
-    //     }
-
-    //     template <typename... Args>
-    //     void operator()(str fmt, const Args  & ...args);
-
-    //     void operator()(error2 const& other) {
-    //         if (other) {
-    //             (*this)(*other.ref);
-    //         } else {
-    //             ref = nil;
-    //         }
-    //     }
-        
-    //     operator bool() const {
-    //         return ref != nil;
-    //     }
-        
-    //     struct Panic;
-    //     struct Log;
-    //     struct IgnoreAll;
-    //     struct IgnoreOneImpl;
-    //     struct IgnoreOne;
-
-    //     static IgnoreAll ignore();
-    //     IgnoreOne ignore(Error2 const& err);
-        
-    //     void fmt(fmt::Fmt&) const;
-        
-    //     bool handle(Error2 const& err);
-        
-    //     virtual ~error2() {}
-        
-    //     static Panic panic;
-    //     static Log log;
-    // } ;
-    
-    // struct error2::IgnoreAll {
-    //     error2 err;
-        
-    //     operator struct error2& () { return err; }
-    // } ;
-
-    // struct error2::IgnoreOneImpl : error2 {
-    //     error2 &parent;
-    //     const Error2 *ignore;
-
-    //     IgnoreOneImpl(error2 &parent, const Error2 *ignore) : parent(parent), ignore(ignore) {}
-
-    //     virtual void operator()(Error2 const &err) override;
-    //     virtual void operator()(str msg) override;
-    // } ;
-
-    // struct error2::IgnoreOne {
-    //     IgnoreOneImpl impl;
-
-    //     IgnoreOne(error2 &parent, const Error2 *ignore) : impl(parent, ignore) {}
-    //     operator error2& () { return impl; }
-    // } ;
-    
-    // struct error2::Panic : error2 {
-    //     virtual void operator()(Error2 const &err) override;
-    //     virtual void operator()(str msg) override;
-    // };
-
-    // struct error2::Log : error2 {
-    //     virtual void operator()(Error2 const &err) override;
-    //     virtual void operator()(str msg) override;
-    // };
-    
-    // inline bool operator == (error2 err, Error2 const& derror) {
-    //     return err.ref == &derror;
-    // }
-    
-    // inline bool operator == (Error2 const& derror, error2 err) {
-    //     return err.ref == &derror;
-    // }
-    
-    // inline bool operator != (error2 err, Error2 const& derror) {
-    //     return err.ref != &derror;
-    // }
-    
-    // inline bool operator != (Error2 const& derror, error2 err) {
-    //     return err.ref != &derror;
-    // }
-    
+        // void handle_error(Error const& e);
+        void report(Error&) override;
+        using ErrorReporterInterface::report;
+        void fmt(io::Writer &out, error err) const;
+        explicit operator bool() const {
+            return this->has_error;
+        }
+    };
 }
 

@@ -9,7 +9,7 @@ namespace lib::errors {
 
         explicit JoinError(view<Error*> errs) : errs(errs) {}
 
-        virtual void describe(io::OStream &out) const override;
+        virtual void fmt(io::Writer &out, error err) const override;
         virtual view<Error*> unwrap() const override;
     } ;
 

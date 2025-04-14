@@ -18,11 +18,11 @@ using namespace io;
 //     Error ErrIO("IO error");
 // }
 
-size io::read_full(io::IStream &input, buf buffer, error err) {
+size io::read_full(io::Writer &input, buf buffer, error err) {
     return read_at_least(input, buffer, len(buffer), err);
 }
 
-size io::read_at_least(io::IStream &in, buf buffer, size min, error err) {
+size io::read_at_least(io::Writer &in, buf buffer, size min, error err) {
     if (len(buffer) < min) {
         err(ErrShortBuffer());
         return 0;

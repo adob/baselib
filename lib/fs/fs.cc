@@ -1,4 +1,5 @@
 #include "fs.h"
+#include "lib/io/io_stream.h"
 
 using namespace lib;
 using namespace fs;
@@ -7,6 +8,6 @@ FileMode FileMode::perm(this FileMode m) {
     return m & ModePerm;
 }
 
-void PathError::describe(io::OStream &out) const {
-    fmt::fprintf(out, "%s %s: %s", this->op, this->path, this->err);
+void PathError::fmt(io::Writer &out, error err) const {
+    fmt::fprintf(out, err, "%s %s: %s", this->op, this->path, this->err);
 }

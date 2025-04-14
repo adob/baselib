@@ -4,7 +4,7 @@
 #include "letter.h"
 
 using namespace lib;
-using namespace unicode;
+using namespace lib::unicode;
 
 bool unicode::is_space(rune r) {
     if (r < MaxLatin1) {
@@ -17,3 +17,4 @@ bool unicode::is_space(rune r) {
     }
     return is_excluding_latin(White_Space, r);
 }
+

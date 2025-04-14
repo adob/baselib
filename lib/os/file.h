@@ -41,7 +41,7 @@ namespace lib::os {
         friend File open(str, int, error);
 
       private:
-        void wrap_err(str op, const Error &wrapped, error err);
+        void wrap_err(str op, const lib::Error &wrapped, error err);
     };
     
     // Open opens the named file for reading. If successful, methods on
@@ -71,3 +71,4 @@ namespace lib::os {
     String read_file(str name, error err);
 
 }
+

@@ -21,7 +21,7 @@ str filepath::base(str path) {
 	// Throw away volume name
 	path = path+len(volume_name(path));
 	// Find the last element
-	size i = len(path);
+	size i = len(path) - 1;
 	while (i >= 0 && !is_path_separator(path[i])) {
 		i--;
 	}

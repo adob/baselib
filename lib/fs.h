@@ -1,2 +1,2 @@
-#pragma one
+#pragma once
 #include "fs/fs.h"

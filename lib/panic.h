@@ -8,7 +8,7 @@ namespace lib {
         struct WriterTo;
     }
     
-    void panic();
+    [[noreturn]] void panic();
     void panic(str msg);
     void panic(io::WriterTo const&);
     void panic(Error const& e);

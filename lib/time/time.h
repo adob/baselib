@@ -3,37 +3,19 @@
 #include <ctime>
 
 #include "lib/base.h"
+#include "lib/types.h"
 
 namespace lib::time {
     using namespace lib;
 
-    struct duration {
+    struct duration : numeric {
         int64 nsecs = 0;
 
-        explicit operator bool() const {
-            return nsecs != 0;
-        }
-
-        constexpr duration operator-(duration other) const {
-            return { nsecs - other.nsecs };
-        }
-
-        constexpr duration operator*(int n) const {
-            return { nsecs * n };
-        }
-        
-        constexpr duration operator+(duration other) const {
-            return { nsecs + other.nsecs };
-        }
-
-        constexpr friend duration operator*(int n, duration d) {
-            return d*n;
-        }
+        constexpr duration(int64 nsecs=0) : nsecs(nsecs) {}
 
         float64 seconds() const;
         int64 milliseconds() const;
-
-        constexpr auto operator <=> (duration other) const { return nsecs <=> other.nsecs; }
+        int64 nanoseconds() const { return this->nsecs; };
     } ;
 
     enum Month {
@@ -58,11 +40,38 @@ namespace lib::time {
     inline const Location UTC   = {.name = "UTC"};
     inline const Location Local = {.name = "Local"};
 
-    struct monotime : duration {} ;
+    struct monotime : duration {
+      duration sub(monotime other);
+    } ;
+
     struct time {
-        uint64          wall = 0;
-        int64           ext  = 0;
+        // nanoseconds since boot
+        int64 nsecs = 0;
+        // uint64          wall = 0;
+        // int64           ext  = 0;
         //const Location *location = nil;
+
+        // Unix returns t as a Unix time, the number of seconds elapsed
+        // since January 1, 1970 UTC. The result does not depend on the
+        // location associated with t.
+        // Unix-like operating systems often record time as a 32-bit
+        // count of seconds, but since the method here returns a 64-bit
+        // value it is valid for billions of years into the past or future.
+        int64 unix() const;
+
+        // unix_nano returns t as a Unix time, the number of nanoseconds elapsed
+        // since January 1, 1970 UTC. The result is undefined if the Unix time
+        // in nanoseconds cannot be represented by an int64 (a date before the year
+        // 1678 or after 2262). Note that this means the result of calling unix_nano
+        // on the zero Time is undefined. The result does not depend on the
+        // location associated with t.
+        int64 unix_nano() const;
+
+        // Sub returns the duration t-u. If the result exceeds the maximum (or minimum)
+        // value that can be stored in a [Duration], the maximum (or minimum) duration
+        // will be returned.
+        // To compute t-d for a duration d, use t.Add(-d)
+        duration sub(time u) const;
     } ;
 
     const duration nanosecond = duration { 1 };
@@ -74,6 +83,11 @@ namespace lib::time {
 
     monotime clock();
     time     now();
+    
+    // since returns the time elapsed since t.
+    // It is shorthand for time.Now().Sub(t).
+    duration since(time t);
+
     duration hz(float64 n);
 
     // Unix returns the local Time corresponding to the given Unix time,

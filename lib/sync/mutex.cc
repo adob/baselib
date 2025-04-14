@@ -1,4 +1,5 @@
 #include "mutex.h"
+#include "lib/os/error.h"
 #ifndef ARDUINO
 
 #include "lib/base.h"
@@ -11,12 +12,12 @@ Mutex::Mutex() {
     pthread_mutexattr_t attr;
     
     if (int code = pthread_mutexattr_init(&attr)) {
-        panic(os::from_errno(code));
+        panic(os::Errno(code));
     }
 
     if (int code = pthread_mutexattr_setpshared(&attr, PTHREAD_PROCESS_PRIVATE)) {
         pthread_mutexattr_destroy(&attr);
-        panic(os::from_errno(code));
+        panic(os::Errno(code));
     }
 
     //         if (pthread_mutexattr_settype&attr, PTHREAD_MUTEX_DEFAULT) {
@@ -31,11 +32,11 @@ Mutex::Mutex() {
 
     if (int code = pthread_mutex_init(&mutex, &attr)) {
         pthread_mutexattr_destroy(&attr);
-        panic(os::from_errno(code));
+        panic(os::Errno(code));
     }
 
     if (int code = pthread_mutexattr_destroy(&attr)) {
-        panic(os::from_errno(code));
+        panic(os::Errno(code));
     }
     //print "create";
 }
@@ -44,7 +45,7 @@ void Mutex::lock() {
     //print "lock";
     //debug::print_backtrace();
     if (int code = pthread_mutex_lock(&mutex)) {
-        panic(os::from_errno(code));
+        panic(os::Errno(code));
     }
         
 }
@@ -57,14 +58,14 @@ bool Mutex::try_lock() {
     if (r == EBUSY) {
         return false;
     }
-    panic(os::from_errno(r));
+    panic(os::Errno(r));
     return false;
 }
 
 void Mutex::unlock() {
     //print "unlock";
     if (int code = pthread_mutex_unlock(&mutex)) {
-        panic(os::from_errno(code));
+        panic(os::Errno(code));
     }
 }
     

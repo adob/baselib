@@ -4,8 +4,9 @@
 #include <ctime>
 #include <time.h>
 
-#include "lib/os.h"
 #include "lib/os/error.h"
+#include "lib/os/file.h"
+#include "lib/strings/strings.h"
 
 
 using namespace lib;
@@ -58,6 +59,27 @@ const arr<int32> DaysBefore = {{
 	31 + 28 + 31 + 30 + 31 + 30 + 31 + 31 + 30 + 31 + 30 + 31,
 }};
 
+
+const time::duration MinDuration = int64(-1) << 63;
+const time::duration MaxDuration = (uint64(1)<<63) - 1;
+
+const int64 btime_ns = []{
+    String data = os::read_file("/proc/stat",error::panic);
+    for (str line : strings::split(data, "\n")) {
+        if (!strings::has_prefix(line, "btime ")) {
+            continue;
+        }
+        str val = line + len("btime ");
+        int64 btime = atol(val.c_str());
+        if (btime == 0) {
+            panic("invalid btime value in /proc/stat");
+        }
+        return btime * 1'000'000;
+    }
+    panic("btime not found in /proc/stat");
+    return int64(0);
+}();
+
 time::monotime time::clock() {
     struct timespec ts;
     int ret = clock_gettime(CLOCK_BOOTTIME, &ts);
@@ -75,27 +97,28 @@ time::time time::now() {
         panic(os::Errno(errno));
     }
 
-    int64 mono = boottime.tv_sec*1'000'000'000 + boottime.tv_nsec;
+    int64 boot_ns = boottime.tv_sec*1'000'000'000 + boottime.tv_nsec;
+	return {boot_ns};
 
-    struct timespec walltime;
-    ret = clock_gettime(CLOCK_REALTIME, &walltime);
-    if (ret) {
-        panic(os::Errno(errno));
-    }
+    // struct timespec walltime;
+    // ret = clock_gettime(CLOCK_REALTIME, &walltime);
+    // if (ret) {
+    //     panic(os::Errno(errno));
+    // }
 
-    int64 sec = walltime.tv_sec;
-    int32 nsec = int32(walltime.tv_nsec);
+    // int64 sec = walltime.tv_sec;
+    // int32 nsec = int32(walltime.tv_nsec);
 
-    //mono -= start_time;
-    sec += UnixToInternal - MinWall;
-    if (uint64(sec) >> 33 != 0) {
-        // Seconds field overflowed the 33 bits available when
-		// storing a monotonic time. This will be true after
-		// March 16, 2157.
-		return time{uint64(nsec), sec + MinWall};
-    }
+    // //mono -= start_time;
+    // sec += UnixToInternal - MinWall;
+    // if (uint64(sec) >> 33 != 0) {
+    //     // Seconds field overflowed the 33 bits available when
+	// 	// storing a monotonic time. This will be true after
+	// 	// March 16, 2157.
+	// 	return time{uint64(nsec), sec + MinWall};
+    // }
 
-    return {HasMonotonic | uint64(sec) << NsecShift | uint64(nsec), mono, /*&Local*/};
+    // return {HasMonotonic | uint64(sec) << NsecShift | uint64(nsec), mono, /*&Local*/};
 }
 
 void time::sleep(duration d) {
@@ -241,33 +264,80 @@ time::time time::unix(const struct timespec& walltime) {
     int64 sec = walltime.tv_sec;
     int32 nsec = int32(walltime.tv_nsec);
 
-	return time {uint64(nsec), sec + UnixToInternal, /*Local*/};
+	return time{ (sec*1'000'000 + nsec) - btime_ns };
+	// return time {uint64(nsec), sec + UnixToInternal, /*Local*/};
 }
 
 time::time time::unix(int64 sec, int32 nsec) {
-	if (nsec < 0 || nsec >= 1'000'000'000) {
-		int32 n = nsec / 1'000'000'000;
-		sec += n;
-		nsec -= n * 1'000'000'000;
-		if (nsec < 0) {
-			nsec += 1'000'000'000;
-			sec--;
-		}
-	}
+	int64 timestamp_ns = sec*1'000'000 + nsec;
+	int64 since_boot_ns = timestamp_ns - btime_ns;
+	// if (nsec < 0 || nsec >= 1'000'000'000) {
+	// 	int32 n = nsec / 1'000'000'000;
+	// 	sec += n;
+	// 	nsec -= n * 1'000'000'000;
+	// 	if (nsec < 0) {
+	// 		nsec += 1'000'000'000;
+	// 		sec--;
+	// 	}
+	// }
 
-	return time {uint64(nsec), sec + UnixToInternal, /*Local*/};
+	return time {since_boot_ns, /*Local*/};
 }
 
-time::time unix(int64 sec, int64 nsec) {
-	if (nsec < 0 || nsec >= 1'000'000'000) {
-		int64 n = nsec / 1'000'000'000;
-		sec += n;
-		nsec -= n * 1'000'000'000;
-		if (nsec < 0) {
-			nsec += 1'000'000'000;
-			sec--;
-		}
-	}
+// time::time unix(int64 sec, int64 nsec) {
+// 	if (nsec < 0 || nsec >= 1'000'000'000) {
+// 		int64 n = nsec / 1'000'000'000;
+// 		sec += n;
+// 		nsec -= n * 1'000'000'000;
+// 		if (nsec < 0) {
+// 			nsec += 1'000'000'000;
+// 			sec--;
+// 		}
+// 	}
 
-	return unix(sec, nsec);
+// 	return time::time(sec, nsec);
+// }
+
+time::duration time::monotime::sub(monotime other) {
+  return this->nsecs - other.nsecs;
+}
+
+int64 time::time::unix() const {
+	time const &t = *this;
+
+	return t.unix_nano() / 1'000'000;
+}
+
+int64 time::time::unix_nano() const {
+	time const &t = *this;
+	return btime_ns + t.nsecs;
+}
+
+// int64 time::time::sec() const {
+// 	time const &t = *this;
+// 	return 
+// 	// time::time const &t = *this;
+
+// 	// if t.wall&hasMonotonic != 0 {
+// 	// 	return wallToInternal + int64(t.wall<<1>>(nsecShift+1))
+// 	// }
+// 	// return t.ext
+// 	return 0;
+// }
+
+time::duration time::time::sub(time u) const {
+	time const &t = *this;
+	int64 d = t.nsecs - u.nsecs;
+	if (d < 0 && t.nsecs > u.nsecs) {
+		return MaxDuration;  // t - u is positive out of range
+	}
+	if (d > 0 && t.nsecs < u.nsecs) {
+		return MinDuration; // t - u is negative out of range
+	}
+	return d;
+}
+
+
+time::duration time::since(time t) {
+	return now().sub(t);
 }

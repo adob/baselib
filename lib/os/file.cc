@@ -25,6 +25,7 @@
 using namespace lib;
 using namespace os;
 
+
 os::File::File(File&& other)
     : io::Buffered(std::move(other)),
       fd(other.fd) { 
@@ -33,14 +34,18 @@ os::File::File(File&& other)
 
 
 void os::File::close(error err) {
+    int fd = this->fd;
+
     if (fd == -1) {
         return err(PathError("close", this->name, ErrClosed()));
-    }    
+    } 
+
+    flush(err);
 
     // invalidate the file descriptor early
     // this is because Linux invalidates the file descriptor early even if there
     // is a failure to close (such as an I/O error)
-    fd = -1;
+    this->fd = -1;
 
 retry:
     int ret = ::close(fd);
@@ -59,13 +64,12 @@ os::File os::open(str name, error err) {
 
 os::File os::open_file(str name, int flag, FileMode perm, error err) {
     File f;
-    int fd;
 
     f.name = name;
 
 retry:
-    fd = ::open(f.name, flag|O_CLOEXEC, syscall_mode(perm));
-    if (fd == -1) {
+    f.fd = ::open(f.name, flag|O_CLOEXEC, syscall_mode(perm));
+    if (f.fd == -1) {
         if (errno == EINTR) {
             goto retry;
         }
@@ -224,6 +228,8 @@ String os::read_file(str path, error err) {
 }
 
 io::ReadResult os::File::direct_read(buf b, error err) {
+    //y3printf("DIRECT READ\n");
+
     io::ReadResult r;
   retry:
     size ret = ::read(fd, b.data, b.len);
@@ -275,7 +281,7 @@ io::ReadResult os::File::direct_read(buf b, error err) {
 // }
 
 size os::File::direct_write(str data, error err) {
-    // printf("DIRECT WRITE %d\n", int(len(data)));
+    //printf("DIRECT WRITE %d\n", int(len(data)));
     size total = 0;
     size want = len(data);
 
@@ -320,14 +326,16 @@ File& File::operator = (File&& other) {
 }
 
 os::File::~File() {
+    //printf("os::File destructor %d\n", fd);
+
     if (fd == -1) {
         return;
     }
-
-    flush(error::ignore);
-    ::close(fd);  // ignore error
+    
+    this->close(error::ignore);
 }
 
-void File::wrap_err(str op, const Error &wrapped, error err) {
+void File::wrap_err(str op, const lib::Error &wrapped, error err) {
     err(PathError(op, this->name, wrapped));
 }
+

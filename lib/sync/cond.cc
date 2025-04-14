@@ -29,19 +29,19 @@ using namespace sync;
 
 void Cond::wait(Mutex& mutex) {
     if (int code = pthread_cond_wait(&cond, &mutex.mutex)) {
-        panic(os::from_errno(code));
+        panic(os::Errno(code));
     }
 }
 
 void Cond::signal() {
     if (int code = pthread_cond_signal(&cond)) {
-        panic(os::from_errno(code));
+        panic(os::Errno(code));
     }
 }
 
 void Cond::broadcast() {
     if (int code = pthread_cond_broadcast(&cond)) {
-        panic(os::from_errno(code));
+        panic(os::Errno(code));
     }
 }
 

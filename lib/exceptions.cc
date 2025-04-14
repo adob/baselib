@@ -1,23 +1,19 @@
 #include "./exceptions.h"
 #include "./str.h"
 #include "./panic.h"
+#include "lib/io/io_stream.h"
+#include "fmt/fmt.h"
 //#include "fmt/fmt.h"
 
 using namespace lib;
+using namespace exceptions;
 
 void exceptions::out_of_memory() {
     panic("out of memory");
 }
 
-void exceptions::bad_index(size got) {
-    (void) got;
-    panic("bad index");
-}
-
 void exceptions::bad_index(size got, size max) {
-    (void) got;
-    (void) max;
-    panic("bad_index");
+    throw BadIndex(got, max);
 }
 
 void exceptions::assertion() {
@@ -30,59 +26,53 @@ void exceptions::overflow() {
 
 
 #ifdef __cpp_exceptions
-lib::Exception::Exception() : 
-    stacktrace(new backward::StackTrace()) {
+lib::Exception::Exception()
+    /* : stacktrace(new backward::StackTrace())*/ {
     
-    stacktrace->load_here(1024);
-    stacktrace->skip_n_firsts(2);
+    // stacktrace->load_here(1024);
+    // stacktrace->skip_n_firsts(2);
 }
 
 lib::Exception::~Exception() {
-    if (stacktrace) {
-        delete stacktrace;
-        stacktrace = nil;
-    }
+    // if (stacktrace) {
+    //     delete stacktrace;
+    //     stacktrace = nil;
+    // }
 }
 
 
-exceptions::BadMemAccess::BadMemAccess(void *ptr) {
-    (void) ptr;
-//     msg = fmt::sprintf("Attempt to dereference invalid pointer at %#.12x", 
-//                         (uintptr) ptr);
+BadMemAccess::BadMemAccess(void *ptr) : ptr(ptr) {}
+
+void BadMemAccess::fmt(io::Reader &out, error err) const {
+    fmt::fprintf(out, err, "attempt to dereference invalid pointer at %#X", (uintptr) ptr);
 }
 
-exceptions::NullMemAccess::NullMemAccess() {
-//     msg = "Null dereference";
+NullMemAccess::NullMemAccess() {}
+
+void NullMemAccess::fmt(io::Reader &out, error err) const {
+    fmt::fprintf(out, err, "null dereference");
 }
 
-// exceptions::Error::Error(error e) {
-//     (void) e;
-// //     msg = fmt::sprintf("Error: %s", e);
-// }
+BadIndex::BadIndex(size got, size max) : got(got), max(max) {}
 
-exceptions::BadIndex::BadIndex() {
-//     msg = fmt::sprintf("Bad index");
+void BadIndex::fmt(io::Reader &out, error err) const {
+    fmt::fprintf(out, err, "index out range [0:%d]: %d", max, got);
 }
 
-exceptions::BadIndex::BadIndex(size got) {
-    (void) got;
-//     msg = fmt::sprintf("Bad index: %d", got);
+
+AssertionFailed::AssertionFailed(str s) : msg(s) {}
+void AssertionFailed::fmt(io::Reader &out, error err) const {
+    out.write(msg, err);
 }
 
-exceptions::BadIndex::BadIndex(size got, size max) {
-    (void) got;
-    (void) max;
-//     msg = fmt::sprintf("Index out range [0:%d]: %d", max, got);
+void OutOfMem::fmt(io::Reader &out, error err) const {
+    fmt::fprintf(out, err, "out of memory");
 }
 
-exceptions::AssertionFailed::AssertionFailed(str s) {
-    (void) s;
-//     msg = s;
+Panic::Panic(str s) : msg(s) {}
+void Panic::fmt(io::Reader &out, error err) const {
+    fmt::fprintf(out, err, "panic: %s", msg);
 }
 
-exceptions::Panic::Panic(str s) {
-    this->msg = s;
-    //print "Panic()", msg.length;
-}
 
 #endif

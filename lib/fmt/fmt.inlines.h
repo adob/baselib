@@ -340,7 +340,7 @@ namespace lib::fmt {
 //                 if (out.type)
 //                     out.write_type(arg);
 //                 else
-                    out.write(arg, true);
+                    out.fmt_string(arg, true);
                 return true;
             }
             return static_cast<PrinterT<N+1, Args...>>(*this).doprint(n, out);
@@ -408,7 +408,7 @@ namespace lib::fmt {
                 percent = !percent;
                 state = 0;
                 out.flags     = 0;
-                out.width     = 0;
+                out.wid     = 0;
                 out.prec      = 0;
                 out.base      = 10;
                 pos = (size) -1;
@@ -461,7 +461,7 @@ namespace lib::fmt {
                         continue;
                     case '*':
                         if (state < 2) {
-                            out.width = printer.getuint(argi++, out);
+                            out.wid = printer.getuint(argi++, out);
                         } else {
                             out.prec = printer.getuint(argi++, out);
                         }
@@ -470,7 +470,7 @@ namespace lib::fmt {
                         continue;
                     case ')':
                         if (state < 2) {
-                            out.width = printer.getuint(out.width, out);
+                            out.wid = printer.getuint(out.wid, out);
                         } else {
                             out.prec  = printer.getuint(out.prec, out);
                         }
@@ -492,7 +492,7 @@ namespace lib::fmt {
                             if (state == 0)
                                 state = 1;
                             if (state == 1)
-                                out.width = out.width*10 + c-'0';
+                                out.wid = out.wid*10 + c-'0';
                             else if (state == 2) {
                                 out.prec_present = true;
                                 out.prec = out.prec*10 + c-'0';
@@ -555,7 +555,7 @@ namespace lib::fmt {
     String stringify(T const& t) {
         io::MemStream s;
         Fmt printer(s, error::ignore());
-        printer.write(t, true);
+        printer.fmt_string(t, true);
         
         return s.to_string();
     }
@@ -563,7 +563,7 @@ namespace lib::fmt {
     template <typename T>
     void Stringifier<T>::write_to(io::OStream &out, error &err) const {
         Fmt printer(out, err);
-        printer.write(t, true);
+        printer.fmt_string(t, true);
     }
     
     template <typename T>

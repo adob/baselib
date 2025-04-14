@@ -4,22 +4,28 @@
 
 #include "./str.h"
 #include "./types.h"
-#include "./exception.h"
 
 #ifdef __cpp_exceptions
-#include "../deps/backward-cpp/backward.hpp"
-namespace backward {
-    class StackTrace;
-}
+// #include "../deps/backward-cpp/backward.hpp"
+// namespace backward {
+//     class StackTrace;
+// }
 #endif
+
+namespace lib::io {
+    struct Reader;
+}
+
 
 namespace lib {
     struct str;
+    struct error;
 
 #ifdef __cpp_exceptions
     struct Exception {
-        String                msg;
-        backward::StackTrace *stacktrace = nil;
+        //backward::StackTrace *stacktrace = nil;
+        
+        virtual void fmt(io::Reader &out, error err) const = 0;
 
         Exception();
         ~Exception();
@@ -37,30 +43,47 @@ namespace lib::exceptions {
 
 #ifdef __cpp_exceptions
     struct BadIndex : Exception {
-        BadIndex();
-        BadIndex(size got);
+        size got;
+        size max;
+
+        //BadIndex();
+        //BadIndex(size got);
         BadIndex(size got, size max);
+
+        void fmt(io::Reader &out, error err) const override;
     };
 
     struct BadMemAccess : Exception {
+        void *ptr;
+
         BadMemAccess(void *ptr);
+
+        void fmt(io::Reader &out, error err) const override;
     };
 
     struct NullMemAccess : Exception {
         NullMemAccess();
+
+        void fmt(io::Reader &out, error err) const override;
     };
 
     struct AssertionFailed : Exception {
+        String msg;
         AssertionFailed(str);
+
+        void fmt(io::Reader &out, error err) const override;
     };
 
     struct OutOfMem : Exception {
-
+        void fmt(io::Reader &out, error err) const override;
     };
 
     struct Panic : Exception {
+        String msg;
         Panic() {}
         Panic(str);
+
+        void fmt(io::Reader &out, error err) const override;
     };
 #endif
 }

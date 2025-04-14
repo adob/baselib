@@ -12,8 +12,8 @@ namespace lib::fs {
     // information about files can be moved from one system
     // to another portably. Not all bits apply to all systems.
     // The only required bit is [ModeDir] for directories.
-    struct FileMode : flag<uint32> {
-        using flag::flag;
+    struct FileMode : bitflag<uint32> {
+        using bitflag::bitflag;
 
         // Perm returns the Unix permission bits in m (m & [ModePerm]).
         FileMode perm(this FileMode m);
@@ -50,7 +50,7 @@ namespace lib::fs {
 
         PathError(str op, str path, Error const &err) : op(op), path(path), err(&err) {}
 
-        virtual void describe(io::OStream &out) const;
+        virtual void fmt(io::Writer &out, error err) const override;
     } ;
 
     struct FileInfo {

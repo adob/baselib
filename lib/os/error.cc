@@ -4,15 +4,16 @@
 
 #include "error.h"
 #include "../fs.h"
+#include "lib/fmt/fmt.h"
 using namespace lib;
 
 namespace lib::os {
 
-    void Errno::describe(io::OStream &out) const {
+    void Errno::fmt(io::Writer &out, error err) const {
         char buf[1024];
 
         char *s = strerror_r(this->code, buf, sizeof(buf));
-        out.write(str::from_c_str(s), error::ignore);
+        out.write(str::from_c_str(s), err);
     }
 
     bool Errno::is(TypeID target) const {
@@ -35,12 +36,20 @@ namespace lib::os {
         return false;
     }
 
-    void SyscallError::describe(io::OStream &out) const {
+    void SyscallError::fmt(io::Writer &out, error err) const {
         char buf[1024];
 
         char *s = strerror_r(this->code, buf, sizeof(buf));
 
-        fmt::fprintf(out, "%s: %s", this->syscall, s);
+        fmt::fprintf(out, err, "%s: %s", this->syscall, s);
+    }
+
+    void Error::fmt(io::Writer &out, error err) const {
+        char buf[1024];
+
+        char *s = strerror_r(this->code, buf, sizeof(buf));
+
+        fmt::fprintf(out, err, "%s: %s", this->function_name, s);
     }
 
 //     Error ErrPERM("Operation not permitted");

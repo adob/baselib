@@ -97,7 +97,7 @@ void test_join(testing::T &t) {
             .want = {&err1, &err2},
         },
     }) {
-        view<error*> got = errors::join(test.errs).unwrap();
+        view<Error*> got = errors::join(test.errs).unwrap();
         if (got != view(test.want)) {
             t.errorf("join(%v) = %v; want %v", test.errs, got, test.want);
         }

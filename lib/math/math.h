@@ -3,8 +3,11 @@
 #include "lib/base.h"
 
 #include <cmath>
+#include <limits>
 
 namespace lib::math {
+
+    constexpr size MaxSize = std::numeric_limits<size>::max();
 
     auto dist(auto a, auto b) {
         return std::abs(a - b);
@@ -22,4 +25,5 @@ namespace lib::math {
     using std::min;
     
     using std::abs;
+    using std::sqrt;
 }

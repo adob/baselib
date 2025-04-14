@@ -12,7 +12,7 @@ namespace lib::io {
     struct ErrShortBuffer   : ErrorBase<ErrShortBuffer, "short buffer"> {};
     struct ErrIO            : ErrorBase<ErrIO, "IO error"> {};
     
-    size read_full(io::IStream &in, buf buffer, error err);
+    size read_full(io::Writer &in, buf buffer, error err);
     
-    size read_at_least(io::IStream &in, buf buffer, size min, error err);
+    size read_at_least(io::Writer &in, buf buffer, size min, error err);
 }

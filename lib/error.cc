@@ -1,5 +1,6 @@
 #include "error.h"
 //#include "lib/fmt/fmt.h"
+#include "lib/fmt/fmt.h"
 #include "panic.h"
 #include "fmt.h"
 #include "io.h"
@@ -16,14 +17,64 @@ using namespace lib;
 //     test(erep);
 // }
 
+//const ErrorReporter error::ignoring_error_reporter = [](const Error &) {};
 
-void ErrorReporter::report(Error const &e) {
-    this->has_error = true;
-    this->handler(e);
+namespace {
+    
+    // ErrorReporter panicking_error_reporter = [](const Error &e) { lib::panic(e); };
+    // ErrorReporter logging_error_reporter = [](const Error &e) { errors::log_error(e); };
+
+    void ignore_handler(const Error &) {}
+    void panicking_handler(const Error &e) {
+        panic(e);
+    }
+    void logging_handler(const Error &e) {
+        errors::log_error(e);
+    }
 }
 
-void BasicError::describe(io::OStream &out) const {
-    out.write(msg, error::ignore);
+
+IgnoringError::IgnoringError() :
+        error(error_reporter),
+        error_reporter(ignore_handler) {}
+
+PanickingError::PanickingError() : 
+    error(error_reporter),
+    error_reporter(panicking_handler) {}
+
+LoggingError::LoggingError() : 
+    error(error_reporter),
+    error_reporter(logging_handler) {}
+
+using Ignore = decltype(error::ignore);
+using Panic = decltype(error::panic);
+using Log = decltype(error::log);
+
+Ignore::operator IgnoringError() {
+    return IgnoringError();
+}
+
+Panic::operator PanickingError() {
+    return PanickingError();
+}
+
+Log::operator LoggingError() {
+    return LoggingError();
+}
+
+//Ignore error::ignore;
+
+// void ErrorReporter::report(Error const &e) {
+//     if (this->has_error) {
+//         return;
+//     }
+
+//     this->has_error = true;
+//     this->handler(e);
+// }
+
+void BasicError::fmt(io::Writer &out, error err) const {
+    out.write(msg, err);
 }
 
 // static void panic_handler(const Error &e) {
@@ -104,3 +155,23 @@ void BasicError::describe(io::OStream &out) const {
 // void BasicError::describe(io::OStream &out) const {
 //     out.write(msg, error2::ignore());
 // }
+
+// ErrorRecorder::ErrorRecorder() : error(error_reporter) {}
+
+// void ErrorRecorder::handle_error(const Error &e) {
+//     this->msg = fmt::stringify(e);
+// }
+
+void ErrorRecorder::report(Error &e) {
+    this->has_error = true;
+    this->msg = fmt::stringify(e);
+}
+
+void ErrorRecorder::fmt(io::Writer &out, error err) const {
+    if (!this->has_error) {
+        out.write("ok", err);
+        return;
+    }
+
+    out.write(this->msg, err);
+}
