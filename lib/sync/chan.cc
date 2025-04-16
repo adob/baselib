@@ -106,10 +106,10 @@ ChanBase::ChanBase(int capacity) : capacity(capacity) {
 // assumes channel is open
 bool ChanBase::send_nonblocking(this ChanBase &c, void *elem, bool move, bool try_locks, bool *lock_fail, sync::Lock &lock) {
     if (c.capacity > 0) {
-    reload:
+    reload1:
         Data data = c.adata.load();
         do {
-        again:
+        again1:
 
             LOG("%d %#x send_nonblocking: got q; receivers %#x %v\n", pthread_self(), (uintptr) &c, data.q, (uintptr) data.receivers);
             if (data.q >= c.capacity) {
@@ -126,13 +126,13 @@ bool ChanBase::send_nonblocking(this ChanBase &c, void *elem, bool move, bool tr
                 LOG("%d %#x send_nonblocking: special case\n", pthread_self(), (uintptr) &c);
 
                 if (data.receivers == SelectorBusy) {
-                    goto reload;
+                    goto reload1;
                 }
 
                 Selector *receiver = data.receivers;
                 bool b = c.adata.update(&data, {.q = data.q, .receivers = (Selector*) -1, .senders = data.senders});
                 if (!b) {
-                    goto again;
+                    goto again1;
                 }
                 receiver->removed = true;
                 if (receiver->next) {
@@ -144,7 +144,7 @@ bool ChanBase::send_nonblocking(this ChanBase &c, void *elem, bool move, bool tr
                 LOG("%d %#x send_nonblocking: receiver popped atomically %#x\n", pthread_self(), (uintptr) &c, (uintptr) receiver);
                 if (!b) {
                     data = c.adata.load();
-                    goto again;
+                    goto again1;
                 }
 
                 if (receiver->value != nil) {
@@ -165,34 +165,36 @@ bool ChanBase::send_nonblocking(this ChanBase &c, void *elem, bool move, bool tr
         return true;
     }
 
-    // if (c.adata.receivers.empty_atomic()) {
-    //     // LOG("%d %#x send_nonblocking (cap=0): receivers empty; early return\n", pthread_self(), (uintptr) &c);
-    //     return false;
-    // }
-    
-    // if (!lock.locked) {
-    //     if (try_locks) {
-    //         if (!lock.try_lock(c.lock)) {
-    //             *lock_fail = true;
-    //             return false;
-    //         }
-    //     } else {
-    //         lock.lock(c.lock);
-    //     }
-    //     // LOG("%d %#x send_nonblocking (cap=0): locked\n", pthread_self(), (uintptr) &c);
-    // }
-
-try_again2:
-    if (c.adata.receivers.empty()) {
-        // LOG("%d %#x send_nonblocking (cap=0): receivers empty; returning\n", pthread_self(), (uintptr) &c);
+    // zero capacity case
+reload2:
+    Selector *receiver = c.adata.receivers.head.load();
+again2:
+    if (receiver == nil) {
+        LOG("%d %#x send_nonblocking (cap=0): receivers empty; returning\n", pthread_self(), (uintptr) &c);
         return false;
     }
+    if (receiver == SelectorClosed) {
+        return false;
+    }
+    if (receiver == SelectorBusy) {
+        goto reload2;
+    }
 
-    Selector *receiver = c.adata.receivers.pop();
-
+    bool b = c.adata.receivers.head.compare_and_swap(&receiver, SelectorBusy);
+    if (!b) {
+        LOG("%d %#x send_nonblocking (cap=0): compare-and-swap failed\n", pthread_self(), (uintptr)  &c);
+        goto again2;
+    }
+    receiver->removed = true;
+    if (receiver->next) {
+        receiver->next->prev = nil;
+    }
     bool expected = false;
-    if (!receiver->active->compare_exchange_strong(expected, true)) {
-        goto try_again2;
+    b = receiver->active->compare_exchange_strong(expected, true);
+    c.adata.receivers.head.store(receiver->next);
+    LOG("%d %#x send_nonblocking (cap=0): receiver popped atomically %#x\n", pthread_self(), (uintptr) &c, (uintptr) receiver);
+    if (!b) {
+        goto reload2;
     }
 
     if (receiver->value) {
@@ -201,10 +203,9 @@ try_again2:
     if (receiver->ok) {
         *receiver->ok = true;
     }
-
     receiver->completed->store(receiver);
     receiver->completed->notify_one();
-    // LOG("%d %#x send_nonblocking (cap=0): notified receiver\n", pthread_self(), (uintptr) &c);
+    LOG("%d %#x send_nonblocking (cap=0): notified receiver\n", pthread_self(), (uintptr) &c);
     return true;
 }
 
@@ -422,10 +423,13 @@ bool ChanBase::recv_nonblocking(this ChanBase &c, void *out, bool *okp, sync::Lo
         return true;
     }
 
-    reload2:
     // zero capacity case
+reload2:
     Selector *sender = c.adata.senders.head.load();
-    again2:
+again2:
+    if (sender == nil) {
+        return false;
+    }
     if (sender == SelectorClosed) {
         if (okp) {
             *okp = false;
@@ -433,11 +437,6 @@ bool ChanBase::recv_nonblocking(this ChanBase &c, void *out, bool *okp, sync::Lo
         LOG("%d %#x recv_nonblocking (cap=0): closed; early return\n", pthread_self(), (uintptr) &c);
         return true;
     }
-
-    if (sender == nil) {
-        return false;
-    }
-
     if (sender == SelectorBusy) {
         goto reload2;
     }
