@@ -51,7 +51,7 @@ namespace lib::sync {
 
         bool compare_and_swap(T *oldval, T newval, 
                 MemoryOrder success_meemorder = Release,
-                MemoryOrder failure_memorder = AcqRel
+                MemoryOrder failure_memorder = Acquire
             ) {
             // Lock l(mtx);
             bool b = __atomic_compare_exchange_n(&value, oldval, newval, false, success_meemorder, failure_memorder);

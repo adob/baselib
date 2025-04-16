@@ -8,6 +8,7 @@
 #include "lib/base.h"
 #include "atomic.h"
 #include "lib/io/io_stream.h"
+#include "lib/str.h"
 #include "mutex.h"
 #include "cond.h"
 #include "lock.h"
@@ -23,104 +24,42 @@ namespace lib::sync {
     struct Send;
 
     namespace internal {
-        constexpr bool DebugChecks = false;
+        constexpr bool DebugChecks = true;
         constexpr bool DebugLog = false;
+        
+        struct Selector {
+            void    *value = nil;
+            bool    *ok = nil;
+            bool    move = false;
 
-        template <typename T>
+            int      id = 0;
+
+            std::atomic<bool>      *active = nil;
+            std::atomic<Selector*> *completed = nil;
+            bool removed = false;
+
+            bool panic = false;
+
+            Selector *prev = nil;
+            Selector *next = nil;
+        };
+
         struct IntrusiveList {
-            struct Element {
-                T *prev = nil;
-                T *next = nil;
-            } ;
+          void push(Selector *e);
 
-            void push(T *e) {
-                // printf("PUSH this(%p) %p\n", this, e);
-                e->next = this->head;
-                e->prev = nil;
+          Selector *pop();
 
-                if (this->head) {
-                    this->head->prev = e;
-                }
+          void remove(Selector *e);
 
-                // this->head = e;
-                sync::store(this->head, e);
-                // dump();
-            }
+          bool empty() const;
 
-            T *pop() {
-                // printf("POP this(%p)\n", this);
-                T *e = this->head;
-                sync::store(this->head, e->next);
+          bool empty_atomic() const;
 
-                if (e->next) {
-                    e->next->prev = nil; 
-                }
-                // dump();
-                return e;
-            }
+          Selector *head = nil;
 
-            void remove(T *e) {
-                // printf("REMOVE this(%p) %p\n", this, e);
-                if constexpr (DebugChecks) {
-                    bool found = false;
-                    for (T *elem = this->head; elem != nil; elem = elem->next) {
-                        if (e == elem) {
-                            found = true;
-                            break;
-                        }
-                    }
-                    if (!found) {
-                        printf("PANIC!!! %p\n", this);
-                        dump();
+          void dump(str s="");
 
-                        panic("element not found");
-                    }
-                }
-                if (!e->prev) {
-                    this->head = e->next;
-                } else {
-                    e->prev->next = e->next;
-                }
-
-                if (e->next) {
-                    e->next->prev = e->prev;
-                }
-            }
-
-            bool empty() const {
-                return this->head == nil;
-            }
-
-            bool empty_atomic() const {
-                return sync::load(this->head) == nil;
-            }
-
-            T *head = nil;
-
-            void dump() {
-                if (!this->head) {
-                    fmt::printf("IntrusiveList %p empty\n", this);
-                    return;
-                }
-                io::Buffer b;
-                fmt::fprintf(b,"InstursveList %p contents: [%p", this, this->head);
-                for (T *elem = this->head->next; elem != nil; elem = elem->next) {
-                    fmt::fprintf(b, " -> %p", elem);
-                }
-
-                fmt::fprintf(b, "]\n");
-                os::stdout.write(b.str(), error::ignore);
-            }
-
-            bool contains(T *e) {
-                for (T *elem = this->head; elem != nil; elem = elem->next) {
-                    if (e == elem) {
-                        return true;
-                    }
-                }
-
-                return false;
-            }
+          bool contains(Selector *e);
         } ;
 
         struct Allocator {
@@ -154,27 +93,13 @@ namespace lib::sync {
  
         } ;
 
-        struct Selector : IntrusiveList<Selector>::Element {
-            void    *value = nil;
-            bool    *ok = nil;
-            bool    move = false;
-
-            int      id = 0;
-
-            std::atomic<bool>      *active = nil;
-            std::atomic<Selector*> *completed = nil;
-            bool done = false;
-
-            bool panic = false;
-        };
-
         struct ChanBase {
             // int       unread = 0;
             const int capacity = 0;
             atomic<int> q = 0;
 
-            internal::IntrusiveList<internal::Selector>  receivers;
-            internal::IntrusiveList<internal::Selector>    senders;
+            internal::IntrusiveList receivers;
+            internal::IntrusiveList senders;
         
             enum State : byte {
                 Open,
@@ -297,7 +222,7 @@ namespace lib::sync {
             }
 
             if constexpr (internal::DebugLog) {
-                fmt::printf("%d %#x pushed %v\n", pthread_self(), (uintptr) this, (T*) elem);
+                fmt::printf("%d %#x pushed %v; size %v\n", pthread_self(), (uintptr) this, (T*) elem, buffer.was_size());
             }
                 
         }
@@ -312,7 +237,7 @@ namespace lib::sync {
                 buffer.pop();
             }
             if constexpr (internal::DebugLog) {
-                fmt::printf("%d %#x popped %v\n", pthread_self(), (uintptr) this, (T*) out);
+                fmt::printf("%d %#x popped %v; size %v\n", pthread_self(), (uintptr) this, (T*) out, buffer.was_size());
             }
         }
 

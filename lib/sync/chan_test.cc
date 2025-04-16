@@ -575,7 +575,9 @@ void test_select_stress(testing::T &) {
 		//k := k
 		g.emplace_back([k, N, &c, &wg] {
 			for (int i = 0; i < N; i++) {
+                LOG("SENDING %d 0...\n", pthread_self());
 				c[k].send(0);
+                LOG("SENT %d 0...\n", pthread_self());
 			}
 			wg.done();
 		});
@@ -624,19 +626,21 @@ void test_select_stress(testing::T &) {
                 break;
 			}
 		}
+        LOG("DONE SENDING\n");
 		wg.done();
 	});
 	g.emplace_back([N, &c, &wg] {
 		Array<int, 4> n = {0,0,0,0};
 		Array<Chan<int>*, 4> c1 = {&c[0], &c[1], &c[2], &c[3]};
 		for (int i = 0; i < 4*N; i++) {
-            // printf("%ld g4 BEFORE RECV %p %p %p %p\n", pthread_self(), c1[0], c1[1], c1[2], c1[3]);
+            LOG("%d BEFORE RECV %#x %#x %#x %#x\n", pthread_self(), (uintptr) c1[0], (uintptr) c1[1], (uintptr) c1[2], (uintptr) c1[3]);
             int r = select(
                 Recv(c1[0]),
                 Recv(c1[1]),
                 Recv(c1[2]),
                 Recv(c1[3])
             );
+            LOG("%d AFTER RECV %#x %#x %#x %#x\n", pthread_self(), (uintptr) c1[0], (uintptr) c1[1], (uintptr) c1[2], (uintptr) c1[3]);
 			switch (r) {
 			case 0:
 				n[0]++;
@@ -1309,6 +1313,7 @@ void benchmark_select_nonblock(testing::B &b) {
 int xmain(int, char **) {
     debug::init();
     testing::T t;
-    test_multi_consumer(t);
+    test_select_stress(t);
+    //test_select_duplicate_channel(t);
     return 0;
 }

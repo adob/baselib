@@ -90,16 +90,16 @@ bool ChanBase::send_nonblocking(this ChanBase &c, void *elem, bool move, bool tr
     if (c.capacity > 0) {
         int q = c.q.load();
         do {
-            LOG("%d %#x send_nonblocking_unlocked: got q %v\n", pthread_self(), (uintptr) &c, q);
+            LOG("%d %#x send_nonblocking: got q %v\n", pthread_self(), (uintptr) &c, q);
             if (q >= c.capacity) {
                 return false;
             }
 
             if (q == 0) {
                 // special case; may need to notify receivers
-                if (!lock.locked) {
-                    lock.lock(c.lock);
-                }
+                // if (!lock.locked) {
+                //     lock.lock(c.lock);
+                // }
 
                 int old_q = q;
                 q = c.q.load();
@@ -110,7 +110,6 @@ bool ChanBase::send_nonblocking(this ChanBase &c, void *elem, bool move, bool tr
                 LOG("%d %#x send_nonblocking: special case locked\n", pthread_self(), (uintptr)  &c);
                 while (!c.receivers.empty()) {
                     Selector *reciver = c.receivers.pop();
-                    reciver->done = true;
 
                     bool expected = false;
                     bool ok = reciver->active->compare_exchange_strong(expected, true);
@@ -137,28 +136,30 @@ bool ChanBase::send_nonblocking(this ChanBase &c, void *elem, bool move, bool tr
         return true;
     }
 
-    if (c.receivers.empty_atomic()) {
-        return false;
-    }
+    // if (c.receivers.empty_atomic()) {
+    //     // LOG("%d %#x send_nonblocking (cap=0): receivers empty; early return\n", pthread_self(), (uintptr) &c);
+    //     return false;
+    // }
     
-    if (!lock.locked) {
-        if (try_locks) {
-            if (!lock.try_lock(c.lock)) {
-                *lock_fail = true;
-                return false;
-            }
-        } else {
-            lock.lock(c.lock);
-        }
-    }
+    // if (!lock.locked) {
+    //     if (try_locks) {
+    //         if (!lock.try_lock(c.lock)) {
+    //             *lock_fail = true;
+    //             return false;
+    //         }
+    //     } else {
+    //         lock.lock(c.lock);
+    //     }
+    //     // LOG("%d %#x send_nonblocking (cap=0): locked\n", pthread_self(), (uintptr) &c);
+    // }
 
 try_again2:
     if (c.receivers.empty()) {
+        // LOG("%d %#x send_nonblocking (cap=0): receivers empty; returning\n", pthread_self(), (uintptr) &c);
         return false;
     }
 
     Selector *receiver = c.receivers.pop();
-    receiver->done = true;
 
     bool expected = false;
     if (!receiver->active->compare_exchange_strong(expected, true)) {
@@ -174,28 +175,29 @@ try_again2:
 
     receiver->completed->store(receiver);
     receiver->completed->notify_one();
+    // LOG("%d %#x send_nonblocking (cap=0): notified receiver\n", pthread_self(), (uintptr) &c);
     return true;
 }
 
 
 void ChanBase::send_blocking(this ChanBase &c, void *elem, bool move) {
     LOG("%d %#x send_blocking\n", pthread_self(), (uintptr) &c);
-    sync::Lock lock;
+    sync::Lock lock(c.lock);
     bool ok = c.send_nonblocking(elem, move, false, nil, lock);
     if (ok) {
-        LOG("%d %#x send_blocking: send_nonblocking_unlocked succeeded\n", pthread_self(), (uintptr) &c);
+        LOG("%d %#x send_blocking: send_blocking succeeded\n", pthread_self(), (uintptr) &c);
         return;
     }
 
-    LOG("%d %#x send_blocking: send_nonblocking_unlocked failed\n", pthread_self(), (uintptr)  &c);
+    LOG("%d %#x send_blocking: send_blocking failed\n", pthread_self(), (uintptr)  &c);
 
-    if (!lock.locked) {
-        lock.lock(c.lock);
-    }
+    // if (!lock.locked) {
+    //     LOG("%d %#x send_blocking: locked\n", pthread_self(), (uintptr) &c);
+    //     lock.lock(c.lock);
+    // }
 
     while (!c.receivers.empty()) {
         Selector *receiver = c.receivers.pop();
-        receiver->done = true;
 
         bool expected = false;
         if (!receiver->active->compare_exchange_strong(expected, true)) {
@@ -219,6 +221,67 @@ void ChanBase::send_blocking(this ChanBase &c, void *elem, bool move) {
         panic("send on closed channel");
     }
 
+    if (c.capacity > 0) {
+        int q = c.q.load();
+        bool at_cap = false;
+        do {
+            LOG("%d %#x send_blocking: got q %v\n", pthread_self(), (uintptr) &c, q);
+            if (q >= c.capacity) {
+                at_cap = true;
+                break;
+            }
+
+            // if (q == 0) {
+            //     // special case; may need to notify receivers
+            //     if (!lock.locked) {
+            //         lock.lock(c.lock);
+            //     }
+
+            //     int old_q = q;
+            //     q = c.q.load();
+            //     if (q != old_q) {
+            //         continue;
+            //     }
+
+            //     LOG("%d %#x send_nonblocking: special case locked\n", pthread_self(), (uintptr)  &c);
+            //     Selector *receiver = nil;
+            //     while (!c.receivers.empty()) {
+            //         Selector *t = c.receivers.pop();
+            //         t->done = true;
+
+            //         bool expected = false;
+            //         bool ok = t->active->compare_exchange_strong(expected, true);
+            //         if (ok) {
+            //             receiver = t;
+            //             break;
+            //         }
+            //     }
+
+            //     if (receiver == nil) {
+            //         continue;
+            //     }
+
+            //     if (receiver->value) {
+            //         c.set(receiver->value, elem, move);
+            //     }
+            //     if (receiver->ok) {
+            //         *receiver->ok = true;
+            //     }
+            //     receiver->completed->store(receiver);
+            //     receiver->completed->notify_one();
+            //     return;
+                
+            //     LOG("%d %#x send_nonblocking: special case bailing\n", pthread_self(), (uintptr)  &c);
+            // }
+        } while (!c.q.compare_and_swap(&q, q+1));
+        LOG("%d %#x send_blocked: q %v -> %v %v\n", pthread_self(), (uintptr) &c, q, q+1, c.q.load());
+        
+        if (!at_cap) {
+            c.push(elem, move);
+            return;
+        }
+    }
+
     std::atomic<bool> active = false;
     std::atomic<Selector*> completed = nil;
 
@@ -232,7 +295,7 @@ void ChanBase::send_blocking(this ChanBase &c, void *elem, bool move) {
     c.senders.push(&sender);
 
     lock.unlock();
-    LOG("%d %#x send_blocking: send_nonblocking_unlocked waiting\n", pthread_self(), (uintptr)  &c);
+    LOG("%d %#x send_blocking: waiting\n", pthread_self(), (uintptr)  &c);
     completed.wait(nil);
 
     if (sender.panic) {
@@ -253,7 +316,7 @@ bool ChanBase::send_nonblocking_i(this ChanBase &c, void *elem, bool move) {
         panic("send on closed channel");
     }
 
-    sync::Lock lock;
+    sync::Lock lock(c.lock);
     return c.send_nonblocking(elem, move, false, nil, lock);
 }
 
@@ -261,7 +324,7 @@ bool ChanBase::recv_nonblocking(this ChanBase &c, void *out, bool *ok, sync::Loc
     if (c.capacity > 0) {
         int q = c.q.load();
         do {
-            LOG("%d %#x recv_nonblocking_unlocked: got q %v\n", pthread_self(), (uintptr)  &c, q);
+            LOG("%d %#x recv_nonblocking: got q %v\n", pthread_self(), (uintptr)  &c, q);
             if (q <= 0) {
                 if (c.closed()) {
                     if (ok) {
@@ -274,18 +337,17 @@ bool ChanBase::recv_nonblocking(this ChanBase &c, void *out, bool *ok, sync::Loc
             }
 
             if (q == c.capacity) {
-                LOG("%d %#x recv_nonblocking_unlocked: special case\n", pthread_self(), (uintptr)  &c);
-                if (!lock.locked) {
-                    lock.lock(c.lock);
-                }
+                LOG("%d %#x recv_nonblocking: special case\n", pthread_self(), (uintptr)  &c);
+                // if (!lock.locked) {
+                //     lock.lock(c.lock);
+                // }
                 if (q != c.q.load()) {
                     continue;
                 }
-                LOG("%d %#x recv_nonblocking_unlocked: special case locked\n", pthread_self(), (uintptr)  &c);
+                LOG("%d %#x recv_nonblocking: special case locked\n", pthread_self(), (uintptr)  &c);
                 Selector *sender = nil;
                 while (!c.senders.empty()) {
                     Selector *t = c.senders.pop();
-                    t->done = true;
 
                     bool expected = false;
                     bool ok = t->active->compare_exchange_strong(expected, true);
@@ -296,7 +358,7 @@ bool ChanBase::recv_nonblocking(this ChanBase &c, void *out, bool *ok, sync::Loc
                 }
 
                 if (sender == nil) {
-                    LOG("%d %#x recv_nonblocking_unlocked: special case bailing\n", pthread_self(), (uintptr)  &c);
+                    LOG("%d %#x recv_nonblocking: special case bailing\n", pthread_self(), (uintptr)  &c);
                     continue;
                 }
 
@@ -305,7 +367,7 @@ bool ChanBase::recv_nonblocking(this ChanBase &c, void *out, bool *ok, sync::Loc
                     *ok = true;
                 }
 
-                LOG("%d %#x recv_nonblocking_unlocked: special case push\n", pthread_self(), (uintptr)  &c);
+                LOG("%d %#x recv_nonblocking: special case push\n", pthread_self(), (uintptr)  &c);
                 c.push(sender->value, sender->move);
                 sender->completed->store(sender);
                 sender->completed->notify_one();
@@ -313,7 +375,7 @@ bool ChanBase::recv_nonblocking(this ChanBase &c, void *out, bool *ok, sync::Loc
                 return true;
             }
         } while (!c.q.compare_and_swap(&q, q-1));
-        LOG("%d %#x recv_nonblocking_unlocked: %v -> %v\n", pthread_self(), (uintptr)  &c, q, q-1);
+        LOG("%d %#x recv_nonblocking: %v -> %v\n", pthread_self(), (uintptr)  &c, q, q-1);
 
 
         c.pop(out);
@@ -324,29 +386,33 @@ bool ChanBase::recv_nonblocking(this ChanBase &c, void *out, bool *ok, sync::Loc
         return true;
     }
 
+    // if (!lock.locked) {
+    //     // if (c.senders.empty_atomic()) {
+    //     //     return false;
+    //     // }
+
+    //     LOG("%d %#x recv_nonblocking: acquiring lock...\n", pthread_self(), (uintptr)  &c);
+    //     lock.lock(c.lock);
+    //     LOG("%d %#x recv_nonblocking: lock acquired\n", pthread_self(), (uintptr)  &c);
+    //     // LOG("%d %#x recv_nonblocking (cap=0): locked\n", pthread_self(), (uintptr) &c);
+    // }
+
     // zero capacity case
     if (c.closed()) {
         if (ok) {
             *ok = false;
         }
+        // LOG("%d %#x recv_nonblocking (cap=0): closed; early return\n", pthread_self(), (uintptr) &c);
         return true;
-    }
-
-    if (!lock.locked) {
-        if (c.senders.empty_atomic()) {
-            return false;
-        }
-
-        lock.lock(c.lock);
     }
 
 try_again:
     if (c.senders.empty()) {
+        // LOG("%d %#x recv_nonblocking (cap=0): senders empty; returning\n", pthread_self(), (uintptr) &c);
         return false;
     }
 
     Selector *sender = c.senders.pop();
-    sender->done = true;
 
     bool expected = false;
     if (!sender->active->compare_exchange_strong(expected, true)) {
@@ -362,13 +428,14 @@ try_again:
     if (ok) {
         *ok = true;
     }
+    // LOG("%d %#x recv_nonblocking (cap=0): notified sender\n", pthread_self(), (uintptr) &c);
     return true;
 }
 
 void ChanBase::recv_blocking(this ChanBase &c, void *out, bool *ok) {
     LOG("%d %#x recv_blocking\n", pthread_self(), (uintptr) &c);
 
-    sync::Lock lock;
+    sync::Lock lock(c.lock);
     if (c.recv_nonblocking(out, ok, lock)) {
         LOG("%d %#x recv_blocking: recv nonblocking unlocked succeeded\n", pthread_self(), (uintptr) &c);
         return;
@@ -376,10 +443,10 @@ void ChanBase::recv_blocking(this ChanBase &c, void *out, bool *ok) {
     LOG("%d %#x recv_blocking: recv nonblocking unlocked failed\n", pthread_self(), (uintptr) &c);
 
     // locking lock here
-    if (!lock.locked) {
-        LOG("%d %#x recv_blocking: locked\n", pthread_self(), (uintptr) &c, c.senders.empty());
-        lock.lock(c.lock);
-    }
+    // if (!lock.locked) {
+    //     LOG("%d %#x recv_blocking: locked\n", pthread_self(), (uintptr) &c, c.senders.empty());
+    //     lock.lock(c.lock);
+    // }
 
     int q = c.q.load();
     do {
@@ -401,7 +468,6 @@ void ChanBase::recv_blocking(this ChanBase &c, void *out, bool *ok) {
             Selector *sender = nil;
             while (!c.senders.empty()) {
                 Selector *t = c.senders.pop();
-                t->done = true;
 
                 bool expected = false;
                 bool ok = t->active->compare_exchange_strong(expected, true);
@@ -449,7 +515,6 @@ void ChanBase::recv_blocking(this ChanBase &c, void *out, bool *ok) {
     // can read from buffer
     while (!c.senders.empty()) {
         Selector *sender = c.senders.pop();
-        sender->done = true;
     
         bool expected = false;
         if (!sender->active->compare_exchange_strong(expected, true)) {
@@ -483,6 +548,7 @@ void ChanBase::recv_blocking(this ChanBase &c, void *out, bool *ok) {
     lock.unlock();
     LOG("%d %#x recv_blocking: about to wait\n", pthread_self(), (uintptr) &c);
     completed.wait(nil);
+
     LOG("%d %#x recv_blocking: wait done\n", pthread_self(), (uintptr) &c);
 }
 
@@ -506,7 +572,6 @@ void ChanBase::close(this ChanBase &c) {
             continue;
         }
         sender->panic = true;
-        sender->done = true;
         sender->completed->store(sender);
         sender->completed->notify_one();
     }
@@ -529,7 +594,6 @@ void ChanBase::close(this ChanBase &c) {
             *receiver->ok = false;
         }
 
-        receiver->done = true;
         receiver->completed->store(receiver);
         receiver->completed->notify_one();
         // j++;
@@ -565,7 +629,7 @@ int ChanBase::length() const {
 }
 
 bool ChanBase::try_recv(this ChanBase &c, void *out, bool *ok, bool try_locks, bool *lock_fail) {
-    Lock lock;
+    Lock lock(c.lock);
     return c.recv_nonblocking(out, ok, lock);
 }
 
@@ -588,18 +652,10 @@ bool ChanBase::subscribe_send(this ChanBase &c, internal::Selector &sender, Lock
 }
 
 void ChanBase::unsubscribe_recv(this ChanBase &c, internal::Selector &receiver, Lock&) {
-    if (receiver.done) {
-        return;
-    }
-
     c.receivers.remove(&receiver);
 }
 
 void ChanBase::unsubscribe_send(this ChanBase &c, internal::Selector &sender, Lock&) {
-    if (sender.done) {
-        return;
-    }
-    
     c.senders.remove(&sender);
 }
 
@@ -617,17 +673,18 @@ bool Recv::select(bool blocking) const {
         return true;
     }
 
-    sync::Lock lock;
+    sync::Lock lock(c.lock);
     return c.recv_nonblocking(this->data, this->ok, lock);
 }
 
 bool Send::poll(bool try_locks, bool *lock_fail) const {
     ChanBase & c = *this->chan;
     if (c.closed()) {
+        LOG("%d %#X Send::poll: closed; returning early\n", pthread_self(), (uintptr) &c);
         return false;
     }
 
-    sync::Lock lock;
+    sync::Lock lock(c.lock);
     return c.send_nonblocking(this->data, this->move, try_locks, lock_fail, lock);
 }
 
@@ -688,6 +745,7 @@ int internal::select_i(arr<OpData> ops, arr<OpData*> ops_ptrs, arr<OpData*> lock
         ops_ptrs[avail_ops++] = &op;
     }
 
+    // LOG("%d select_i: avail_ops %d\n", pthread_self(), avail_ops);
     for (int i = avail_ops; i > 0; i--) {
         int selected_idx = cheaprandn(i);
         OpData *selected_op = ops_ptrs[selected_idx];
@@ -737,7 +795,10 @@ int internal::select_i(arr<OpData> ops, arr<OpData*> ops_ptrs, arr<OpData*> lock
 
         if (i == 0 || &op.op.chan->lock != &ops_ptrs[i-1]->op.chan->lock) {
             // skip re-locking the same lock
+            LOG("LOCKING IN ORDER %#x\n", (uintptr) op.op.chan);
             op.chanlock.lock(op.op.chan->lock);
+        } else {
+            LOG("LOCKING IN ORDER SKIP %#x\n", (uintptr) op.op.chan);
         }
 
         if (op.op.subscribe(op.selector, op.chanlock)) {
@@ -805,4 +866,102 @@ void lib::sync::Chan<void>::push(void *, bool) {
 
 int lib::sync::Chan<void>::unread() const { 
     return unread_v.load(); 
+}
+void IntrusiveList::push(Selector *e) {
+    // printf("PUSH this(%p) %p\n", this, e);
+    e->next = this->head;
+    e->prev = nil;
+
+    if (this->head) {
+        this->head->prev = e;
+    }
+
+    // this->head = e;
+    sync::store(this->head, e);
+    // dump();
+}
+
+Selector *IntrusiveList::pop() {
+    // printf("POP this(%p)\n", this);
+    Selector *e = this->head;
+    sync::store(this->head, e->next);
+
+    if (e->next) {
+        e->next->prev = nil;
+    }
+    
+    e->removed = true;
+    return e;
+}
+
+void IntrusiveList::remove(Selector *e) {
+    if (e->removed) {
+        return;
+    }
+
+    // printf("REMOVE this(%p) %p\n", this, e);
+    if constexpr (DebugChecks) {
+        bool found = false;
+        for (Selector *elem = this->head; elem != nil; elem = elem->next) {
+        if (e == elem) {
+            found = true;
+            break;
+        }
+        }
+        if (!found) {
+            printf("PANIC!!! %p\n", this);
+            dump();
+
+            panic("element not found");
+        }
+    }
+
+    if (!e->prev) {
+        if constexpr (DebugChecks) {
+            if (this->head != e) {
+                panic("bad head");
+            }
+        }
+
+        this->head = e->next;
+    } else {
+        e->prev->next = e->next;
+    }
+
+    if (e->next) {
+        e->next->prev = e->prev;
+    }
+
+    e->removed = true;
+}
+
+void IntrusiveList::dump(str s) {
+    if (!this->head) {
+        fmt::printf("IntrusiveList %s %#x empty\n", s, (uintptr) this);
+        return;
+    }
+    io::Buffer b;
+    fmt::fprintf(b, "InstursveList %s %#x contents: [%#x", s, (uintptr) this, (uintptr) this->head);
+    for (Selector *elem = this->head->next; elem != nil; elem = elem->next) {
+        fmt::fprintf(b, " -> %#x", (uintptr) elem);
+    }
+
+    fmt::fprintf(b, "]\n");
+    os::stdout.write(b.str(), error::ignore);
+}
+
+bool IntrusiveList::contains(Selector *e) {
+    for (Selector *elem = this->head; elem != nil; elem = elem->next) {
+        if (e == elem) {
+        return true;
+        }
+    }
+
+    return false;
+}
+bool lib::sync::internal::IntrusiveList::empty() const {
+  return this->head == nil;
+}
+bool lib::sync::internal::IntrusiveList::empty_atomic() const {
+  return sync::load(this->head) == nil;
 }
