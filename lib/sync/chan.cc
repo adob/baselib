@@ -135,6 +135,9 @@ bool ChanBase::send_nonblocking(this ChanBase &c, void *elem, bool move, bool tr
                     goto again;
                 }
                 receiver->removed = true;
+                if (receiver->next) {
+                    receiver->next->prev = nil;
+                }
                 bool expected = false;
                 b = receiver->active->compare_exchange_strong(expected, true);
                 c.adata.receivers.head.store(receiver->next);
@@ -385,9 +388,13 @@ bool ChanBase::recv_nonblocking(this ChanBase &c, void *out, bool *okp, sync::Lo
                     goto again;
                 }
                 sender->removed = true;
+                if (sender->next) {
+                    sender->next->prev = nil;
+                }
                 bool expected = false;
                 b = sender->active->compare_exchange_strong(expected, true);
                 c.adata.senders.head.store(sender->next);
+                LOG("%d %#x recv_nonblocking: sender popped atomically %#x\n", pthread_self(), (uintptr) &c, (uintptr) sender);
                 if (!b) {
                     data = c.adata.load();
                     goto again;
@@ -1004,7 +1011,6 @@ void IntrusiveList::remove(Selector *e) {
     if (e->removed) {
         return;
     }
-    e->removed = true;
 
     reload:
     Selector *head = this->head.load();
@@ -1025,6 +1031,11 @@ void IntrusiveList::remove(Selector *e) {
         fmt::printf("%d %#x IntrusiveList removing %#x; list %s\n", pthread_self(), (uintptr) this, (uintptr) e, format(head));
         fmt::printf("%d %#x IntrusiveList removing %#x (%s); list %s\n", pthread_self(), (uintptr) this, (uintptr) e, format(e), format(head));
     }
+
+    if (e->removed) {
+        return;
+    }
+    e->removed = true;
 
     if (e->prev) {
         e->prev->next= e->next;

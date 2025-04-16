@@ -1315,7 +1315,7 @@ void benchmark_select_nonblock(testing::B &b) {
 int xmain(int, char **) {
     debug::init();
     testing::T t;
-    test_chan(t);
+    test_select_stress(t);
     //test_select_duplicate_channel(t);
     return 0;
 }
