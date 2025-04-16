@@ -136,10 +136,10 @@ bool ChanBase::send_nonblocking(this ChanBase &c, void *elem, bool move, bool tr
                 }
                 receiver->removed = true;
                 bool expected = false;
-                bool ok = receiver->active->compare_exchange_strong(expected, true);
+                b = receiver->active->compare_exchange_strong(expected, true);
                 c.adata.receivers.head.store(receiver->next);
                 LOG("%d %#x send_nonblocking: receiver popped atomically %#x\n", pthread_self(), (uintptr) &c, (uintptr) receiver);
-                if (!ok) {
+                if (!b) {
                     data = c.adata.load();
                     goto again;
                 }
@@ -351,15 +351,18 @@ bool ChanBase::send_nonblocking_i(this ChanBase &c, void *elem, bool move) {
     return c.send_nonblocking(elem, move, false, nil, lock);
 }
 
-bool ChanBase::recv_nonblocking(this ChanBase &c, void *out, bool *ok, sync::Lock &lock) {
+bool ChanBase::recv_nonblocking(this ChanBase &c, void *out, bool *okp, sync::Lock &lock) {
     if (c.capacity > 0) {
-        int q = c.adata.q.load();
+        // int q = c.adata.q.load();
+        Data data = c.adata.load();
         do {
-            LOG("%d %#x recv_nonblocking: got q %v\n", pthread_self(), (uintptr)  &c, q);
-            if (q <= 0) {
+            again:
+
+            LOG("%d %#x recv_nonblocking: got q %v\n", pthread_self(), (uintptr)  &c, data.q);
+            if (data.q <= 0) {
                 if (c.closed()) {
-                    if (ok) {
-                        *ok = false;
+                    if (okp) {
+                        *okp = false;
                     }
                     return true;
                 }
@@ -367,39 +370,32 @@ bool ChanBase::recv_nonblocking(this ChanBase &c, void *out, bool *ok, sync::Loc
                 return false;
             }
 
-            if (q == c.capacity) {
+            if (data.q == c.capacity && data.senders != nil) {
                 LOG("%d %#x recv_nonblocking: special case\n", pthread_self(), (uintptr)  &c);
-                // if (!lock.locked) {
-                //     lock.lock(c.lock);
-                // }
-                if (q != c.adata.q.load()) {
-                    continue;
-                }
-                if (intptr(c.adata.senders.head.load()) == -2) {
+                
+                if (data.senders == SelectorClosed) {
                     // closed
                     continue;
                 }
-                LOG("%d %#x recv_nonblocking: special case locked\n", pthread_self(), (uintptr)  &c);
-                Selector *sender = nil;
-                while (!c.adata.senders.empty()) {
-                    Selector *t = c.adata.senders.pop();
 
-                    bool expected = false;
-                    bool ok = t->active->compare_exchange_strong(expected, true);
-                    if (ok) {
-                        sender = t;
-                        break;
-                    }
+                Selector *sender = data.senders;
+                bool b = c.adata.update(&data, {.q = data.q, .receivers = data.receivers, .senders = SelectorBusy});
+                if (!b) {
+                    LOG("%d %#x recv_nonblocking: compare-and-swap failed\n", pthread_self(), (uintptr)  &c);
+                    goto again;
                 }
-
-                if (sender == nil) {
-                    LOG("%d %#x recv_nonblocking: special case bailing\n", pthread_self(), (uintptr)  &c);
-                    continue;
+                sender->removed = true;
+                bool expected = false;
+                b = sender->active->compare_exchange_strong(expected, true);
+                c.adata.senders.head.store(sender->next);
+                if (!b) {
+                    data = c.adata.load();
+                    goto again;
                 }
 
                 c.pop(out);
-                if (ok) {
-                    *ok = true;
+                if (okp) {
+                    *okp = true;
                 }
 
                 LOG("%d %#x recv_nonblocking: special case push\n", pthread_self(), (uintptr)  &c);
@@ -409,14 +405,14 @@ bool ChanBase::recv_nonblocking(this ChanBase &c, void *out, bool *ok, sync::Loc
                 
                 return true;
             }
-        } while (!c.adata.q.compare_and_swap(&q, q-1));
-        LOG("%d %#x recv_nonblocking: %v -> %v; actual %v\n", pthread_self(), (uintptr)  &c, q, q-1, c.adata.q.load());
+        } while (!c.adata.update(&data, {.q = data.q-1, .receivers = data.receivers, .senders = data.senders }));
+        LOG("%d %#x recv_nonblocking: %v -> %v; actual %v\n", pthread_self(), (uintptr)  &c, data.q, data.q-1, c.adata.q.load());
 
 
         c.pop(out);
         
-        if (ok) {
-            *ok = true;
+        if (okp) {
+            *okp = true;
         }
         return true;
     }
@@ -434,8 +430,8 @@ bool ChanBase::recv_nonblocking(this ChanBase &c, void *out, bool *ok, sync::Loc
 
     // zero capacity case
     if (c.closed()) {
-        if (ok) {
-            *ok = false;
+        if (okp) {
+            *okp = false;
         }
         // LOG("%d %#x recv_nonblocking (cap=0): closed; early return\n", pthread_self(), (uintptr) &c);
         return true;
@@ -460,8 +456,8 @@ try_again:
 
     sender->completed->store(sender);
     sender->completed->notify_one();
-    if (ok) {
-        *ok = true;
+    if (okp) {
+        *okp = true;
     }
     // LOG("%d %#x recv_nonblocking (cap=0): notified sender\n", pthread_self(), (uintptr) &c);
     return true;
@@ -1137,25 +1133,27 @@ ChanBase::Data ChanBase::AtomicData::load() {
     };
   }
   
-  bool ChanBase::AtomicData::update(Data *expected, Data newval) {
-      sync::Lock lock(mtx);
-  
-      // fmt::printf("%d UPDATE CALLED\n", pthread_self());
-  
-      if (expected->receivers != receivers.head.load() || expected->senders != senders.head.load()) {
-          expected->receivers = receivers.head.load();
-          expected->senders = senders.head.load();
-          return false;
-      }
-  
-      if (!this->q.compare_and_swap(&expected->q, newval.q)) {
-          return false;
-      }
-      this->receivers.head = newval.receivers;
-      this->senders.head = newval.senders;
-  
-      *expected = newval;
-  
-      // fmt::printf("%d UPDATE SUCCESS %v %v\n", pthread_self(), this->q.value, expected->q);
-      return true;
-  }
+bool ChanBase::AtomicData::update(Data *expected, Data newval) {
+    sync::Lock lock(mtx);
+
+    // fmt::printf("%d UPDATE CALLED\n", pthread_self());
+
+    if (expected->receivers != receivers.head.load() || expected->senders != senders.head.load()) {
+        expected->receivers = receivers.head.load();
+        expected->senders = senders.head.load();
+        LOG("AtomicData update failed because of unexpected receivers or senders\n");
+        return false;
+    }
+
+    if (!this->q.compare_and_swap(&expected->q, newval.q)) {
+        LOG("AtomicData update failed because of unexpected q\n");
+        return false;
+    }
+    this->receivers.head = newval.receivers;
+    this->senders.head = newval.senders;
+
+    *expected = newval;
+
+    // fmt::printf("%d UPDATE SUCCESS %v %v\n", pthread_self(), this->q.value, expected->q);
+    return true;
+}

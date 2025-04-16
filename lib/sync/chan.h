@@ -51,6 +51,9 @@ namespace lib::sync {
             Selector *next = nil;
         };
 
+        Selector *const SelectorBusy = (Selector*) -1;
+        Selector *const SelectorClosed = (Selector*) -2;        
+
         struct IntrusiveList {
           void push(Selector *e);
 
