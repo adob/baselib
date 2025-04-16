@@ -7,8 +7,8 @@
 using namespace lib;
 using namespace os;
 
-StdStream os::stdout(::stdout);
-StdStream os::stderr(::stderr);
+StdStream os::stdout(::stdout, 1);
+StdStream os::stderr(::stderr, 2);
 
 io::ReadResult os::StdStream::direct_read(buf bytes, error err) {
     size n = size(::fread(bytes.data, 1, usize(len(bytes)), file));
@@ -29,7 +29,7 @@ io::ReadResult os::StdStream::direct_read(buf bytes, error err) {
  
  size os::StdStream::direct_write(str data, error err) {
     // ::write(1, "<", 1);
-    size n = ::write(1, data.data, data.len);
+    size n = ::write(fd, data.data, data.len);
     // ::write(1, ">", 1);
     // printf("%ld:", len(data));
     // size n = size(::fwrite(data.data, 1, usize(len(data)), file));

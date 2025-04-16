@@ -71,4 +71,13 @@ namespace lib::sync {
     void store(T &t, T val, MemoryOrder order = Release) {
         __atomic_store_n(&t, val, order);
     }
+
+    template <typename T>
+    bool compare_and_swap(T &ptr, T *oldval, T newval, 
+        MemoryOrder success_meemorder = Release,
+        MemoryOrder failure_memorder = Acquire
+    ) {
+        bool b = __atomic_compare_exchange_n(&ptr, oldval, newval, false, success_meemorder, failure_memorder);
+        return b;
+    }
 }

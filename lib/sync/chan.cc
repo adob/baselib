@@ -80,6 +80,24 @@ uint32 cheaprandn(uint32 n) {
 	return uint32((uint64(cheaprand()) * uint64(n)) >> 32);
 }
 
+String format(Selector *e) {
+    if (e == nil) {
+        return "<nil>";
+    }
+    String s;
+    s += fmt::sprintf("%#x", (uintptr) e);
+
+    for (Selector *elem = e->prev; elem != nil; elem = elem->prev) {
+        mem::touch(elem);
+        s = String(fmt::sprintf("%#x <- ", (uintptr) elem)) + s;
+    }
+
+    for (Selector *elem = e->next; elem != nil; elem = elem->next) {
+        s += String(fmt::sprintf(" -> %#x", (uintptr) elem));
+    }
+
+    return "[" + s + "]";
+}
 
 ChanBase::ChanBase(int capacity) : capacity(capacity) {
     LOG("%d %#x chan constrcuted with capacity %v\n", pthread_self(), (uintptr) this, capacity);
@@ -88,55 +106,63 @@ ChanBase::ChanBase(int capacity) : capacity(capacity) {
 // assumes channel is open
 bool ChanBase::send_nonblocking(this ChanBase &c, void *elem, bool move, bool try_locks, bool *lock_fail, sync::Lock &lock) {
     if (c.capacity > 0) {
-        int q = c.q.load();
+        Data data = c.adata.load();
         do {
-            LOG("%d %#x send_nonblocking: got q %v\n", pthread_self(), (uintptr) &c, q);
-            if (q >= c.capacity) {
+            again:
+
+            LOG("%d %#x send_nonblocking: got q; receivers %#x %v\n", pthread_self(), (uintptr) &c, data.q, (uintptr) data.receivers);
+            if (data.q >= c.capacity) {
                 return false;
             }
 
-            if (q == 0) {
-                // special case; may need to notify receivers
-                // if (!lock.locked) {
-                //     lock.lock(c.lock);
-                // }
-
-                int old_q = q;
-                q = c.q.load();
-                if (q != old_q) {
-                    continue;
-                }
-
-                LOG("%d %#x send_nonblocking: special case locked\n", pthread_self(), (uintptr)  &c);
-                while (!c.receivers.empty()) {
-                    Selector *reciver = c.receivers.pop();
-
-                    bool expected = false;
-                    bool ok = reciver->active->compare_exchange_strong(expected, true);
-                    if (!ok) {
-                        continue;
-                    }
-
-                    if (reciver->value) {
-                        c.set(reciver->value, elem, move);
-                    }
-                    if (reciver->ok) {
-                        *reciver->ok = true;
-                    }
-                    reciver->completed->store(reciver);
-                    reciver->completed->notify_one();
-                    return true;
-                }
-                LOG("%d %#x send_nonblocking: special case bailing\n", pthread_self(), (uintptr)  &c);
+            if (intptr(data.receivers) == -2) {
+                // closed
+                LOG("%d %#x send_nonblocking: closed\n", pthread_self(), (uintptr) &c);
+                return false;
             }
-        } while (!c.q.compare_and_swap(&q, q+1));
-        LOG("%d %#x send_nonblocking_unlocked: q %v -> %v %v\n", pthread_self(), (uintptr) &c, q, q+1, c.q.load());
+
+            if (data.q == 0 && data.receivers != nil) {
+                LOG("%d %#x send_nonblocking: special case\n", pthread_self(), (uintptr) &c);
+
+                if (intptr(data.receivers) == -1) {
+                    data = c.adata.load();
+                    goto again; 
+                }
+
+                Selector *receiver = data.receivers;
+                bool b = c.adata.update(&data, {.q = data.q, .receivers = (Selector*) -1, .senders = data.senders});
+                if (!b) {
+                    goto again;
+                }
+                receiver->removed = true;
+                bool expected = false;
+                bool ok = receiver->active->compare_exchange_strong(expected, true);
+                c.adata.receivers.head.store(receiver->next);
+                LOG("%d %#x send_nonblocking: receiver popped atomically %#x\n", pthread_self(), (uintptr) &c, (uintptr) receiver);
+                if (!ok) {
+                    data = c.adata.load();
+                    goto again;
+                }
+
+                if (receiver->value != nil) {
+                    c.set(receiver->value, elem, move);
+                }
+                if (receiver->ok != nil) {
+                    *receiver->ok = true;
+                }
+                receiver->completed->store(receiver);
+                receiver->completed->notify_one();
+                return true;
+            }
+        } while (!c.adata.update(&data, {.q = data.q+1, .receivers = data.receivers, .senders = data.senders }));
+        // while(c.adata.update(&data, { .q = data.q+1, .receivers = data.receivers, .senders = data.senders }));
+        LOG("%d %#x send_nonblocking_unlocked: q %v -> %v %v\n", pthread_self(), (uintptr) &c, data.q, data.q+1, c.adata.q.load());
         
         c.push(elem, move);
         return true;
     }
 
-    // if (c.receivers.empty_atomic()) {
+    // if (c.adata.receivers.empty_atomic()) {
     //     // LOG("%d %#x send_nonblocking (cap=0): receivers empty; early return\n", pthread_self(), (uintptr) &c);
     //     return false;
     // }
@@ -154,12 +180,12 @@ bool ChanBase::send_nonblocking(this ChanBase &c, void *elem, bool move, bool tr
     // }
 
 try_again2:
-    if (c.receivers.empty()) {
+    if (c.adata.receivers.empty()) {
         // LOG("%d %#x send_nonblocking (cap=0): receivers empty; returning\n", pthread_self(), (uintptr) &c);
         return false;
     }
 
-    Selector *receiver = c.receivers.pop();
+    Selector *receiver = c.adata.receivers.pop();
 
     bool expected = false;
     if (!receiver->active->compare_exchange_strong(expected, true)) {
@@ -196,8 +222,8 @@ void ChanBase::send_blocking(this ChanBase &c, void *elem, bool move) {
     //     lock.lock(c.lock);
     // }
 
-    while (!c.receivers.empty()) {
-        Selector *receiver = c.receivers.pop();
+    while (!c.adata.receivers.empty()) {
+        Selector *receiver = c.adata.receivers.pop();
 
         bool expected = false;
         if (!receiver->active->compare_exchange_strong(expected, true)) {
@@ -222,7 +248,7 @@ void ChanBase::send_blocking(this ChanBase &c, void *elem, bool move) {
     }
 
     if (c.capacity > 0) {
-        int q = c.q.load();
+        int q = c.adata.q.load();
         bool at_cap = false;
         do {
             LOG("%d %#x send_blocking: got q %v\n", pthread_self(), (uintptr) &c, q);
@@ -238,15 +264,15 @@ void ChanBase::send_blocking(this ChanBase &c, void *elem, bool move) {
             //     }
 
             //     int old_q = q;
-            //     q = c.q.load();
+            //     q = c.adata.q.load();
             //     if (q != old_q) {
             //         continue;
             //     }
 
             //     LOG("%d %#x send_nonblocking: special case locked\n", pthread_self(), (uintptr)  &c);
             //     Selector *receiver = nil;
-            //     while (!c.receivers.empty()) {
-            //         Selector *t = c.receivers.pop();
+            //     while (!c.adata.receivers.empty()) {
+            //         Selector *t = c.adata.receivers.pop();
             //         t->done = true;
 
             //         bool expected = false;
@@ -273,8 +299,8 @@ void ChanBase::send_blocking(this ChanBase &c, void *elem, bool move) {
                 
             //     LOG("%d %#x send_nonblocking: special case bailing\n", pthread_self(), (uintptr)  &c);
             // }
-        } while (!c.q.compare_and_swap(&q, q+1));
-        LOG("%d %#x send_blocked: q %v -> %v %v\n", pthread_self(), (uintptr) &c, q, q+1, c.q.load());
+        } while (!c.adata.q.compare_and_swap(&q, q+1));
+        LOG("%d %#x send_blocked: q %v -> %v %v\n", pthread_self(), (uintptr) &c, q, q+1, c.adata.q.load());
         
         if (!at_cap) {
             c.push(elem, move);
@@ -292,15 +318,20 @@ void ChanBase::send_blocking(this ChanBase &c, void *elem, bool move) {
         .completed = &completed,
     } ;
 
-    c.senders.push(&sender);
+    c.adata.senders.push(&sender);
 
     lock.unlock();
     LOG("%d %#x send_blocking: waiting\n", pthread_self(), (uintptr)  &c);
     completed.wait(nil);
 
+    lock.relock();
+    c.adata.senders_remove(&sender);
+
     if (sender.panic) {
         panic("send on closed channel");
     }
+
+    LOG("%d %#x send_blocking: sender going out of scope: %#x\n", pthread_self(), (uintptr) &c, (uintptr) &sender);
 }
 
 void ChanBase::send_i(this ChanBase &c, void *elem, bool move) {
@@ -322,7 +353,7 @@ bool ChanBase::send_nonblocking_i(this ChanBase &c, void *elem, bool move) {
 
 bool ChanBase::recv_nonblocking(this ChanBase &c, void *out, bool *ok, sync::Lock &lock) {
     if (c.capacity > 0) {
-        int q = c.q.load();
+        int q = c.adata.q.load();
         do {
             LOG("%d %#x recv_nonblocking: got q %v\n", pthread_self(), (uintptr)  &c, q);
             if (q <= 0) {
@@ -341,13 +372,17 @@ bool ChanBase::recv_nonblocking(this ChanBase &c, void *out, bool *ok, sync::Loc
                 // if (!lock.locked) {
                 //     lock.lock(c.lock);
                 // }
-                if (q != c.q.load()) {
+                if (q != c.adata.q.load()) {
+                    continue;
+                }
+                if (intptr(c.adata.senders.head.load()) == -2) {
+                    // closed
                     continue;
                 }
                 LOG("%d %#x recv_nonblocking: special case locked\n", pthread_self(), (uintptr)  &c);
                 Selector *sender = nil;
-                while (!c.senders.empty()) {
-                    Selector *t = c.senders.pop();
+                while (!c.adata.senders.empty()) {
+                    Selector *t = c.adata.senders.pop();
 
                     bool expected = false;
                     bool ok = t->active->compare_exchange_strong(expected, true);
@@ -374,8 +409,8 @@ bool ChanBase::recv_nonblocking(this ChanBase &c, void *out, bool *ok, sync::Loc
                 
                 return true;
             }
-        } while (!c.q.compare_and_swap(&q, q-1));
-        LOG("%d %#x recv_nonblocking: %v -> %v\n", pthread_self(), (uintptr)  &c, q, q-1);
+        } while (!c.adata.q.compare_and_swap(&q, q-1));
+        LOG("%d %#x recv_nonblocking: %v -> %v; actual %v\n", pthread_self(), (uintptr)  &c, q, q-1, c.adata.q.load());
 
 
         c.pop(out);
@@ -387,7 +422,7 @@ bool ChanBase::recv_nonblocking(this ChanBase &c, void *out, bool *ok, sync::Loc
     }
 
     // if (!lock.locked) {
-    //     // if (c.senders.empty_atomic()) {
+    //     // if (c.adata.senders.empty_atomic()) {
     //     //     return false;
     //     // }
 
@@ -407,12 +442,12 @@ bool ChanBase::recv_nonblocking(this ChanBase &c, void *out, bool *ok, sync::Loc
     }
 
 try_again:
-    if (c.senders.empty()) {
+    if (c.adata.senders.empty()) {
         // LOG("%d %#x recv_nonblocking (cap=0): senders empty; returning\n", pthread_self(), (uintptr) &c);
         return false;
     }
 
-    Selector *sender = c.senders.pop();
+    Selector *sender = c.adata.senders.pop();
 
     bool expected = false;
     if (!sender->active->compare_exchange_strong(expected, true)) {
@@ -444,11 +479,11 @@ void ChanBase::recv_blocking(this ChanBase &c, void *out, bool *ok) {
 
     // locking lock here
     // if (!lock.locked) {
-    //     LOG("%d %#x recv_blocking: locked\n", pthread_self(), (uintptr) &c, c.senders.empty());
+    //     LOG("%d %#x recv_blocking: locked\n", pthread_self(), (uintptr) &c, c.adata.senders.empty());
     //     lock.lock(c.lock);
     // }
 
-    int q = c.q.load();
+    int q = c.adata.q.load();
     do {
         LOG("%d %#x recv_blocking 1: got q %v\n", pthread_self(), (uintptr)  &c, q);
         if (q < 1) {
@@ -461,13 +496,13 @@ void ChanBase::recv_blocking(this ChanBase &c, void *out, bool *ok) {
             // if (!lock.locked) {
             //     lock.lock(c.lock);
             // }
-            // if (q != c.q.load()) {
+            // if (q != c.adata.q.load()) {
             //     continue;
             // }
             LOG("%d %#x recv_blocking: special case locked\n", pthread_self(), (uintptr)  &c);
             Selector *sender = nil;
-            while (!c.senders.empty()) {
-                Selector *t = c.senders.pop();
+            while (!c.adata.senders.empty()) {
+                Selector *t = c.adata.senders.pop();
 
                 bool expected = false;
                 bool ok = t->active->compare_exchange_strong(expected, true);
@@ -495,8 +530,8 @@ void ChanBase::recv_blocking(this ChanBase &c, void *out, bool *ok) {
             return;
         }
         LOG("%d %#x recv_blocking 1: q %v -> %v\n", pthread_self(), (uintptr)  &c, q, q-1);
-    } while (!c.q.compare_and_swap(&q, q-1));
-    LOG("%d %#x recv_blocking 1: q %v %v\n", pthread_self(), (uintptr)  &c, q, c.q.load());
+    } while (!c.adata.q.compare_and_swap(&q, q-1));
+    LOG("%d %#x recv_blocking 1: q %v %v\n", pthread_self(), (uintptr)  &c, q, c.adata.q.load());
     if (q > 0) {
         c.pop(out);
         if (ok) {
@@ -513,8 +548,8 @@ void ChanBase::recv_blocking(this ChanBase &c, void *out, bool *ok) {
     }
     
     // can read from buffer
-    while (!c.senders.empty()) {
-        Selector *sender = c.senders.pop();
+    while (!c.adata.senders.empty()) {
+        Selector *sender = c.adata.senders.pop();
     
         bool expected = false;
         if (!sender->active->compare_exchange_strong(expected, true)) {
@@ -543,13 +578,17 @@ void ChanBase::recv_blocking(this ChanBase &c, void *out, bool *ok) {
         .completed = &completed,
     };
 
-    c.receivers.push(&receiver);
+    c.adata.receivers.push(&receiver);
 
     lock.unlock();
     LOG("%d %#x recv_blocking: about to wait\n", pthread_self(), (uintptr) &c);
     completed.wait(nil);
 
+    lock.relock();
+    c.adata.receivers_remove(&receiver);
+
     LOG("%d %#x recv_blocking: wait done\n", pthread_self(), (uintptr) &c);
+    LOG("%d %#x recv_blocking: receiver going out of scope: %#x\n", pthread_self(), (uintptr) &c, (uintptr) &receiver);
 }
 
 void ChanBase::close(this ChanBase &c) {
@@ -563,7 +602,31 @@ void ChanBase::close(this ChanBase &c) {
     c.state.store(Closed);
     Selector *next;
 
-    for (Selector *sender = c.senders.head; sender != nil; sender = next) {
+    Selector *sender = c.adata.senders.head.load();
+    for (;;) {
+        if (intptr(sender) == -1) {
+            sender = c.adata.senders.head.load();
+            continue;
+        }
+
+        if (c.adata.senders.head.compare_and_swap(&sender, (Selector *) -2)) {
+            break;
+        }
+    }
+    
+    Selector *receiver = c.adata.receivers.head.load();
+    for (;;) {
+        if (intptr(receiver) == -1) {
+            receiver = c.adata.receivers.head.load();
+            continue;
+        }
+
+        if (c.adata.receivers.head.compare_and_swap(&receiver, (Selector *) -2)) {
+            break;
+        }
+    }
+
+    for (; sender != nil; sender = next) {
         next = sender->next;
 
         bool expected = false;
@@ -572,12 +635,13 @@ void ChanBase::close(this ChanBase &c) {
             continue;
         }
         sender->panic = true;
+        sender->removed = true;
         sender->completed->store(sender);
         sender->completed->notify_one();
     }
 
     // int i = 0, j =0;
-    for (Selector *receiver = c.receivers.head; receiver != nil; receiver = next) {
+    for (; receiver != nil; receiver = next) {
         // i++;
         next = receiver->next;
         
@@ -594,16 +658,16 @@ void ChanBase::close(this ChanBase &c) {
             *receiver->ok = false;
         }
 
+        receiver->removed = true;
         receiver->completed->store(receiver);
         receiver->completed->notify_one();
         // j++;
     }
 
-    c.senders.head = nil;
-    c.receivers.head = nil;
+    
     LOG("%d %#x close: channel closed\n", pthread_self(), (uintptr) &c);
     // fmt::printf("CLOSE %v %v\n", i, j);
-    // if (sync::load(c.receivers.head) != nil || sync::load(c.senders.head) != nil) {
+    // if (sync::load(c.adata.receivers.head) != nil || sync::load(c.adata.senders.head) != nil) {
     //     panic("state");
     // }
 }
@@ -638,7 +702,7 @@ bool ChanBase::subscribe_recv(this ChanBase &c, internal::Selector &receiver, Lo
         return true;
     }
 
-    c.receivers.push(&receiver);
+    c.adata.receivers.push(&receiver);
     return false;
 }
 
@@ -647,16 +711,16 @@ bool ChanBase::subscribe_send(this ChanBase &c, internal::Selector &sender, Lock
         return true;
     }
 
-    c.senders.push(&sender);
+    c.adata.senders.push(&sender);
     return false;
 }
 
 void ChanBase::unsubscribe_recv(this ChanBase &c, internal::Selector &receiver, Lock&) {
-    c.receivers.remove(&receiver);
+    c.adata.receivers.remove(&receiver);
 }
 
 void ChanBase::unsubscribe_send(this ChanBase &c, internal::Selector &sender, Lock&) {
-    c.senders.remove(&sender);
+    c.adata.senders.remove(&sender);
 }
 
 
@@ -833,10 +897,10 @@ int internal::select_i(arr<OpData> ops, arr<OpData*> ops_ptrs, arr<OpData*> lock
         op.op.unsubscribe(op.selector, lock);
 
         if constexpr (DebugChecks) {
-            if (op.op.chan->receivers.contains(&op.selector)) {
+            if (op.op.chan->adata.receivers.contains(&op.selector)) {
                 panic("DebugCheck1");
             }
-            if (op.op.chan->senders.contains(&op.selector)) {
+            if (op.op.chan->adata.senders.contains(&op.selector)) {
                 panic("DebugCheck2");
             }
         }
@@ -867,91 +931,186 @@ void lib::sync::Chan<void>::push(void *, bool) {
 int lib::sync::Chan<void>::unread() const { 
     return unread_v.load(); 
 }
+
 void IntrusiveList::push(Selector *e) {
     // printf("PUSH this(%p) %p\n", this, e);
-    e->next = this->head;
+    reload:
+    Selector *head = this->head.load();
+    again:
+    if (uintptr(head) == -1) {
+        goto reload;
+    }
+
+    if (uintptr(head) == -2) {
+        panic("!");
+    }
+
+    if (!this->head.compare_and_swap(&head, (Selector *) -1)) {
+        goto again;
+    }
+
+    e->next = head;
     e->prev = nil;
 
-    if (this->head) {
-        this->head->prev = e;
+    if (head != nil) {
+        // clean up
+        // for (Selector *elem = head->prev; elem != nil; elem = elem->prev) {
+        //     elem->removed = true;        
+        // }
+        
+        head->prev = e;
     }
 
     // this->head = e;
-    sync::store(this->head, e);
+    this->head.store(e);
     // dump();
 }
 
 Selector *IntrusiveList::pop() {
     // printf("POP this(%p)\n", this);
-    Selector *e = this->head;
-    sync::store(this->head, e->next);
 
-    if (e->next) {
-        e->next->prev = nil;
+    // clean up
+    // for (Selector *elem = e->prev; elem != nil; elem = elem->prev) {
+    //     elem->removed = true;        
+    // }
+
+    reload:
+    Selector *head = this->head.load();
+    again:
+    if (uintptr(head) == -1) {
+        goto reload;
+    }
+
+    if (uintptr(head) == -2) {
+        panic("!");
+    }
+
+    if (!this->head.compare_and_swap(&head, (Selector *) -1)) {
+        goto again;
+    }
+
+    if (head->next) {
+        head->next->prev = nil;
+    }
+
+    if (head->prev) {
+        panic("!");
+        head->prev->next = nil;
     }
     
-    e->removed = true;
-    return e;
+    head->removed = true;
+
+    this->head.store(head->next);
+    return head;
 }
 
 void IntrusiveList::remove(Selector *e) {
     if (e->removed) {
         return;
     }
+    e->removed = true;
 
-    // printf("REMOVE this(%p) %p\n", this, e);
-    if constexpr (DebugChecks) {
-        bool found = false;
-        for (Selector *elem = this->head; elem != nil; elem = elem->next) {
-        if (e == elem) {
-            found = true;
-            break;
-        }
-        }
-        if (!found) {
-            printf("PANIC!!! %p\n", this);
-            dump();
-
-            panic("element not found");
-        }
+    reload:
+    Selector *head = this->head.load();
+    again:
+    if (uintptr(head) == -1) {
+        goto reload;
     }
 
-    if (!e->prev) {
-        if constexpr (DebugChecks) {
-            if (this->head != e) {
-                panic("bad head");
-            }
-        }
-
-        this->head = e->next;
-    } else {
-        e->prev->next = e->next;
+    if (uintptr(head) == -2) {
+        return;
     }
 
+    if (!this->head.compare_and_swap(&head, (Selector *) -1)) {
+        goto again;
+    }
+
+    if constexpr (DebugLog) {
+        fmt::printf("%d %#x IntrusiveList removing %#x; list %s\n", pthread_self(), (uintptr) this, (uintptr) e, format(head));
+        fmt::printf("%d %#x IntrusiveList removing %#x (%s); list %s\n", pthread_self(), (uintptr) this, (uintptr) e, format(e), format(head));
+    }
+
+    if (e->prev) {
+        e->prev->next= e->next;
+    }
     if (e->next) {
         e->next->prev = e->prev;
     }
 
-    e->removed = true;
+    if (head == e) {
+        head = head->next;
+    }
+
+    this->head.store(head);
+
+    // if (head == nil) {
+    //     return;
+    // }
+
+    // if (head == e) {
+    //     if (!this->head.compare_and_swap(&head, head->next)) {
+    //         LOG("%d %#x IntrusiveList removing at head failed\n", pthread_self(), (uintptr) this);
+    //         goto again;
+    //     }
+    //     LOG("%d %#x IntrusiveList removing at head\n", pthread_self(), (uintptr) this);
+
+    //     if (head->next == nil) {
+    //         LOG("%d %#x IntrusiveList list is now empty\n", pthread_self(), (uintptr) this);
+    //         // list is now empty
+    //         return;
+    //     }
+    // }
+
+    // // clean up
+    // for (Selector *elem = head; elem->prev != nil; ) {
+    //     LOG("%d %#x IntrusiveList list cleaning up %#x\n", pthread_self(), (uintptr) this, (uintptr) elem->prev);
+    //     Selector *prev = elem->prev;
+    //     elem->prev = nil;
+    //     elem = prev;
+    // }
+
+    // if (e->prev == nil) {
+    //     if constexpr (DebugLog) {
+    //         fmt::printf("%d %#x IntrusiveList no prev\n", pthread_self(), (uintptr) this);
+    //         dump("REMOVE AFTER");
+    //     }
+    //     return;
+    // }
+
+    // LOG("%d %#x IntrusiveList list removing from list %#x\n", pthread_self(), (uintptr) this, (uintptr) e);
+    // // remove e from the list
+    // e->prev->next = e->next;
+    // if (e->next) {
+    //     e->next->prev = e->prev;
+    // }
+
+    // if constexpr (DebugLog) {
+    //     fmt::printf("%d %#x IntrusiveList done\n", pthread_self(), (uintptr) this);
+    //     dump("REMOVE AFTER");
+    // }
 }
 
+
 void IntrusiveList::dump(str s) {
-    if (!this->head) {
-        fmt::printf("IntrusiveList %s %#x empty\n", s, (uintptr) this);
+    Selector *head = this->head.load();
+    if (!head) {
+        fmt::printf("%d %#x IntrusiveList %s empty\n", pthread_self(), (uintptr) this, s);
         return;
     }
-    io::Buffer b;
-    fmt::fprintf(b, "InstursveList %s %#x contents: [%#x", s, (uintptr) this, (uintptr) this->head);
-    for (Selector *elem = this->head->next; elem != nil; elem = elem->next) {
-        fmt::fprintf(b, " -> %#x", (uintptr) elem);
-    }
+    fmt::printf("%d %#x InstursveList %s contents: %s\n", pthread_self(), (uintptr) this, s, format(head));
+    // io::Buffer b;
+    // fmt::fprintf(b, "%d %#x InstursveList %s contents: [%#x", pthread_self(), (uintptr) this, s, (uintptr) head);
+    // for (Selector *elem = head->next; elem != nil; elem = elem->next) {
+    //     fmt::fprintf(b, " -> %#x", (uintptr) elem);
+    // }
 
-    fmt::fprintf(b, "]\n");
-    os::stdout.write(b.str(), error::ignore);
+    // fmt::fprintf(b, "]\n");
+    // os::stdout.write(b.str(), error::ignore);
 }
 
 bool IntrusiveList::contains(Selector *e) {
-    for (Selector *elem = this->head; elem != nil; elem = elem->next) {
+    Selector *head = this->head.load();
+    for (Selector *elem = head; elem != nil; elem = elem->next) {
         if (e == elem) {
         return true;
         }
@@ -959,9 +1118,44 @@ bool IntrusiveList::contains(Selector *e) {
 
     return false;
 }
-bool lib::sync::internal::IntrusiveList::empty() const {
-  return this->head == nil;
+bool IntrusiveList::empty() const {
+    Selector *head = this->head.load();
+    return head == nil;
 }
-bool lib::sync::internal::IntrusiveList::empty_atomic() const {
-  return sync::load(this->head) == nil;
+
+bool IntrusiveList::empty_atomic() const {
+    Selector *head = this->head.load();
+    return head == nil;
 }
+
+ChanBase::Data ChanBase::AtomicData::load() {
+    sync::Lock lock(mtx);
+    return Data{
+        .q = q.load(),
+        .receivers = receivers.head.load(),
+        .senders = senders.head.load(),
+    };
+  }
+  
+  bool ChanBase::AtomicData::update(Data *expected, Data newval) {
+      sync::Lock lock(mtx);
+  
+      // fmt::printf("%d UPDATE CALLED\n", pthread_self());
+  
+      if (expected->receivers != receivers.head.load() || expected->senders != senders.head.load()) {
+          expected->receivers = receivers.head.load();
+          expected->senders = senders.head.load();
+          return false;
+      }
+  
+      if (!this->q.compare_and_swap(&expected->q, newval.q)) {
+          return false;
+      }
+      this->receivers.head = newval.receivers;
+      this->senders.head = newval.senders;
+  
+      *expected = newval;
+  
+      // fmt::printf("%d UPDATE SUCCESS %v %v\n", pthread_self(), this->q.value, expected->q);
+      return true;
+  }

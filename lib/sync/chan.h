@@ -34,8 +34,15 @@ namespace lib::sync {
 
             int      id = 0;
 
+            enum State {
+                New,
+                Busy,
+                Done,
+            } ;
+
             std::atomic<bool>      *active = nil;
             std::atomic<Selector*> *completed = nil;
+            atomic<State>      state = New;
             bool removed = false;
 
             bool panic = false;
@@ -55,7 +62,7 @@ namespace lib::sync {
 
           bool empty_atomic() const;
 
-          Selector *head = nil;
+          atomic<Selector*> head = nil;
 
           void dump(str s="");
 
@@ -94,12 +101,76 @@ namespace lib::sync {
         } ;
 
         struct ChanBase {
-            // int       unread = 0;
             const int capacity = 0;
-            atomic<int> q = 0;
+            
+            
+            struct Data {
+                int q = 0;
+                Selector *receivers;
+                Selector *senders;
+            } ;
 
-            internal::IntrusiveList receivers;
-            internal::IntrusiveList senders;
+            struct AtomicData {
+                sync::Mutex mtx;
+
+                atomic<int> q = 0;
+
+                internal::IntrusiveList receivers;
+                internal::IntrusiveList senders;
+
+                Data load();
+                bool update(Data *expected, Data newval);
+                bool receivers_empty_atomic() {
+                    sync::Lock lock(mtx);
+                    return receivers.empty_atomic();
+                }
+
+                bool senders_empty_atomic() {
+                    sync::Lock lock(mtx);
+                    return senders.empty_atomic();
+                }
+
+                Selector *receivers_pop() {
+                    sync::Lock lock(mtx);
+                    return receivers.pop();
+                }
+
+                Selector *senders_pop() {
+                    sync::Lock lock(mtx);
+                    return senders.pop();
+                }
+
+                void receivers_push(Selector *sel) {
+                    sync::Lock lock(mtx);
+                    receivers.push(sel);
+                }
+
+                void senders_push(Selector *sel) {
+                    sync::Lock lock(mtx);
+                    senders.push(sel);
+                }
+
+                void receivers_remove(Selector *sel) {
+                    sync::Lock lock(mtx);
+                    receivers.remove(sel);
+                }
+
+                void senders_remove(Selector *sel) {
+                    sync::Lock lock(mtx);
+                    senders.remove(sel);
+                }
+
+                void receivers_clear() {
+                    sync::Lock lock(mtx);
+                    receivers.head = nil;
+                }
+
+                void senders_clear() {
+                    sync::Lock lock(mtx);
+                    senders.head = nil;
+                }
+
+            } adata;
         
             enum State : byte {
                 Open,

@@ -8,8 +8,11 @@
 // #define BACKWARD_HAS_LIBUNWIND 0
 // #include "../../deps/backward-cpp/backward.hpp"
 
+#include "lib/fmt/fmt.h"
+#include "lib/io/io_stream.h"
 #include "lib/sync/lock.h"
 #include "lib/sync/mutex.h"
+#include <cpptrace/basic.hpp>
 #include <cpptrace/forward.hpp>
 #include <execinfo.h>
 #include <exception>
@@ -50,30 +53,40 @@ extern "C" {
 
 }
 
-static void print_stack_trace() {
+static String stringify_stack_trace() {
     //fmt::printf("capture stack trace start\n");
     cpptrace::stacktrace st = cpptrace::generate_trace();
-    st.print_with_snippets(std::cerr);
+    // st.print_with_snippets(std::cerr);
+
+    return cpptrace::formatter().snippets(true).format(st, true);
+
+    // return st.to_string(true);
+    
     //fmt::printf("capture stack trace end\n");
 }
 
 void debug::print_exception(std::exception_ptr excep) {
+    fmt::fprintf(os::stderr, format_exception(excep));
+}
+
+String debug::format_exception(std::exception_ptr excep) {
+    io::Buffer b;
     try {
         std::rethrow_exception(excep);
     } catch (Error const& err) {
-        fmt::fprintf(stderr, "error: %s", err);
+        fmt::fprintf(b, "error: %s", err);
     }  catch (Exception &e) {
         // std::string type_name;
 
-        fmt::fprintf(stderr, "%s\n", e);
+        fmt::fprintf(b, "%s\n", e);
         
-        print_stack_trace();
+        b.write(stringify_stack_trace());
         
         //return;
     } catch (std::exception const& ex) {
         fmt::fprintf(stderr, "exception: %s", ex.what());
 
-        print_stack_trace();
+        b.write(stringify_stack_trace());
 
     } catch (...) {
         std::type_info *t = abi::__cxa_current_exception_type();
@@ -85,8 +98,10 @@ void debug::print_exception(std::exception_ptr excep) {
         // backward::StackTrace st;
         // st.load_here(1024);
         // }p.print(st, stderr);
-        print_stack_trace();
+        b.write(stringify_stack_trace());
     }
+
+    return b.to_string();
 }
 
 struct sigaction old_fpe, old_segv, old_pipe, old_quit;
@@ -109,9 +124,10 @@ static void crash_handler() {
     // sigaction(SIGQUIT, &old_quit, nil);
     // std::set_terminate(nil);
 
-    fmt::fprintf(stderr, "\nTerminated due to ");
-    
-    debug::print_exception(std::current_exception());
+    ::close(1);
+
+    String s = debug::format_exception(std::current_exception());    
+    fmt::fprintf(os::stderr, "\nTerminated due to %s\n", s);
 
     std::abort();
 }

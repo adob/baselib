@@ -1149,11 +1149,11 @@ void Fmt::write(wchar_t *p) {
     write((const wchar_t *)p);
 }
 
-io::ReadResult detail::BufferedWriter::direct_read(buf bytes, error err) {
+io::ReadResult BufferedWriter::direct_read(buf bytes, error err) {
     panic("unimplemented");
     return {};
 }
 
-size detail::BufferedWriter::direct_write(str data, error err) {
+size BufferedWriter::direct_write(str data, error err) {
     return this->out.direct_write(data, err);
 }

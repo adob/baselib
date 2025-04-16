@@ -24,4 +24,5 @@ namespace lib::debug {
     SymInfo get_symbol_info(void *);
 
     void print_exception(std::exception_ptr excep);
+    String format_exception(std::exception_ptr excep);
 }

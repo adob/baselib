@@ -20,15 +20,14 @@ extern "C" {
 #endif
 
 namespace lib::fmt {
-    namespace  detail {
-        struct BufferedWriter : io::StaticBuffered<0, 512> {
-            io::Writer &out;
+    struct BufferedWriter : io::StaticBuffered<0, 512> {
+        io::Writer &out;
 
-            BufferedWriter(io::Writer &out) : out(out) {}
-            virtual io::ReadResult direct_read(buf bytes, error err) override;
-            virtual size           direct_write(str data, error err) override;
-        } ;
-    }
+        BufferedWriter(io::Writer &out) : out(out) {}
+        virtual io::ReadResult direct_read(buf bytes, error err) override;
+        virtual size           direct_write(str data, error err) override;
+    } ;
+    
     template <typename T>
     constexpr bool is_formattable(...) { return false; }
 
@@ -368,7 +367,7 @@ namespace lib::fmt {
 
     template <typename... Args>
     void printf(str format, const Args  & ... args) {
-        detail::BufferedWriter bw(os::stdout);
+        BufferedWriter bw(os::stdout);
         fprintf(bw, format, args...);
         bw.flush(error::ignore);
     }
@@ -387,7 +386,7 @@ namespace lib::fmt {
 
     template <typename... Args>
     void fprintf(FILE *file, str format, const Args  & ... args) {
-        os::StdStream out(file);
+        os::StdStream out(file, ::fileno(file));
         fprintf(out, format, args...);
     }
 

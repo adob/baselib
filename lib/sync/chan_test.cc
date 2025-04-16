@@ -21,8 +21,10 @@
 using namespace lib;
 using namespace sync;
 
-// #define LOG(...) fmt::printf(__VA_ARGS__)
-#define LOG(...)
+constexpr bool DebugLog = false;
+
+#define LOG(...) if constexpr (DebugLog) fmt::printf(__VA_ARGS__)
+// #define LOG(...)
 
 void test_chan(testing::T &t) {
     int N = 200;
@@ -1313,7 +1315,7 @@ void benchmark_select_nonblock(testing::B &b) {
 int xmain(int, char **) {
     debug::init();
     testing::T t;
-    test_select_stress(t);
+    test_chan(t);
     //test_select_duplicate_channel(t);
     return 0;
 }

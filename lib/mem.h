@@ -18,4 +18,5 @@ namespace lib::mem {
 
     // touch touches memory for TSan (Thread Sanitizer) purposes
     void touch(str s);
+    void touch(void *p);
 }
