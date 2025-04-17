@@ -25,12 +25,12 @@ namespace lib::sync {
 
     namespace internal {
         constexpr bool DebugChecks = true;
-        constexpr bool DebugLog = false;
+        constexpr bool DebugLog    = false;
         
         struct Selector {
-            void    *value = nil;
-            bool    *ok = nil;
-            bool    move = false;
+            void *value = nil;
+            bool *ok    = nil;
+            bool  move  = false;
 
             int      id = 0;
 
@@ -49,6 +49,8 @@ namespace lib::sync {
 
             Selector *prev = nil;
             Selector *next = nil;
+
+            bool OUT_OF_SCOPE = false;
         };
 
         Selector *const SelectorBusy = (Selector*) -1;
@@ -241,6 +243,7 @@ namespace lib::sync {
             void send_i(this ChanBase &c, void *elem, bool move);
             bool send_nonblocking_i(this ChanBase &c, void *elem, bool move);
             bool send_nonblocking(this ChanBase &c, void *elem, bool move, Data *data_out);
+            bool send_nonblocking_sel(this ChanBase &c, void *elem, bool move, Selector *receiver);
             // bool send_nonblocking_locked(this ChanBase &c, void *elem, bool move, sync::Lock &lock);
 
             void send_blocking(this ChanBase &c, void *elem, bool move);

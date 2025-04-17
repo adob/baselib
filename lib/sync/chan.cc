@@ -3,6 +3,7 @@
 #include "lib/print.h"
 #include "lib/sync/atomic.h"
 #include "lib/sync/lock.h"
+#include "lib/types.h"
 #include <atomic>
 #include <ctime>
 #include <netinet/in.h>
@@ -101,6 +102,8 @@ String format(Selector *e) {
 
 ChanBase::ChanBase(int capacity) : capacity(capacity) {
     LOG("%d %#x chan constructed with capacity %v\n", pthread_self(), (uintptr) this, capacity);
+    // fmt::printf("%d %#x chan constructed with capacity %v; receivers %#x; senders %#x\n", pthread_self(), (uintptr) this, capacity,
+        // (uintptr) &this->adata.receivers, (uintptr) &this->adata.senders);
 }
 
 // assumes channel is open
@@ -132,11 +135,12 @@ bool ChanBase::send_nonblocking(this ChanBase &c, void *elem, bool move, Data *d
                 }
 
                 Selector *receiver = data.receivers;
-                bool b = c.adata.compare_and_swap(&data, {.q = data.q, .receivers = (Selector*) -1, .senders = data.senders});
+                bool b = c.adata.compare_and_swap(&data, {.q = data.q, .receivers = SelectorBusy, .senders = data.senders});
                 if (!b) {
                     goto again1;
                 }
                 receiver->removed = true;
+                // fmt::printf("REMOVING 140 %#x from %#x\n", (uintptr) receiver, (uintptr) &c.adata.receivers);
                 if (receiver->next != nil) {
                     receiver->next->prev = nil;
                 }
@@ -199,6 +203,7 @@ again2:
         goto again2;
     }
     receiver->removed = true;
+    // fmt::printf("REMOVING 203 %#x from %#x\n", (uintptr) receiver, (uintptr) &c.adata.receivers);
     if (receiver->next) {
         receiver->next->prev = nil;
     }
@@ -217,6 +222,156 @@ again2:
     if (!b) {
         goto reload2;
     }
+
+    if (receiver->value) {
+        c.set(receiver->value, elem, move);
+    }
+    if (receiver->ok) {
+        *receiver->ok = true;
+    }
+    receiver->completed->store(receiver);
+    receiver->completed->notify_one();
+    LOG("%d %#x send_nonblocking (cap=0): notified receiver\n", pthread_self(), (uintptr) &c);
+    return true;
+}
+
+bool ChanBase::send_nonblocking_sel(this ChanBase &c, void *elem, bool move, Selector *sender) {
+    if (c.capacity > 0) {
+    reload1:
+        Data data = c.adata.load();
+        do {
+        again1:
+
+            LOG("%d %#x send_nonblocking: got q %v; receivers %#x\n", pthread_self(), (uintptr) &c, data.q, (uintptr) data.receivers);
+            if (data.q >= c.capacity) {
+                return false;
+            }
+
+            if (data.receivers == SelectorClosed) {
+                // closed
+                LOG("%d %#x send_nonblocking: closed\n", pthread_self(), (uintptr) &c);
+                return false;
+            }
+
+            if (data.q == 0 && data.receivers != nil) {
+                LOG("%d %#x send_nonblocking: special case\n", pthread_self(), (uintptr) &c);
+
+                if (data.receivers == SelectorBusy) {
+                    goto reload1;
+                }
+
+                Selector *receiver = data.receivers;
+                if (!c.adata.compare_and_swap(&data, {.q = data.q, .receivers = SelectorBusy, .senders = data.senders})) {
+                    goto again1;
+                }
+
+                // lock receiver
+                for (Selector::State state = Selector::New; !receiver->active->compare_and_swap(&state, Selector::Busy);) {
+                    if (state == Selector::Done) {
+                        receiver->removed = true;
+                        if (receiver->next != nil) {
+                            receiver->next->prev = nil;
+                        }
+                        c.adata.receivers_head_store(receiver->next);
+                        goto reload1;
+                    }
+                    // continue if busy
+                }
+
+                // lock sender
+                for (Selector::State state = Selector::New; !sender->active->compare_and_swap(&state, Selector::Done);) {
+                    if (state == Selector::Done) {
+                        // undo
+                        receiver->active->store(Selector::New);
+                        c.adata.receivers_head_store(receiver);
+                        return true;
+                    }
+                    // continue if busy
+                }
+
+                receiver->active->store(Selector::Done);
+                receiver->removed = true;
+                // fmt::printf("REMOVING 287 %#x\n", (uintptr) receiver);
+                if (receiver->next != nil) {
+                    receiver->next->prev = nil;
+                }
+                c.adata.receivers_head_store(receiver->next);
+
+                LOG("%d %#x send_nonblocking: receiver popped atomically %#x\n", pthread_self(), (uintptr) &c, (uintptr) receiver);
+                if (receiver->value != nil) {
+                    c.set(receiver->value, elem, move);
+                }
+                if (receiver->ok != nil) {
+                    *receiver->ok = true;
+                }
+                receiver->completed->store(receiver);
+                receiver->completed->notify_one();
+
+                return true;
+            }
+        } while (!c.adata.compare_and_swap(&data, {.q = data.q+1, .receivers = data.receivers, .senders = data.senders }));
+        // while(c.adata.update(&data, { .q = data.q+1, .receivers = data.receivers, .senders = data.senders }));
+        LOG("%d %#x send_nonblocking_unlocked: q %v -> %v %v\n", pthread_self(), (uintptr) &c, data.q, data.q+1, c.adata.q.load());
+        
+        c.push(elem, move);
+        return true;
+    }
+
+    // zero capacity case
+reload2:
+    Data data = c.adata.load();
+    Selector *receiver = data.receivers;
+again2:
+    if (receiver == nil) {
+        LOG("%d %#x send_nonblocking (cap=0): receivers empty; returning\n", pthread_self(), (uintptr) &c);
+        return false;
+    }
+    if (receiver == SelectorClosed) {
+        return false;
+    }
+    if (receiver == SelectorBusy) {
+        goto reload2;
+    }
+
+    if (!c.adata.receivers_head_compare_and_swap(&receiver, SelectorBusy)) {
+        LOG("%d %#x send_nonblocking (cap=0): compare-and-swap failed\n", pthread_self(), (uintptr)  &c);
+        goto again2;
+    }
+    
+    // lock receiver; receiver -> busy
+    for (Selector::State state = Selector::New; !receiver->active->compare_and_swap(&state, Selector::Busy);) {
+        if (state == Selector::Done) {
+            receiver->removed = true;
+            if (receiver->next != nil) {
+                receiver->next->prev = nil;
+            }
+            c.adata.receivers_head_store(receiver->next);        
+            goto reload2;
+        }
+        // continue if busy
+    }
+
+    // lock sender; sender -> done
+    for (Selector::State state = Selector::New; !sender->active->compare_and_swap(&state, Selector::Done);) {
+        if (state == Selector::Done) {
+            // undo
+            receiver->active->store(Selector::New);
+            c.adata.receivers_head_store(receiver);
+            return true;
+        }
+        // continue if busy
+    }
+
+    receiver->active->store(Selector::Done);
+    // fmt::printf("REMOVING 356 %#x\n", (uintptr) receiver);
+
+    receiver->removed = true;
+    if (receiver->next != nil) {
+        receiver->next->prev = nil;
+    }
+    c.adata.receivers_head_store(receiver->next);
+    
+    LOG("%d %#x send_nonblocking (cap=0): receiver popped atomically %#x\n", pthread_self(), (uintptr) &c, (uintptr) receiver);
 
     if (receiver->value) {
         c.set(receiver->value, elem, move);
@@ -279,6 +434,8 @@ again:
     }
 
     c.adata.senders_head_store(&sender);
+    // fmt::printf("ADDED 428 %#x to %#x\n", (uintptr) &sender, (uintptr) &c.adata.senders);
+    // fmt::printf("sender in %#x\n", (uintptr) &sender);
 
     lock.unlock();
     LOG("%d %#x send_blocking: waiting\n", pthread_self(), (uintptr)  &c);
@@ -292,13 +449,32 @@ again:
     }
 
     LOG("%d %#x send_blocking: sender going out of scope: %#x\n", pthread_self(), (uintptr) &c, (uintptr) &sender);
-    // fmt::printf("%#x\n", (uintptr) &sender);
+    // if constexpr (DebugChecks) {
+    //     Data data;
+    //     for (;;) {
+    //         data = c.adata.load();
+    //         while (data.senders == SelectorBusy) {
+    //             data = c.adata.load();
+    //         }
+    //         bool ok = c.adata.senders_head_compare_and_swap(&data.senders, SelectorBusy);
+    //         if (ok) {
+    //             break;
+    //         }
+    //     }
+
+    //     fmt::printf("list %s\n", format(data.senders));
+    //     c.adata.senders_head_store(data.senders);
+        
+    // }
+
+    // fmt::printf("sender out %#x\n", (uintptr) &sender);
     for (Selector *e = c.adata.senders.head.value; e != nil && intptr(e) > 0; e = e->next) {
         if (e == &sender) {
-            fmt::printf("SENDER removed %v\n", sender.removed);
+            // fmt::printf("SENDER removed %v\n", sender.removed);
             panic("!");
         }
     }
+    sender.OUT_OF_SCOPE = true;
 }
 
 void ChanBase::send_i(this ChanBase &c, void *elem, bool move) {
@@ -352,7 +528,7 @@ bool ChanBase::recv_nonblocking(this ChanBase &c, void *out, bool *okp, Data *da
                     goto again1;
                 }
                 sender->removed = true;
-                // fmt::printf("REMOVING 1 %#x\n", (uintptr) sender);
+                // fmt::printf("REMOVING 518 %#x from %#x\n", (uintptr) sender, (uintptr) &c.adata.senders);
                 if (sender->next != nil) {
                     sender->next->prev = nil;
                 }
@@ -424,7 +600,7 @@ again2:
     }
     LOG("%d %#x recv_nonblocking (cap=0): locked\n", pthread_self(), (uintptr) &c);
     sender->removed = true;
-    // fmt::printf("REMOVING 2 %#x\n", (uintptr) sender);
+    // fmt::printf("REMOVING 590 %#x from %#x\n", (uintptr) sender, (uintptr) &c.adata.senders);
     
     if (sender->next) {
         // fmt::printf("About to clear sender->next->prev %#x\n", (uintptr) sender->next);
@@ -496,8 +672,7 @@ bool ChanBase::recv_nonblocking_sel(this ChanBase &c, void *out, bool *okp, Sele
                 }
 
                 Selector *sender = data.senders;
-                bool b = c.adata.compare_and_swap(&data, {.q = data.q, .receivers = data.receivers, .senders = SelectorBusy});
-                if (!b) {
+                if (!c.adata.compare_and_swap(&data, {.q = data.q, .receivers = data.receivers, .senders = SelectorBusy})) {
                     LOG("%d %#x recv_nonblocking: compare-and-swap failed\n", pthread_self(), (uintptr)  &c);
                     goto again1;
                 }
@@ -505,6 +680,10 @@ bool ChanBase::recv_nonblocking_sel(this ChanBase &c, void *out, bool *okp, Sele
                 // lock sender
                 for (Selector::State state = Selector::New; !sender->active->compare_and_swap(&state, Selector::Busy);) {
                     if (state == Selector::Done) {
+                        sender->removed = true;
+                        if (sender->next != nil) {
+                            sender->next->prev = nil;
+                        }
                         c.adata.senders_head_store(sender->next);
                         goto reload1;
                     }
@@ -524,6 +703,7 @@ bool ChanBase::recv_nonblocking_sel(this ChanBase &c, void *out, bool *okp, Sele
 
                 sender->active->store(Selector::Done);
                 sender->removed = true;
+                // fmt::printf("REMOVING 689 %#x\n", (uintptr) sender);
                 if (sender->next != nil) {
                     sender->next->prev = nil;
                 }
@@ -583,6 +763,10 @@ again2:
     // lock sender; sender -> busy
     for (Selector::State state = Selector::New; !sender->active->compare_and_swap(&state, Selector::Busy);) {
         if (state == Selector::Done) {
+            sender->removed = true;
+            if (sender->next != nil) {
+                sender->next->prev = nil;
+            }
             c.adata.senders_head_store(sender->next);        
             goto reload2;
         }
@@ -602,7 +786,8 @@ again2:
 
     sender->active->store(Selector::Done);
     sender->removed = true;
-    if (sender->next) {
+    // fmt::printf("REMOVING 767 %#x\n", (uintptr) sender); 
+    if (sender->next != nil) {
         sender->next->prev = nil;
     }
     c.adata.senders_head_store(sender->next);
@@ -661,6 +846,8 @@ again:
         data.receivers->prev = &receiver;
     }
     c.adata.receivers_head_store(&receiver);
+    // fmt::printf("ADDED 830 %#x to %#x\n", (uintptr) &receiver, (uintptr) &c.adata.receivers);
+    // fmt::printf("receiver in %#x\n", (uintptr) &receiver);
     
     lock.unlock();
     LOG("%d %#x recv_blocking: about to wait\n", pthread_self(), (uintptr) &c);
@@ -669,11 +856,13 @@ again:
     lock.relock();
     c.adata.receivers_remove(&receiver);
     LOG("%d %#x recv_blocking: receiver going out of scope: %#x\n", pthread_self(), (uintptr) &c, (uintptr) &receiver);
+    // fmt::printf("receiver out %#x\n", (uintptr) &receiver);
     for (Selector *e = c.adata.receivers.head.value; e != nil && intptr(e) > 0; e = e->next) {
         if (e == &receiver) {
             panic("!");
         }
     }
+    receiver.OUT_OF_SCOPE = true;
 }
 
 void ChanBase::close(this ChanBase &c) {
@@ -799,15 +988,17 @@ bool ChanBase::subscribe_recv(this ChanBase &c, internal::Selector &receiver, Lo
         return true;
     }
 
+    // fmt::printf("PUSHING RECV %#x %#x\n", (uintptr) &c.adata.receivers, (uintptr) &receiver);
     c.adata.receivers_push(&receiver);
     return false;
 }
 
 bool ChanBase::subscribe_send(this ChanBase &c, internal::Selector &sender, Lock &lock) {
-    if (c.send_nonblocking(sender.value, sender.move, nil)) {
+    if (c.send_nonblocking_sel(sender.value, sender.move, &sender)) {
         return true;
     }
 
+    // fmt::printf("PUSHING SEND list %#x; sender %#x\n", (uintptr) &c.adata.senders, (uintptr) &sender);
     c.adata.senders_push(&sender);
     return false;
 }
@@ -1032,7 +1223,11 @@ int lib::sync::Chan<void>::unread() const {
 void IntrusiveList::push(Selector *e) {
     // printf("PUSH this(%p) %p\n", this, e);
     reload:
-    Selector *head = this->head.load();
+    Selector *head;
+    {
+        sync::Lock lock(mtx);
+        head = this->head.load();
+    }
     again:
     if (head == SelectorBusy) {
         // fmt::printf("push busy\n");
@@ -1043,9 +1238,12 @@ void IntrusiveList::push(Selector *e) {
         panic("!");
     }
 
-    if (!this->head.compare_and_swap(&head, SelectorBusy)) {
-        LOG("IntrusiveList::push compare_and_swap failed\n");
-        goto again;
+    {
+        sync::Lock lock(mtx);
+        if (!this->head.compare_and_swap(&head, SelectorBusy)) {
+            LOG("IntrusiveList::push compare_and_swap failed\n");
+            goto again;
+        }
     }
 
     e->next = head;
@@ -1063,6 +1261,7 @@ void IntrusiveList::push(Selector *e) {
     // this->head = e;
     sync::Lock lock(*mtx);
     this->head.store(e);
+    // fmt::printf("%d %#x PUSH %#x: list %s\n", pthread_self(), (uintptr) this, (uintptr) e, format(e));
     // dump();
 }
 
@@ -1075,7 +1274,11 @@ Selector *IntrusiveList::pop() {
     // }
 
     reload:
-    Selector *head = this->head.load();
+    Selector *head;
+    {
+        sync::Lock lock(mtx);
+        head = this->head.load();
+    }
     again:
     if (head == SelectorBusy) {
         goto reload;
@@ -1085,8 +1288,11 @@ Selector *IntrusiveList::pop() {
         panic("!");
     }
 
-    if (!this->head.compare_and_swap(&head, SelectorBusy)) {
-        goto again;
+    {
+        sync::Lock lock(mtx);
+        if (!this->head.compare_and_swap(&head, SelectorBusy)) {
+            goto again;
+        }
     }
 
     if (head->next) {
@@ -1099,6 +1305,7 @@ Selector *IntrusiveList::pop() {
     }
     
     head->removed = true;
+    // fmt::printf("REMOVING 1283 %#x\n", (uintptr) head);
 
     sync::Lock lock(*mtx);
     this->head.store(head->next);
@@ -1114,7 +1321,11 @@ void IntrusiveList::remove(Selector *e) {
     // }
 
     reload:
-    Selector *head = this->head.load();
+    Selector *head;
+    {
+        sync::Lock lock(mtx);
+        head = this->head.load();
+    }
     again:
     if (head == SelectorBusy) {
         goto reload;
@@ -1124,9 +1335,13 @@ void IntrusiveList::remove(Selector *e) {
         return;
     }
 
-    if (!this->head.compare_and_swap(&head, SelectorBusy)) {
-        goto again;
+    {
+        sync::Lock lock(mtx);
+        if (!this->head.compare_and_swap(&head, SelectorBusy)) {
+            goto again;
+        }
     }
+    
 
     LOG("%d %#x IntrusiveList removing %#x locked\n", pthread_self(), (uintptr) this, (uintptr) e);
 
@@ -1140,6 +1355,21 @@ void IntrusiveList::remove(Selector *e) {
         return;
     }
     e->removed = true;
+    // fmt::printf("REMOVING 1333 %#x %d %#x\n", (uintptr) e, pthread_self(), (uintptr) this);
+
+    if constexpr (DebugChecks) {
+        bool found = false;
+        for (Selector *elem = head; elem != nil; elem = elem->next) {
+            if (elem == e) {
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            fmt::printf("%d %#x IntrusiveList removing %#x; not found in list %s\n", pthread_self(), (uintptr) this, (uintptr) e, format(head));
+            panic("element not found");
+        }
+    }
 
     if constexpr (DebugLog) {
         fmt::printf("%d %#x IntrusiveList removing %#x; list %s\n", pthread_self(), (uintptr) this, (uintptr) e, format(head));
@@ -1147,9 +1377,17 @@ void IntrusiveList::remove(Selector *e) {
     }
 
     if (e->prev) {
+        if (e->prev->OUT_OF_SCOPE) {
+            panic("out of scope");
+        }
+
         e->prev->next= e->next;
     }
     if (e->next) {
+        mem::touch(e->next);
+        if (e->next->OUT_OF_SCOPE) {
+            panic("out of scope");
+        }
         e->next->prev = e->prev;
     }
 
