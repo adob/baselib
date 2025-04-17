@@ -211,7 +211,7 @@ namespace lib::sync {
             void send_blocking(this ChanBase &c, void *elem, bool move);
 
             // bool recv_nonblocking_locked(this ChanBase &c, void *out, bool *ok, Lock&);
-            bool recv_nonblocking(this ChanBase &c, void *out, bool *ok, Lock&);
+            bool recv_nonblocking(this ChanBase &c, void *out, bool *ok, Data *data_out);
             void recv_blocking(this ChanBase &c, void *out, bool *ok);
 
             bool try_recv(this ChanBase &c, void *out, bool *ok, bool try_locks, bool *lock_fail);
@@ -366,7 +366,7 @@ namespace lib::sync {
 
         bool recv_nonblocking(this Chan &c) {
             sync::Lock lock;
-            return c.ChanBase::recv_nonblocking(nil, nil, lock);
+            return c.ChanBase::recv_nonblocking(nil, nil, nil);
         }
 
         protected:
