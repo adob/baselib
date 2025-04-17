@@ -40,7 +40,7 @@ namespace lib::sync {
                 Done,
             } ;
 
-            std::atomic<bool>      *active = nil;
+            atomic<State>      *active = nil;
             std::atomic<Selector*> *completed = nil;
             atomic<State>      state = New;
             bool removed = false;
@@ -65,6 +65,7 @@ namespace lib::sync {
 
           bool empty_atomic() const;
 
+          Mutex *mtx = nil;
           atomic<Selector*> head = nil;
 
           void dump(str s="");
@@ -106,7 +107,6 @@ namespace lib::sync {
         struct ChanBase {
             const int capacity = 0;
             
-            
             struct Data {
                 int q = 0;
                 Selector *receivers;
@@ -121,6 +121,11 @@ namespace lib::sync {
                 internal::IntrusiveList receivers;
                 internal::IntrusiveList senders;
 
+                AtomicData() {
+                    receivers.mtx = &mtx;
+                    senders.mtx = &mtx;
+                }
+
                 Data load();
                 bool compare_and_swap(Data *expected, Data newval);
                 bool receivers_empty_atomic() {
@@ -129,37 +134,37 @@ namespace lib::sync {
                 }
 
                 bool senders_empty_atomic() {
-                    sync::Lock lock(mtx);
+                    // sync::Lock lock(mtx);
                     return senders.empty_atomic();
                 }
 
                 Selector *receivers_pop() {
-                    sync::Lock lock(mtx);
+                    // sync::Lock lock(mtx);
                     return receivers.pop();
                 }
 
                 Selector *senders_pop() {
-                    sync::Lock lock(mtx);
+                    // sync::Lock lock(mtx);
                     return senders.pop();
                 }
 
                 void receivers_push(Selector *sel) {
-                    sync::Lock lock(mtx);
+                    // sync::Lock lock(mtx);
                     receivers.push(sel);
                 }
 
                 void senders_push(Selector *sel) {
-                    sync::Lock lock(mtx);
+                    // sync::Lock lock(mtx);
                     senders.push(sel);
                 }
 
                 void receivers_remove(Selector *sel) {
-                    sync::Lock lock(mtx);
+                    // sync::Lock lock(mtx);
                     receivers.remove(sel);
                 }
 
                 void senders_remove(Selector *sel) {
-                    sync::Lock lock(mtx);
+                    // sync::Lock lock(mtx);
                     senders.remove(sel);
                 }
 
@@ -171,6 +176,36 @@ namespace lib::sync {
                 void senders_clear() {
                     sync::Lock lock(mtx);
                     senders.head = nil;
+                }
+
+                bool senders_head_compare_and_swap(Selector **expected, Selector *newval) {
+                    sync::Lock lock(mtx);
+                    return senders.head.compare_and_swap(expected, newval);
+                }
+
+                bool receivers_head_compare_and_swap(Selector **expected, Selector *newval) {
+                    sync::Lock lock(mtx);
+                    return receivers.head.compare_and_swap(expected, newval);
+                }
+
+                Selector *senders_head_load() {
+                    sync::Lock lock(mtx);
+                    return senders.head.load();
+                }
+
+                Selector *receivers_head_load() {
+                    sync::Lock lock(mtx);
+                    return receivers.head.load();
+                }
+
+                void senders_head_store(Selector *v) {
+                    sync::Lock lock(mtx);
+                    senders.head.store(v);
+                }
+
+                void receivers_head_store(Selector *v) {
+                    sync::Lock lock(mtx);
+                    receivers.head.store(v);
                 }
 
             } adata;
@@ -212,6 +247,7 @@ namespace lib::sync {
 
             // bool recv_nonblocking_locked(this ChanBase &c, void *out, bool *ok, Lock&);
             bool recv_nonblocking(this ChanBase &c, void *out, bool *ok, Data *data_out);
+            bool recv_nonblocking_sel(this ChanBase &c, void *out, bool *ok, Selector *receiver);
             void recv_blocking(this ChanBase &c, void *out, bool *ok);
 
             bool try_recv(this ChanBase &c, void *out, bool *ok, bool try_locks, bool *lock_fail);

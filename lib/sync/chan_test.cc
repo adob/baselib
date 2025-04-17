@@ -762,6 +762,7 @@ void test_pseudo_random_send(testing::T &t) {
 			for (int i = 0; i < n; i++) {
 				// runtime.Gosched()
 				l[i] = c.recv();
+                LOG("Received\n");
 			}
 			m.unlock();
 		};
@@ -771,6 +772,7 @@ void test_pseudo_random_send(testing::T &t) {
                 Send(c, 1),
                 Send(c, 0)
             );
+            LOG("Sent\n");
 		}
 		m.lock(); // wait
 		int n0 = 0;
@@ -1315,7 +1317,7 @@ void benchmark_select_nonblock(testing::B &b) {
 int xmain(int, char **) {
     debug::init();
     testing::T t;
-    test_chan(t);
+    test_select_stress(t);
     //test_select_stress(t);
     //test_select_duplicate_channel(t);
     return 0;
