@@ -122,7 +122,7 @@ namespace lib::sync {
                 internal::IntrusiveList senders;
 
                 Data load();
-                bool update(Data *expected, Data newval);
+                bool compare_and_swap(Data *expected, Data newval);
                 bool receivers_empty_atomic() {
                     sync::Lock lock(mtx);
                     return receivers.empty_atomic();
@@ -205,7 +205,7 @@ namespace lib::sync {
 
             void send_i(this ChanBase &c, void *elem, bool move);
             bool send_nonblocking_i(this ChanBase &c, void *elem, bool move);
-            bool send_nonblocking(this ChanBase &c, void *elem, bool move, bool try_locks, bool *lock_fail, sync::Lock &lock);
+            bool send_nonblocking(this ChanBase &c, void *elem, bool move, Data *data_out);
             // bool send_nonblocking_locked(this ChanBase &c, void *elem, bool move, sync::Lock &lock);
 
             void send_blocking(this ChanBase &c, void *elem, bool move);
