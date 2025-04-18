@@ -550,7 +550,7 @@ void ChanBase::send_i(this ChanBase &c, void *elem, bool move) {
 }
 
 bool ChanBase::send_nonblocking_i(this ChanBase &c, void *elem, bool move) {    
-    sync::Lock lock(c.lock);
+    // sync::Lock lock(c.lock);
     Data data;
 
     if (c.send_nonblocking(elem, move, &data)) {
