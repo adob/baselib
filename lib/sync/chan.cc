@@ -1243,10 +1243,8 @@ void Send::unsubscribe(sync::internal::Selector &receiver) const {
     c.unsubscribe_send(receiver);
 }
 
-int internal::select_i(arr<OpData> ops, arr<OpData*> ops_ptrs, arr<OpData*> lockfail_ptrs, bool block) {
-    // fill ops_ptrs array
+int internal::select_i(arr<OpData> ops, arr<OpData*> ops_ptrs, bool block) {
     int avail_ops = 0;
-    // int lockfail_cnt = 0;
     int cnt = 0;
     for (OpData &op : ops) {
         op.selector.id = cnt++;
@@ -1259,7 +1257,6 @@ int internal::select_i(arr<OpData> ops, arr<OpData*> ops_ptrs, arr<OpData*> lock
         ops_ptrs[avail_ops++] = &op;
     }
 
-    // LOG("%d select_i: avail_ops %d\n", pthread_self(), avail_ops);
     for (int i = avail_ops; i > 0; i--) {
         int selected_idx = cheaprandn(i);
         OpData *selected_op = ops_ptrs[selected_idx];
@@ -1276,18 +1273,12 @@ int internal::select_i(arr<OpData> ops, arr<OpData*> ops_ptrs, arr<OpData*> lock
         return -1;
     }
     
-    // sort opts_ptr by lock order
-    // std::sort(ops_ptrs.begin(), ops_ptrs.begin()+avail_ops, [](OpData *d1, OpData *d2) {
-    //     return uintptr(d1->op.chan) < uintptr(d2->op.chan);
-    // });
-    
     atomic<Selector::State> active = Selector::New;
     atomic<Selector*> completer = nil;
     Waiter completed;
     LOGX("%d select_i active 1163 %#x\n", pthread_self(), (uintptr) &active);
 
     int i = 0;
-    // lock in lock order and subscribe
     for (; i < avail_ops; i++) {
         OpData &op = *ops_ptrs[i];
 

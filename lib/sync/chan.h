@@ -264,18 +264,15 @@ namespace lib::sync {
             int length() const;
 
         protected:
-            // virtual void buffer_push(void *elem, bool move) = 0;
             virtual void push(void *data, bool move) = 0; 
             virtual void pop(void *out) = 0;
             virtual void set(void *dest, void *val, bool move) = 0;
-            // virtual void buffer_pop(void *out) = 0;
             virtual int unread() const = 0;
 
             void send_i(this ChanBase &c, void *elem, bool move);
             bool send_nonblocking_i(this ChanBase &c, void *elem, bool move);
             bool send_nonblocking(this ChanBase &c, void *elem, bool move, Data *data_out);
             int send_nonblocking_sel(this ChanBase &c, Selector *receiver);
-            // bool send_nonblocking_locked(this ChanBase &c, void *elem, bool move, sync::Lock &lock);
 
             void send_blocking(this ChanBase &c, void *elem, bool move);
 
@@ -293,9 +290,6 @@ namespace lib::sync {
             void unsubscribe_send(this ChanBase &c, internal::Selector &sender);
 
             void send(ChanBase &c, void *elem, void(*)(ChanBase &c, void *elem));
-
-            // bool notify_receiver(this ChanBase &c, void *elem, bool move, Lock&);
-            // void notify_sender(this ChanBase &c, sync::Lock&);
 
             friend Recv;
             friend Send;
@@ -506,7 +500,7 @@ namespace lib::sync {
             OpData(SelectOp const& op) : op(op) {}
         } ;
 
-        int select_i(arr<OpData> ops, arr<OpData*> ops_ptrs, arr<OpData*> lockfail_ptrs, bool blocking);
+        int select_i(arr<OpData> ops, arr<OpData*> ops_ptrs, bool blocking);
         bool select_one(OpData const &op, bool blocking);
     }
 
@@ -518,10 +512,8 @@ namespace lib::sync {
         }
         std::array<internal::OpData, sizeof...(Args)> ops_data = {ops...};
         std::array<internal::OpData*, sizeof...(Args)> ops_ptrs = {};
-        std::array<internal::OpData*, sizeof...(Args)> ops_ptrs2 = {};
 
-        return internal::select_i(arr(ops_data.data(), ops_data.size()), arr(ops_ptrs.data(), ops_ptrs.size()), arr(ops_ptrs2.data(), ops_ptrs2.size()), true);
-
+        return internal::select_i(arr(ops_data.data(), ops_data.size()), arr(ops_ptrs.data(), ops_ptrs.size()), true);
     }
 
     template <typename... Args>
@@ -532,12 +524,7 @@ namespace lib::sync {
         }
         std::array<internal::OpData, sizeof...(Args)> ops_data = {ops...};
         std::array<internal::OpData*, sizeof...(Args)> ops_ptrs = {};
-        std::array<internal::OpData*, sizeof...(Args)> ops_ptrs2 = {};
 
-        return internal::select_i(arr(ops_data.data(), ops_data.size()), arr(ops_ptrs.data(), ops_ptrs.size()), arr(ops_ptrs2.data(), ops_ptrs2.size()), false);
+        return internal::select_i(arr(ops_data.data(), ops_data.size()), arr(ops_ptrs.data(), ops_ptrs.size()), false);
     }
-
-
-
-   
 }
