@@ -948,7 +948,7 @@ again:
         LOG("%d %#x recv_blocking: recv nonblocking unlocked succeeded\n", pthread_self(), (uintptr) &c);
         return;
     }
-    sync::Lock lock(c.lock);
+    // sync::Lock lock(c.lock);
     LOG("%d %#x recv_blocking: recv nonblocking unlocked failed\n", pthread_self(), (uintptr) &c);
 
     if (data.receivers == SelectorBusy) {
@@ -981,11 +981,11 @@ again:
     LOGX("ADDED 830 %#x to %#x\n", (uintptr) &receiver, (uintptr) &c.adata.receivers);
     // fmt::printf("receiver in %#x\n", (uintptr) &receiver);
     
-    lock.unlock();
+    // lock.unlock();
     LOG("%d %#x recv_blocking: about to wait\n", pthread_self(), (uintptr) &c);
     completed.wait();
 
-    lock.relock();
+    // lock.relock();
     c.adata.receivers_remove(&receiver);
     LOG("%d %#x recv_blocking: receiver going out of scope: %#x\n", pthread_self(), (uintptr) &c, (uintptr) &receiver);
     // fmt::printf("receiver out %#x\n", (uintptr) &receiver);
