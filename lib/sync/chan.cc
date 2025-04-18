@@ -24,6 +24,7 @@ using namespace sync::internal;
 // https://github.com/cameron314/concurrentqueue
 
 #define LOG(...) if (DebugLog) { fmt::printf(__VA_ARGS__); }
+#define LOGX(...) //fmt::printf(__VA_ARGS__);
 // #define LOG(...)
 
 static __thread uint64 seed = 0;
@@ -167,8 +168,9 @@ bool ChanBase::send_nonblocking(this ChanBase &c, void *elem, bool move, Data *d
                 if (receiver->ok != nil) {
                     *receiver->ok = true;
                 }
-                receiver->completed->store(receiver);
-                receiver->completed->notify_one();
+                LOGX("%d about to store 171 %#x\n", pthread_self(), (uintptr) receiver->completed);
+                receiver->completer->store(receiver);
+                receiver->completed->notify();
                 return true;
             }
         } while (!c.adata.compare_and_swap(&data, {.q = data.q+1, .receivers = data.receivers, .senders = data.senders }));
@@ -182,34 +184,33 @@ bool ChanBase::send_nonblocking(this ChanBase &c, void *elem, bool move, Data *d
     // zero capacity case
 reload2:
     Data data = c.adata.load();
-    Selector *receiver = data.receivers;
 again2:
-    if (receiver == nil) {
+    if (data.receivers == nil) {
         LOG("%d %#x send_nonblocking (cap=0): receivers empty; returning\n", pthread_self(), (uintptr) &c);
         if (data_out) *data_out = data;
         return false;
     }
-    if (receiver == SelectorClosed) {
+    if (data.receivers == SelectorClosed) {
         if (data_out) *data_out = data;
         return false;
     }
-    if (receiver == SelectorBusy) {
+    if (data.receivers == SelectorBusy) {
         goto reload2;
     }
 
-    bool b = c.adata.receivers_head_compare_and_swap(&receiver, SelectorBusy);
+    bool b = c.adata.receivers_head_compare_and_swap(&data.receivers, SelectorBusy);
     if (!b) {
         LOG("%d %#x send_nonblocking (cap=0): compare-and-swap failed\n", pthread_self(), (uintptr)  &c);
         goto again2;
     }
-    receiver->removed = true;
+    data.receivers->removed = true;
     // fmt::printf("REMOVING 203 %#x from %#x\n", (uintptr) receiver, (uintptr) &c.adata.receivers);
-    if (receiver->next) {
-        receiver->next->prev = nil;
+    if (data.receivers->next) {
+        data.receivers->next->prev = nil;
     }
     
     b = true;
-    for (Selector::State state = Selector::New; !receiver->active->compare_and_swap(&state, Selector::Done);) {
+    for (Selector::State state = Selector::New; !data.receivers->active->compare_and_swap(&state, Selector::Done);) {
         if (state == Selector::Done) {
             b = false;
             break;
@@ -217,25 +218,31 @@ again2:
         // continue if busy
     }
 
-    c.adata.receivers_head_store(receiver->next);
-    LOG("%d %#x send_nonblocking (cap=0): receiver popped atomically %#x\n", pthread_self(), (uintptr) &c, (uintptr) receiver);
+    c.adata.receivers_head_store(data.receivers->next);
+    LOG("%d %#x send_nonblocking (cap=0): receiver popped atomically %#x\n", pthread_self(), (uintptr) &c, (uintptr) data.receivers);
     if (!b) {
         goto reload2;
     }
 
-    if (receiver->value) {
-        c.set(receiver->value, elem, move);
+    mem::touch(data.receivers);
+    if (data.receivers->value) {
+        c.set(data.receivers->value, elem, move);
     }
-    if (receiver->ok) {
-        *receiver->ok = true;
+    if (data.receivers->ok) {
+        *data.receivers->ok = true;
     }
-    receiver->completed->store(receiver);
-    receiver->completed->notify_one();
+    if (data.receivers->OUT_OF_SCOPE) {
+        panic("OUT OF SCOPE");
+    }
+    mem::touch(data.receivers->completed);
+    LOGX("%d about to store 238 %#x\n", pthread_self(), (uintptr) data.receivers->completed);
+    data.receivers->completer->store(data.receivers);
+    data.receivers->completed->notify();
     LOG("%d %#x send_nonblocking (cap=0): notified receiver\n", pthread_self(), (uintptr) &c);
     return true;
 }
 
-bool ChanBase::send_nonblocking_sel(this ChanBase &c, void *elem, bool move, Selector *sender) {
+int ChanBase::send_nonblocking_sel(this ChanBase &c, Selector *sender) {
     if (c.capacity > 0) {
     reload1:
         Data data = c.adata.load();
@@ -243,14 +250,27 @@ bool ChanBase::send_nonblocking_sel(this ChanBase &c, void *elem, bool move, Sel
         again1:
 
             LOG("%d %#x send_nonblocking: got q %v; receivers %#x\n", pthread_self(), (uintptr) &c, data.q, (uintptr) data.receivers);
-            if (data.q >= c.capacity) {
-                return false;
-            }
-
             if (data.receivers == SelectorClosed) {
                 // closed
                 LOG("%d %#x send_nonblocking: closed\n", pthread_self(), (uintptr) &c);
-                return false;
+                sender->removed = true;
+                return -1;
+            }
+
+            if (data.q >= c.capacity) {
+                if (data.senders == SelectorBusy) {
+                    goto reload1;
+                }
+                if (!c.adata.compare_and_swap(&data, {.q = data.q, .receivers = data.receivers, .senders = SelectorBusy})) {
+                    goto again1;
+                }
+                sender->next = data.senders;
+                if (data.senders != nil) {
+                    data.senders->prev = sender;
+                }
+                c.adata.senders_head_store(sender);
+                LOGX("ADDED 269 %#x to %#x\n", (uintptr) &sender, (uintptr) &c.adata.senders);
+                return -1;
             }
 
             if (data.q == 0 && data.receivers != nil) {
@@ -284,7 +304,9 @@ bool ChanBase::send_nonblocking_sel(this ChanBase &c, void *elem, bool move, Sel
                         // undo
                         receiver->active->store(Selector::New);
                         c.adata.receivers_head_store(receiver);
-                        return true;
+
+                        sender->completed->wait();
+                        return sender->completer->load()->id;
                     }
                     // continue if busy
                 }
@@ -299,53 +321,66 @@ bool ChanBase::send_nonblocking_sel(this ChanBase &c, void *elem, bool move, Sel
 
                 LOG("%d %#x send_nonblocking: receiver popped atomically %#x\n", pthread_self(), (uintptr) &c, (uintptr) receiver);
                 if (receiver->value != nil) {
-                    c.set(receiver->value, elem, move);
+                    c.set(receiver->value, sender->value, sender->move);
                 }
                 if (receiver->ok != nil) {
                     *receiver->ok = true;
                 }
-                receiver->completed->store(receiver);
-                receiver->completed->notify_one();
+                LOGX("%d about to store 329 %#x\n", pthread_self(), (uintptr) receiver->completed);
+                receiver->completer->store(receiver);
+                receiver->completed->notify();
 
-                return true;
+                return sender->id;
             }
         } while (!c.adata.compare_and_swap(&data, {.q = data.q+1, .receivers = data.receivers, .senders = data.senders }));
         // while(c.adata.update(&data, { .q = data.q+1, .receivers = data.receivers, .senders = data.senders }));
         LOG("%d %#x send_nonblocking_unlocked: q %v -> %v %v\n", pthread_self(), (uintptr) &c, data.q, data.q+1, c.adata.q.load());
         
-        c.push(elem, move);
-        return true;
+        c.push(sender->value, sender->move);
+        return sender->id;
     }
 
     // zero capacity case
 reload2:
     Data data = c.adata.load();
-    Selector *receiver = data.receivers;
 again2:
-    if (receiver == nil) {
+    if (data.receivers == SelectorClosed) {
+        sender->removed = true;
+        return -1;
+    }
+    if (data.receivers == nil) {
+        if (data.senders == SelectorBusy) {
+            goto reload2;
+        }
         LOG("%d %#x send_nonblocking (cap=0): receivers empty; returning\n", pthread_self(), (uintptr) &c);
-        return false;
+        if (!c.adata.compare_and_swap(&data, {.q = data.q, .receivers = data.receivers, .senders = SelectorBusy})) {
+            goto again2;
+        }
+        sender->next = data.senders;
+        if (data.senders != nil) {
+            data.senders->prev = sender;
+        }
+        c.adata.senders_head_store(sender);
+        LOGX("ADDED 361%#x to %#x\n", (uintptr) &sender, (uintptr) &c.adata.senders);
+        return -1;
     }
-    if (receiver == SelectorClosed) {
-        return false;
-    }
-    if (receiver == SelectorBusy) {
+    if (data.receivers == SelectorBusy) {
         goto reload2;
     }
 
-    if (!c.adata.receivers_head_compare_and_swap(&receiver, SelectorBusy)) {
+    if (!c.adata.receivers_head_compare_and_swap(&data.receivers, SelectorBusy)) {
         LOG("%d %#x send_nonblocking (cap=0): compare-and-swap failed\n", pthread_self(), (uintptr)  &c);
         goto again2;
     }
     
     // lock receiver; receiver -> busy
-    for (Selector::State state = Selector::New; !receiver->active->compare_and_swap(&state, Selector::Busy);) {
+    for (Selector::State state = Selector::New; !data.receivers->active->compare_and_swap(&state, Selector::Busy);) {
         if (state == Selector::Done) {
-            receiver->removed = true;
-            if (receiver->next != nil) {
-                receiver->next->prev = nil;
+            data.receivers->removed = true;
+            if (data.receivers->next != nil) {
+                data.receivers->next->prev = nil;
             }
-            c.adata.receivers_head_store(receiver->next);        
+            c.adata.receivers_head_store(data.receivers->next);        
             goto reload2;
         }
         // continue if busy
@@ -355,42 +390,45 @@ again2:
     for (Selector::State state = Selector::New; !sender->active->compare_and_swap(&state, Selector::Done);) {
         if (state == Selector::Done) {
             // undo
-            receiver->active->store(Selector::New);
-            c.adata.receivers_head_store(receiver);
-            return true;
+            data.receivers->active->store(Selector::New);
+            c.adata.receivers_head_store(data.receivers);
+            
+            sender->completed->wait();
+            return sender->completer->load()->id;
         }
         // continue if busy
     }
 
-    receiver->active->store(Selector::Done);
+    data.receivers->active->store(Selector::Done);
     // fmt::printf("REMOVING 356 %#x\n", (uintptr) receiver);
 
-    receiver->removed = true;
-    if (receiver->next != nil) {
-        receiver->next->prev = nil;
+    data.receivers->removed = true;
+    if (data.receivers->next != nil) {
+        data.receivers->next->prev = nil;
     }
-    c.adata.receivers_head_store(receiver->next);
+    c.adata.receivers_head_store(data.receivers->next);
     
-    LOG("%d %#x send_nonblocking (cap=0): receiver popped atomically %#x\n", pthread_self(), (uintptr) &c, (uintptr) receiver);
+    LOG("%d %#x send_nonblocking (cap=0): receiver popped atomically %#x\n", pthread_self(), (uintptr) &c, (uintptr) data.receivers);
 
-    if (receiver->value) {
-        c.set(receiver->value, elem, move);
+    if (data.receivers->value) {
+        c.set(data.receivers->value, sender->value, sender->move);
     }
-    if (receiver->ok) {
-        *receiver->ok = true;
+    if (data.receivers->ok) {
+        *data.receivers->ok = true;
     }
-    receiver->completed->store(receiver);
-    receiver->completed->notify_one();
+    LOGX("%d about to store 419 %#x\n", pthread_self(), (uintptr) data.receivers->completed);
+    data.receivers->completer->store(data.receivers);
+    data.receivers->completed->notify();
     LOG("%d %#x send_nonblocking (cap=0): notified receiver\n", pthread_self(), (uintptr) &c);
-    return true;
+    return sender->id;
 }
 
 
 void ChanBase::send_blocking(this ChanBase &c, void *elem, bool move) {
     LOG("%d %#x send_blocking\n", pthread_self(), (uintptr) &c);
-    sync::Lock lock(c.lock);
 
 again:
+    //sync::Lock lock(c.lock);
     Data data;
     bool ok = c.send_nonblocking(elem, move, &data);
     if (ok) {
@@ -415,12 +453,15 @@ again:
     }
 
     atomic<Selector::State> active = Selector::New;
-    std::atomic<Selector*> completed = nil;
+    atomic<Selector*> completer = nil;
+    Waiter completed;
+    LOGX("%d allocated completed 453 %#x\n", pthread_self(), (uintptr) &completed);
 
     Selector sender = {
         .value = elem,
         .move  = move,
         .active = &active,
+        .completer = &completer,
         .completed = &completed,
         .next = data.senders,
     } ;
@@ -434,14 +475,14 @@ again:
     }
 
     c.adata.senders_head_store(&sender);
-    // fmt::printf("ADDED 428 %#x to %#x\n", (uintptr) &sender, (uintptr) &c.adata.senders);
+    // LOGX("ADDED 428 %#x to %#x\n", (uintptr) &sender, (uintptr) &c.adata.senders);
     // fmt::printf("sender in %#x\n", (uintptr) &sender);
 
-    lock.unlock();
+    // lock.unlock();
     LOG("%d %#x send_blocking: waiting\n", pthread_self(), (uintptr)  &c);
-    completed.wait(nil);
+    completed.wait();
 
-    lock.relock();
+    // lock.relock();
     c.adata.senders_remove(&sender);
 
     if (sender.panic) {
@@ -468,30 +509,33 @@ again:
     // }
 
     // fmt::printf("sender out %#x\n", (uintptr) &sender);
-    for (Selector *e = c.adata.senders.head.value; e != nil && intptr(e) > 0; e = e->next) {
-        if (e == &sender) {
-            // fmt::printf("SENDER removed %v\n", sender.removed);
-            panic("!");
-        }
-    }
+    // for (Selector *e = c.adata.senders.head.value; e != nil && intptr(e) > 0; e = e->next) {
+    //     if (e == &sender) {
+    //         // fmt::printf("SENDER removed %v\n", sender.removed);
+    //         panic("!");
+    //     }
+    // }
     sender.OUT_OF_SCOPE = true;
+    LOGX("%d allocated 513 out of scope %#x\n", pthread_self(), (uintptr) &completed);
 }
 
 void ChanBase::send_i(this ChanBase &c, void *elem, bool move) {
-    if (c.closed()) {
-        panic("send on closed channel");
-    }
-
     c.send_blocking(elem, move);
 }
 
 bool ChanBase::send_nonblocking_i(this ChanBase &c, void *elem, bool move) {    
-    if (c.closed()) {
+    sync::Lock lock(c.lock);
+    Data data;
+
+    if (c.send_nonblocking(elem, move, &data)) {
+        return true;
+    }
+
+    if (data.senders == SelectorClosed) {
         panic("send on closed channel");
     }
 
-    sync::Lock lock(c.lock);
-    return c.send_nonblocking(elem, move, nil);
+    return false;
 }
 
 bool ChanBase::recv_nonblocking(this ChanBase &c, void *out, bool *okp, Data *data_out) {
@@ -503,7 +547,7 @@ bool ChanBase::recv_nonblocking(this ChanBase &c, void *out, bool *okp, Data *da
 
             LOG("%d %#x recv_nonblocking: got q %v\n", pthread_self(), (uintptr)  &c, data.q);
             if (data.q <= 0) {
-                if (c.closed()) {
+                if (data.receivers == SelectorClosed) {
                     if (okp) {
                         *okp = false;
                     }
@@ -543,6 +587,7 @@ bool ChanBase::recv_nonblocking(this ChanBase &c, void *out, bool *okp, Data *da
                 }
 
                 c.adata.senders_head_store(sender->next);
+                // LOGX("ADDED 528 %#x to %#x\n", (uintptr) &sender->next, (uintptr) &c.adata.senders);
                 LOG("%d %#x recv_nonblocking: sender popped atomically %#x\n", pthread_self(), (uintptr) &c, (uintptr) sender);
                 if (!b) {
                     goto reload1;
@@ -555,8 +600,9 @@ bool ChanBase::recv_nonblocking(this ChanBase &c, void *out, bool *okp, Data *da
 
                 LOG("%d %#x recv_nonblocking: special case push\n", pthread_self(), (uintptr)  &c);
                 c.push(sender->value, sender->move);
-                sender->completed->store(sender);
-                sender->completed->notify_one();
+                LOGX("%d about to store 601 %#x\n", pthread_self(), (uintptr) sender->completed);
+                sender->completer->store(sender);
+                sender->completed->notify();
                 
                 return true;
             }
@@ -575,40 +621,39 @@ bool ChanBase::recv_nonblocking(this ChanBase &c, void *out, bool *okp, Data *da
     // zero capacity case
 reload2:
     Data data = c.adata.load();
-    Selector *sender = data.senders;;
 again2:
-    if (sender == nil) {
+    if (data.senders == nil) {
         if (data_out) *data_out = data;
         return false;
     }
-    if (sender == SelectorClosed) {
+    if (data.senders == SelectorClosed) {
         if (okp) {
             *okp = false;
         }
         LOG("%d %#x recv_nonblocking (cap=0): closed; early return\n", pthread_self(), (uintptr) &c);
         return true;
     }
-    if (sender == SelectorBusy) {
+    if (data.senders == SelectorBusy) {
         // fmt::printf("busy going back\n");
         goto reload2;
     }
 
-    bool b = c.adata.senders_head_compare_and_swap(&sender, SelectorBusy);
+    bool b = c.adata.senders_head_compare_and_swap(&data.senders, SelectorBusy);
     if (!b) {
         LOG("%d %#x recv_nonblocking: compare-and-swap failed\n", pthread_self(), (uintptr)  &c);
         goto again2;
     }
     LOG("%d %#x recv_nonblocking (cap=0): locked\n", pthread_self(), (uintptr) &c);
-    sender->removed = true;
+    data.senders->removed = true;
     // fmt::printf("REMOVING 590 %#x from %#x\n", (uintptr) sender, (uintptr) &c.adata.senders);
     
-    if (sender->next) {
+    if (data.senders->next) {
         // fmt::printf("About to clear sender->next->prev %#x\n", (uintptr) sender->next);
-        sender->next->prev = nil;
+        data.senders->next->prev = nil;
     }
 
     b = true;
-    for (Selector::State state = Selector::New; !sender->active->compare_and_swap(&state, Selector::Done);) {
+    for (Selector::State state = Selector::New; !data.senders->active->compare_and_swap(&state, Selector::Done);) {
         if (state == Selector::Done) {
             b = false;
             break;
@@ -616,29 +661,33 @@ again2:
         // continue if busy
     }
 
-    LOG("%d %#x recv_nonblocking (cap=0): sender popped atomically %#x\n", pthread_self(), (uintptr) &c, (uintptr) sender);
-    c.adata.senders_head_store(sender->next);
+    LOG("%d %#x recv_nonblocking (cap=0): sender popped atomically %#x\n", pthread_self(), (uintptr) &c, (uintptr) data.senders);
+    c.adata.senders_head_store(data.senders->next);
+    // LOGX("ADDED 657 %#x to %#x\n", (uintptr) &data.senders->next, (uintptr) &c.adata.senders);
     LOG("%d %#x recv_nonblocking (cap=0): unlocked\n", pthread_self(), (uintptr) &c);
     if (!b) {
         goto reload2;
     }
 
     if (out) {
-        c.set(out, sender->value, sender->move);
+        c.set(out, data.senders->value, data.senders->move);
     }
     if (okp) {
         *okp = true;
     }
 
     LOG("%d %#x recv_nonblocking (cap=0): about to touch...\n", pthread_self(), (uintptr) &c);
-    mem::touch(sender);
+    mem::touch(data.senders);
     LOG("%d %#x recv_nonblocking (cap=0): touched %#x\n", pthread_self(), (uintptr) &c);
-    sender->completed->store(sender);
-    sender->completed->notify_one();
+    data.senders->completer->store(data.senders);
+    LOGX("About to touch %#x\n", (uintptr) data.senders->completed);
+    mem::touch(data.senders->completed);
+    data.senders->completed->notify();
+    LOGX("touched %#x\n", (uintptr) data.senders->completed);
     return true;
 }
 
-bool ChanBase::recv_nonblocking_sel(this ChanBase &c, void *out, bool *okp, Selector *receiver) {
+int ChanBase::recv_nonblocking_sel(this ChanBase &c, Selector *receiver) {
     if (c.capacity > 0) {
     reload1:
         Data data = c.adata.load();
@@ -647,21 +696,33 @@ bool ChanBase::recv_nonblocking_sel(this ChanBase &c, void *out, bool *okp, Sele
 
             LOG("%d %#x recv_nonblocking: got q %v\n", pthread_self(), (uintptr)  &c, data.q);
             if (data.q <= 0) {
-                if (c.closed()) {
-                    if (okp) {
-                        *okp = false;
+                if (data.receivers == SelectorClosed) {
+                    if (receiver->ok) {
+                        *receiver->ok = false;
                     }
 
                     for (Selector::State state = Selector::New; !receiver->active->compare_and_swap(&state, Selector::Done);) {
                         if (state == Selector::Done) {
-                            return true;
+                            receiver->completed->wait();
+                            return receiver->completer->load()->id;
                         }
                         // continue if busy
                     }
-                    return true;
+                    return receiver->id;
                 }
-
-                return false;
+                if (data.receivers == SelectorBusy) {
+                    goto reload1;
+                }
+                
+                if (!c.adata.compare_and_swap(&data, {.q = data.q, .receivers = SelectorBusy, .senders = data.senders})) {
+                    goto again1;
+                }
+                receiver->next = data.receivers;
+                if (data.receivers != nil) {
+                    data.receivers->prev = receiver;
+                }
+                c.adata.receivers_head_store(receiver);
+                return -1;
             }
 
             if (data.q == c.capacity && data.senders != nil && data.senders != SelectorClosed) {
@@ -673,7 +734,7 @@ bool ChanBase::recv_nonblocking_sel(this ChanBase &c, void *out, bool *okp, Sele
 
                 Selector *sender = data.senders;
                 if (!c.adata.compare_and_swap(&data, {.q = data.q, .receivers = data.receivers, .senders = SelectorBusy})) {
-                    LOG("%d %#x recv_nonblocking: compare-and-swap failed\n", pthread_self(), (uintptr)  &c);
+                    LOG("%d %#x recv_nonblocking: compare-and-swap failed\n", pthread_self(), (uintptr) &c);
                     goto again1;
                 }
 
@@ -685,6 +746,7 @@ bool ChanBase::recv_nonblocking_sel(this ChanBase &c, void *out, bool *okp, Sele
                             sender->next->prev = nil;
                         }
                         c.adata.senders_head_store(sender->next);
+                        LOGX("ADDED 738 %#x to %#x\n", (uintptr) &sender->next, (uintptr) &c.adata.senders);
                         goto reload1;
                     }
                     // continue if busy
@@ -696,7 +758,8 @@ bool ChanBase::recv_nonblocking_sel(this ChanBase &c, void *out, bool *okp, Sele
                         // undo
                         sender->active->store(Selector::New);
                         c.adata.senders_head_store(sender);
-                        return true;
+                        receiver->completed->wait();
+                        return receiver->completer->load()->id;
                     }
                     // continue if busy
                 }
@@ -708,66 +771,78 @@ bool ChanBase::recv_nonblocking_sel(this ChanBase &c, void *out, bool *okp, Sele
                     sender->next->prev = nil;
                 }
                 c.adata.senders_head_store(sender->next);
+                LOGX("ADDED 763 %#x to %#x\n", (uintptr) &sender->next, (uintptr) &c.adata.senders);
 
                 LOG("%d %#x recv_nonblocking: sender popped atomically %#x\n", pthread_self(), (uintptr) &c, (uintptr) sender);
-                c.pop(out);
-                if (okp) {
-                    *okp = true;
+                c.pop(receiver->value);
+                if (receiver->ok) {
+                    *receiver->ok = true;
                 }
 
                 LOG("%d %#x recv_nonblocking: special case push\n", pthread_self(), (uintptr)  &c);
                 c.push(sender->value, sender->move);
-                sender->completed->store(sender);
-                sender->completed->notify_one();
+                LOGX("%d about to store 777 %#x\n", pthread_self(), (uintptr) sender->completed);
+                sender->completer->store(sender);
+                sender->completed->notify();
                 
-                return true;
+                return receiver->id;
             }
         } while (!c.adata.compare_and_swap(&data, {.q = data.q-1, .receivers = data.receivers, .senders = data.senders }));
         LOG("%d %#x recv_nonblocking: %v -> %v; actual %v\n", pthread_self(), (uintptr)  &c, data.q, data.q-1, c.adata.q.load());
 
 
-        c.pop(out);
+        c.pop(receiver->value);
         
-        if (okp) {
-            *okp = true;
+        if (receiver->ok) {
+            *receiver->ok = true;
         }
-        return true;
+        return receiver->id;
     }
 
     // zero capacity case
 reload2:
     Data data = c.adata.load();
-    Selector *sender = data.senders;;
 again2:
-    if (sender == nil) {
-        return false;
+    if (data.senders == nil) {
+        if (data.receivers == SelectorBusy) {
+            goto reload2;
+        }
+        if (!c.adata.compare_and_swap(&data, {.q = data.q, .receivers = SelectorBusy, .senders = data.senders})) {
+            goto again2;
+        }
+        receiver->next = data.receivers;
+        if (data.receivers) {
+            data.receivers->prev = receiver;
+        }
+        c.adata.receivers_head_store(receiver);
+        return -1;
     }
-    if (sender == SelectorClosed) {
-        if (okp) {
-            *okp = false;
+    if (data.senders == SelectorClosed) {
+        if (receiver->ok) {
+            *receiver->ok = false;
         }
         LOG("%d %#x recv_nonblocking (cap=0): closed; early return\n", pthread_self(), (uintptr) &c);
-        return true;
+        return receiver->id;
     }
-    if (sender == SelectorBusy) {
+    if (data.senders == SelectorBusy) {
         // fmt::printf("busy going back\n");
         goto reload2;
     }
 
-    if (!c.adata.senders_head_compare_and_swap(&sender, SelectorBusy)) {
+    if (!c.adata.senders_head_compare_and_swap(&data.senders, SelectorBusy)) {
         LOG("%d %#x recv_nonblocking: compare-and-swap failed\n", pthread_self(), (uintptr)  &c);
         goto again2;
     }
     LOG("%d %#x recv_nonblocking (cap=0): locked\n", pthread_self(), (uintptr) &c);
     
     // lock sender; sender -> busy
-    for (Selector::State state = Selector::New; !sender->active->compare_and_swap(&state, Selector::Busy);) {
+    for (Selector::State state = Selector::New; !data.senders->active->compare_and_swap(&state, Selector::Busy);) {
         if (state == Selector::Done) {
-            sender->removed = true;
-            if (sender->next != nil) {
-                sender->next->prev = nil;
+            data.senders->removed = true;
+            if (data.senders->next != nil) {
+                data.senders->next->prev = nil;
             }
-            c.adata.senders_head_store(sender->next);        
+            c.adata.senders_head_store(data.senders->next);        
             goto reload2;
         }
         // continue if busy
@@ -777,36 +852,39 @@ again2:
     for (Selector::State state = Selector::New; !receiver->active->compare_and_swap(&state, Selector::Done);) {
         if (state == Selector::Done) {
             // undo
-            sender->active->store(Selector::New);
-            c.adata.senders_head_store(sender);
-            return true;
+            data.senders->active->store(Selector::New);
+            c.adata.senders_head_store(data.senders);
+            receiver->completed->wait();
+            return receiver->completer->load()->id;
         }
         // continue if busy
     }
 
-    sender->active->store(Selector::Done);
-    sender->removed = true;
+    data.senders->active->store(Selector::Done);
+    data.senders->removed = true;
     // fmt::printf("REMOVING 767 %#x\n", (uintptr) sender); 
-    if (sender->next != nil) {
-        sender->next->prev = nil;
+    if (data.senders->next != nil) {
+        data.senders->next->prev = nil;
     }
-    c.adata.senders_head_store(sender->next);
+    c.adata.senders_head_store(data.senders->next);
+    LOGX("ADDED 857 %#x to %#x\n", (uintptr) &data.senders->next, (uintptr) &c.adata.senders);
 
-    LOG("%d %#x recv_nonblocking (cap=0): sender popped atomically %#x\n", pthread_self(), (uintptr) &c, (uintptr) sender);
+    LOG("%d %#x recv_nonblocking (cap=0): sender popped atomically %#x\n", pthread_self(), (uintptr) &c, (uintptr) data.senders);
     
-    if (out) {
-        c.set(out, sender->value, sender->move);
+    if (receiver->value) {
+        c.set(receiver->value, data.senders->value, data.senders->move);
     }
-    if (okp) {
-        *okp = true;
+    if (receiver->ok) {
+        *receiver->ok = true;
     }
 
     LOG("%d %#x recv_nonblocking (cap=0): about to touch...\n", pthread_self(), (uintptr) &c);
-    mem::touch(sender);
+    mem::touch(data.senders);
     LOG("%d %#x recv_nonblocking (cap=0): touched %#x\n", pthread_self(), (uintptr) &c);
-    sender->completed->store(sender);
-    sender->completed->notify_one();
-    return true;
+    LOGX("%d about to store 877 %#x\n", pthread_self(), (uintptr) data.senders->completed);
+    data.senders->completer->store(data.senders);
+    data.senders->completed->notify();
+    return receiver->id;
 }
 
 void ChanBase::recv_blocking(this ChanBase &c, void *out, bool *ok) {
@@ -833,12 +911,15 @@ again:
     }
 
     atomic<Selector::State> active = Selector::New;
-    std::atomic<Selector*> completed = nil;
+    atomic<Selector*> completer = nil;
+    Waiter completed;
+    LOGX("allocated completed 902 %#x\n", (uintptr) &completed);
 
     Selector receiver = {
         .value = out,
         .ok = ok,
         .active = &active,
+        .completer = &completer,
         .completed = &completed,
         .next = data.receivers,
     };
@@ -846,12 +927,12 @@ again:
         data.receivers->prev = &receiver;
     }
     c.adata.receivers_head_store(&receiver);
-    // fmt::printf("ADDED 830 %#x to %#x\n", (uintptr) &receiver, (uintptr) &c.adata.receivers);
+    LOGX("ADDED 830 %#x to %#x\n", (uintptr) &receiver, (uintptr) &c.adata.receivers);
     // fmt::printf("receiver in %#x\n", (uintptr) &receiver);
     
     lock.unlock();
     LOG("%d %#x recv_blocking: about to wait\n", pthread_self(), (uintptr) &c);
-    completed.wait(nil);
+    completed.wait();
 
     lock.relock();
     c.adata.receivers_remove(&receiver);
@@ -869,40 +950,20 @@ void ChanBase::close(this ChanBase &c) {
     LOG("%d %#x close: channel closing...\n", pthread_self(), (uintptr) &c);
     Lock lock(c.lock);
 
-    if (c.closed()) {
+
+    Data data = c.adata.load();
+again:
+    if (data.senders == SelectorClosed) {
         panic("close of closed channel");
     }
 
+    if (!c.adata.compare_and_swap(&data, { .q = data.q, .receivers = SelectorClosed, .senders = SelectorClosed})) {
+        goto again;
+    }
+
     c.state.store(Closed);
-    Selector *next;
 
-    Selector *sender = c.adata.senders_head_load();
-    for (;;) {
-        if (intptr(sender) == -1) {
-            sender = c.adata.senders_head_load();
-            continue;
-        }
-
-        if (c.adata.senders_head_compare_and_swap(&sender, (Selector *) -2)) {
-            break;
-        }
-    }
-    
-    Selector *receiver = c.adata.receivers_head_load();
-    for (;;) {
-        if (intptr(receiver) == -1) {
-            receiver = c.adata.receivers_head_load();
-            continue;
-        }
-
-        if (c.adata.receivers_head_compare_and_swap(&receiver, (Selector *) -2)) {
-            break;
-        }
-    }
-
-    for (; sender != nil; sender = next) {
-        next = sender->next;
-        
+    for (Selector *sender = data.senders; sender != nil; sender = sender->next) {
         bool ok = true;
         for (Selector::State state = Selector::New; !sender->active->compare_and_swap(&state, Selector::Done);) {
             if (state == Selector::Done) {
@@ -916,15 +977,13 @@ void ChanBase::close(this ChanBase &c) {
         }
         sender->panic = true;
         sender->removed = true;
-        sender->completed->store(sender);
-        sender->completed->notify_one();
+        LOGX("%d about to store 972 %#x\n", pthread_self(), (uintptr) sender->completed);
+        sender->completer->store(sender);
+        sender->completed->notify();
     }
 
     // int i = 0, j =0;
-    for (; receiver != nil; receiver = next) {
-        // i++;
-        next = receiver->next;
-        
+    for (Selector *receiver = data.receivers; receiver != nil; receiver = receiver->next) {
         bool ok = true;
         for (Selector::State state = Selector::New; !receiver->active->compare_and_swap(&state, Selector::Done);) {
             if (state == Selector::Done) {
@@ -945,17 +1004,12 @@ void ChanBase::close(this ChanBase &c) {
         }
 
         receiver->removed = true;
-        receiver->completed->store(receiver);
-        receiver->completed->notify_one();
-        // j++;
+        LOGX("%d about to store 999 %#x\n", pthread_self(), (uintptr) receiver->completed);
+        receiver->completer->store(receiver);
+        receiver->completed->notify();
     }
 
-    
     LOG("%d %#x close: channel closed\n", pthread_self(), (uintptr) &c);
-    // fmt::printf("CLOSE %v %v\n", i, j);
-    // if (sync::load(c.adata.receivers.head) != nil || sync::load(c.adata.senders.head) != nil) {
-    //     panic("state");
-    // }
 }
 
 bool ChanBase::closed(this ChanBase const& c) {
@@ -983,24 +1037,12 @@ bool ChanBase::try_recv(this ChanBase &c, void *out, bool *ok, bool try_locks, b
     return c.recv_nonblocking(out, ok, nil);
 }
 
-bool ChanBase::subscribe_recv(this ChanBase &c, internal::Selector &receiver, Lock &lock) {
-    if (c.recv_nonblocking_sel(receiver.value, receiver.ok, &receiver)) {
-        return true;
-    }
-
-    // fmt::printf("PUSHING RECV %#x %#x\n", (uintptr) &c.adata.receivers, (uintptr) &receiver);
-    c.adata.receivers_push(&receiver);
-    return false;
+int ChanBase::subscribe_recv(this ChanBase &c, internal::Selector &receiver, Lock &lock) {
+    return c.recv_nonblocking_sel(&receiver);
 }
 
-bool ChanBase::subscribe_send(this ChanBase &c, internal::Selector &sender, Lock &lock) {
-    if (c.send_nonblocking_sel(sender.value, sender.move, &sender)) {
-        return true;
-    }
-
-    // fmt::printf("PUSHING SEND list %#x; sender %#x\n", (uintptr) &c.adata.senders, (uintptr) &sender);
-    c.adata.senders_push(&sender);
-    return false;
+int ChanBase::subscribe_send(this ChanBase &c, internal::Selector &sender, Lock &lock) {
+    return c.send_nonblocking_sel(&sender);
 }
 
 void ChanBase::unsubscribe_recv(this ChanBase &c, internal::Selector &receiver, Lock&) {
@@ -1031,10 +1073,10 @@ bool Recv::select(bool blocking) const {
 
 bool Send::poll(bool try_locks, bool *lock_fail) const {
     ChanBase & c = *this->chan;
-    if (c.closed()) {
-        LOG("%d %#X Send::poll: closed; returning early\n", pthread_self(), (uintptr) &c);
-        return false;
-    }
+    // if (c.closed()) {
+    //     LOG("%d %#X Send::poll: closed; returning early\n", pthread_self(), (uintptr) &c);
+    //     return false;
+    // }
 
     sync::Lock lock(c.lock);
     return c.send_nonblocking(this->data, this->move, nil);
@@ -1051,7 +1093,7 @@ bool Send::select(bool blocking) const {
 }
 
 
-bool Recv::subscribe(sync::internal::Selector &receiver, Lock &lock) const {
+int Recv::subscribe(sync::internal::Selector &receiver, Lock &lock) const {
     ChanBase &c = *this->chan;
 
     receiver.value = this->data;
@@ -1060,7 +1102,7 @@ bool Recv::subscribe(sync::internal::Selector &receiver, Lock &lock) const {
     return c.subscribe_recv(receiver, lock);
 }
 
-bool Send::subscribe(sync::internal::Selector &sender, Lock &lock) const {
+int Send::subscribe(sync::internal::Selector &sender, Lock &lock) const {
     ChanBase &c = *this->chan;
 
     sender.value = this->data;
@@ -1135,7 +1177,9 @@ int internal::select_i(arr<OpData> ops, arr<OpData*> ops_ptrs, arr<OpData*> lock
     });
     
     atomic<Selector::State> active = Selector::New;
-    std::atomic<Selector*> completed = nil;
+    atomic<Selector*> completer = nil;
+    Waiter completed;
+    LOGX("allocated completed 1163 %#x\n", (uintptr) &completed);
 
     int i = 0;
     // lock in lock order and subscribe
@@ -1143,22 +1187,24 @@ int internal::select_i(arr<OpData> ops, arr<OpData*> ops_ptrs, arr<OpData*> lock
         OpData &op = *ops_ptrs[i];
 
         op.selector.active = &active;
+        op.selector.completer = &completer;
         op.selector.completed = &completed;
 
         if (i == 0 || &op.op.chan->lock != &ops_ptrs[i-1]->op.chan->lock) {
             // skip re-locking the same lock
-            LOG("LOCKING IN ORDER %#x\n", (uintptr) op.op.chan);
             op.chanlock.lock(op.op.chan->lock);
         } else {
-            LOG("LOCKING IN ORDER SKIP %#x\n", (uintptr) op.op.chan);
         }
 
-        if (op.op.subscribe(op.selector, op.chanlock)) {
+        LOGX("%d select_i subscribing %#x\n", pthread_self(), (uintptr) &op.selector);
+        int result = op.op.subscribe(op.selector, op.chanlock);
+        if (result != -1) {
             for (int j = i-1; j >= 0; j--) {
                 OpData &op = *ops_ptrs[j];
+                LOGX("%d select_i unsubscribing %#x\n", pthread_self(), (uintptr) &op.selector);
                 op.op.unsubscribe(op.selector, op.chanlock);
             }
-            return int(&op - ops.data);
+            return result;
         }
     }
 
@@ -1170,9 +1216,8 @@ int internal::select_i(arr<OpData> ops, arr<OpData*> ops_ptrs, arr<OpData*> lock
         }
     }
 
-    completed.wait(nil);
-
-    Selector *selected = completed.load();
+    completed.wait();
+    Selector *selected = completer.load();
 
     // unsubscribe
     for (int j = 0; j < i; j++) {
@@ -1222,6 +1267,7 @@ int lib::sync::Chan<void>::unread() const {
 
 void IntrusiveList::push(Selector *e) {
     // printf("PUSH this(%p) %p\n", this, e);
+    LOG("%d %#x IntrusiveList pushing %#x\n", pthread_self(), (uintptr) this, (uintptr) e);
     reload:
     Selector *head;
     {
@@ -1309,6 +1355,7 @@ Selector *IntrusiveList::pop() {
 
     sync::Lock lock(*mtx);
     this->head.store(head->next);
+    LOG("%d %#x IntrusiveList popped %#x\n", pthread_self(), (uintptr) this, (uintptr) head);
     return head;
 }
 

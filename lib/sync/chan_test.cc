@@ -21,7 +21,7 @@
 using namespace lib;
 using namespace sync;
 
-constexpr bool DebugLog = false;
+constexpr bool DebugLog = true;
 
 #define LOG(...) if constexpr (DebugLog) fmt::printf(__VA_ARGS__)
 // #define LOG(...)
@@ -1314,12 +1314,13 @@ void benchmark_select_nonblock(testing::B &b) {
 // 	})
 // }
 
-int xmain(int, char **) {
+int main(int, char **) {
     debug::init();
     testing::T t;
 
     for (;;) {
         test_select_stress(t);
+        break;
         print "repeat";
     }
     

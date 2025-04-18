@@ -26,6 +26,30 @@ namespace lib::sync {
     namespace internal {
         constexpr bool DebugChecks = true;
         constexpr bool DebugLog    = false;
+
+        struct Waiter {
+            std::atomic<int> state = 0;
+
+            void notify() {
+                state.store(1, std::memory_order::release);
+                state.notify_one();
+                state.store(2);
+            }
+
+            void wait() {
+                for (;;) {
+                    int s = state.load(std::memory_order::acquire);
+                    if (s == 0) {
+                        state.wait(0);
+                        continue;
+                    }
+                    if (s == 2) {
+                        return;
+                    }
+                    // spin wait
+                }
+            }
+        } ;
         
         struct Selector {
             void *value = nil;
@@ -41,7 +65,8 @@ namespace lib::sync {
             } ;
 
             atomic<State>      *active = nil;
-            std::atomic<Selector*> *completed = nil;
+            atomic<Selector*> *completer = nil;
+            Waiter *completed = nil;
             atomic<State>      state = New;
             bool removed = false;
 
@@ -74,6 +99,8 @@ namespace lib::sync {
 
           bool contains(Selector *e);
         } ;
+
+
 
         struct Allocator {
             // void *allocate(size n) {}
@@ -202,11 +229,17 @@ namespace lib::sync {
 
                 void senders_head_store(Selector *v) {
                     sync::Lock lock(mtx);
+                    if (DebugLog) {
+                        fmt::printf("%d %#x sender added %#x\n", pthread_self(), (uintptr) &receivers, (uintptr) v);
+                    }
                     senders.head.store(v);
                 }
 
                 void receivers_head_store(Selector *v) {
                     sync::Lock lock(mtx);
+                    if (DebugLog) {
+                        fmt::printf("%d %#x receiver added %#x\n", pthread_self(), (uintptr) &receivers, (uintptr) v);
+                    }
                     receivers.head.store(v);
                 }
 
@@ -243,14 +276,14 @@ namespace lib::sync {
             void send_i(this ChanBase &c, void *elem, bool move);
             bool send_nonblocking_i(this ChanBase &c, void *elem, bool move);
             bool send_nonblocking(this ChanBase &c, void *elem, bool move, Data *data_out);
-            bool send_nonblocking_sel(this ChanBase &c, void *elem, bool move, Selector *receiver);
+            int send_nonblocking_sel(this ChanBase &c, Selector *receiver);
             // bool send_nonblocking_locked(this ChanBase &c, void *elem, bool move, sync::Lock &lock);
 
             void send_blocking(this ChanBase &c, void *elem, bool move);
 
             // bool recv_nonblocking_locked(this ChanBase &c, void *out, bool *ok, Lock&);
             bool recv_nonblocking(this ChanBase &c, void *out, bool *ok, Data *data_out);
-            bool recv_nonblocking_sel(this ChanBase &c, void *out, bool *ok, Selector *receiver);
+            int recv_nonblocking_sel(this ChanBase &c, Selector *receiver);
             void recv_blocking(this ChanBase &c, void *out, bool *ok);
 
             bool try_recv(this ChanBase &c, void *out, bool *ok, bool try_locks, bool *lock_fail);
@@ -262,8 +295,8 @@ namespace lib::sync {
             // void recv_now(this ChanBase &c, void *out, bool *ok, Selector *sel, sync::Lock sendlock, sync::Lock &chanlock);
             // void send_now(this ChanBase &c, void *out, bool move, Selector *sel, sync::Lock sendlock, sync::Lock &chanlock);
 
-            bool subscribe_recv(this ChanBase &c, internal::Selector &receiver, Lock&);
-            bool subscribe_send(this ChanBase &c, internal::Selector &sender, Lock&);
+            int subscribe_recv(this ChanBase &c, internal::Selector &receiver, Lock&);
+            int subscribe_send(this ChanBase &c, internal::Selector &sender, Lock&);
 
             void unsubscribe_recv(this ChanBase &c, internal::Selector &receiver, Lock&);
             void unsubscribe_send(this ChanBase &c, internal::Selector &sender, Lock&);
@@ -427,7 +460,7 @@ namespace lib::sync {
         
         virtual bool poll(bool try_locks, bool *lock_fail) const = 0;
 
-        virtual bool subscribe(sync::internal::Selector &receiver, Lock&) const = 0;
+        virtual int subscribe(sync::internal::Selector &receiver, Lock&) const = 0;
         virtual void unsubscribe(sync::internal::Selector &receiver, Lock&) const = 0;
         
         virtual bool select(bool blocking) const = 0;
@@ -456,7 +489,7 @@ namespace lib::sync {
 
         bool poll(bool try_locks, bool *lock_fail) const override;
 
-        bool subscribe(sync::internal::Selector &receiver, Lock&) const override;
+        int subscribe(sync::internal::Selector &receiver, Lock&) const override;
         void unsubscribe(sync::internal::Selector &receiver, Lock&) const override;
 
         bool select(bool blocking) const override;
@@ -493,7 +526,7 @@ namespace lib::sync {
 
         bool poll(bool try_locks, bool *lock_fail) const override;
 
-        bool subscribe(sync::internal::Selector &receiver, Lock&) const override;
+        int subscribe(sync::internal::Selector &receiver, Lock&) const override;
         void unsubscribe(sync::internal::Selector &receive, Lock&) const override;
 
         bool select(bool blocking) const override;
