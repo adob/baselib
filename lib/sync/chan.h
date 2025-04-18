@@ -134,6 +134,7 @@ namespace lib::sync {
         } ;
 
         struct ChanBase {
+            Mutex lock;
             const int capacity = 0;
             
             struct Data {
@@ -252,8 +253,6 @@ namespace lib::sync {
 
             atomic<State> state = atomic<State>(Open);
             
-            Mutex    lock;
-
             ChanBase(int capacity);
 
             void close(this ChanBase &c);
@@ -281,25 +280,18 @@ namespace lib::sync {
 
             void send_blocking(this ChanBase &c, void *elem, bool move);
 
-            // bool recv_nonblocking_locked(this ChanBase &c, void *out, bool *ok, Lock&);
+        
             bool recv_nonblocking(this ChanBase &c, void *out, bool *ok, Data *data_out);
             int recv_nonblocking_sel(this ChanBase &c, Selector *receiver);
             void recv_blocking(this ChanBase &c, void *out, bool *ok);
 
-            bool try_recv(this ChanBase &c, void *out, bool *ok, bool try_locks, bool *lock_fail);
-            // bool try_send(this ChanBase &c, void *out, bool move, bool try_locks, bool *lock_fail);
+            bool try_recv(this ChanBase &c, void *out, bool *ok);
 
-            // bool can_recv(this ChanBase &c, Selector **selout, bool try_locks, bool *lock_fail, sync::Lock sendlock, sync::Lock &);
-            // bool can_send(this ChanBase &c, Selector **selout, bool try_locks, bool *lock_fail, sync::Lock recvlock, sync::Lock &);
+            int subscribe_recv(this ChanBase &c, internal::Selector &receiver);
+            int subscribe_send(this ChanBase &c, internal::Selector &sender);
 
-            // void recv_now(this ChanBase &c, void *out, bool *ok, Selector *sel, sync::Lock sendlock, sync::Lock &chanlock);
-            // void send_now(this ChanBase &c, void *out, bool move, Selector *sel, sync::Lock sendlock, sync::Lock &chanlock);
-
-            int subscribe_recv(this ChanBase &c, internal::Selector &receiver, Lock&);
-            int subscribe_send(this ChanBase &c, internal::Selector &sender, Lock&);
-
-            void unsubscribe_recv(this ChanBase &c, internal::Selector &receiver, Lock&);
-            void unsubscribe_send(this ChanBase &c, internal::Selector &sender, Lock&);
+            void unsubscribe_recv(this ChanBase &c, internal::Selector &receiver);
+            void unsubscribe_send(this ChanBase &c, internal::Selector &sender);
 
             void send(ChanBase &c, void *elem, void(*)(ChanBase &c, void *elem));
 
@@ -458,10 +450,10 @@ namespace lib::sync {
         internal::ChanBase *chan;
         void *data;
         
-        virtual bool poll(bool try_locks, bool *lock_fail) const = 0;
+        virtual bool poll() const = 0;
 
-        virtual int subscribe(sync::internal::Selector &receiver, Lock&) const = 0;
-        virtual void unsubscribe(sync::internal::Selector &receiver, Lock&) const = 0;
+        virtual int subscribe(sync::internal::Selector &receiver) const = 0;
+        virtual void unsubscribe(sync::internal::Selector &receiver) const = 0;
         
         virtual bool select(bool blocking) const = 0;
     } ;  
@@ -487,10 +479,10 @@ namespace lib::sync {
             this->ok = ok;
         }
 
-        bool poll(bool try_locks, bool *lock_fail) const override;
+        bool poll() const override;
 
-        int subscribe(sync::internal::Selector &receiver, Lock&) const override;
-        void unsubscribe(sync::internal::Selector &receiver, Lock&) const override;
+        int subscribe(sync::internal::Selector &receiver) const override;
+        void unsubscribe(sync::internal::Selector &receiver) const override;
 
         bool select(bool blocking) const override;
     } ;
@@ -524,10 +516,10 @@ namespace lib::sync {
             // this->mtx = &chan.lock;
         }
 
-        bool poll(bool try_locks, bool *lock_fail) const override;
+        bool poll() const override;
 
-        int subscribe(sync::internal::Selector &receiver, Lock&) const override;
-        void unsubscribe(sync::internal::Selector &receive, Lock&) const override;
+        int subscribe(sync::internal::Selector &receiver) const override;
+        void unsubscribe(sync::internal::Selector &receive) const override;
 
         bool select(bool blocking) const override;
     } ;
@@ -535,7 +527,6 @@ namespace lib::sync {
 
     namespace internal {
         struct OpData {
-            sync::Lock chanlock;
             sync::Lock selector_lock;
 
             SelectOp const& op;

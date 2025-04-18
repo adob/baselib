@@ -1093,32 +1093,32 @@ int ChanBase::length() const {
     return this->unread();
 }
 
-bool ChanBase::try_recv(this ChanBase &c, void *out, bool *ok, bool try_locks, bool *lock_fail) {
+bool ChanBase::try_recv(this ChanBase &c, void *out, bool *ok) {
     Lock lock(c.lock);
     return c.recv_nonblocking(out, ok, nil);
 }
 
-int ChanBase::subscribe_recv(this ChanBase &c, internal::Selector &receiver, Lock &lock) {
+int ChanBase::subscribe_recv(this ChanBase &c, internal::Selector &receiver) {
     return c.recv_nonblocking_sel(&receiver);
 }
 
-int ChanBase::subscribe_send(this ChanBase &c, internal::Selector &sender, Lock &lock) {
+int ChanBase::subscribe_send(this ChanBase &c, internal::Selector &sender) {
     return c.send_nonblocking_sel(&sender);
 }
 
-void ChanBase::unsubscribe_recv(this ChanBase &c, internal::Selector &receiver, Lock&) {
+void ChanBase::unsubscribe_recv(this ChanBase &c, internal::Selector &receiver) {
     c.adata.receivers.remove(&receiver);
 }
 
-void ChanBase::unsubscribe_send(this ChanBase &c, internal::Selector &sender, Lock&) {
+void ChanBase::unsubscribe_send(this ChanBase &c, internal::Selector &sender) {
     c.adata.senders.remove(&sender);
 }
 
 
-bool Recv::poll(bool try_locks, bool *lock_fail) const {
+bool Recv::poll() const {
     ChanBase & c = *this->chan;
 
-    return c.try_recv(this->data, this->ok, try_locks, lock_fail);
+    return c.try_recv(this->data, this->ok);
 }
 
 bool Recv::select(bool blocking) const {
@@ -1132,7 +1132,7 @@ bool Recv::select(bool blocking) const {
     return c.recv_nonblocking(this->data, this->ok, nil);
 }
 
-bool Send::poll(bool try_locks, bool *lock_fail) const {
+bool Send::poll() const {
     ChanBase & c = *this->chan;
     // if (c.closed()) {
     //     LOG("%d %#X Send::poll: closed; returning early\n", pthread_self(), (uintptr) &c);
@@ -1154,34 +1154,34 @@ bool Send::select(bool blocking) const {
 }
 
 
-int Recv::subscribe(sync::internal::Selector &receiver, Lock &lock) const {
+int Recv::subscribe(sync::internal::Selector &receiver) const {
     ChanBase &c = *this->chan;
 
     receiver.value = this->data;
     receiver.ok = this->ok;
     
-    return c.subscribe_recv(receiver, lock);
+    return c.subscribe_recv(receiver);
 }
 
-int Send::subscribe(sync::internal::Selector &sender, Lock &lock) const {
+int Send::subscribe(sync::internal::Selector &sender) const {
     ChanBase &c = *this->chan;
 
     sender.value = this->data;
     sender.move = this->move;
     
-    return c.subscribe_send(sender, lock);
+    return c.subscribe_send(sender);
 }
 
-void Recv::unsubscribe(sync::internal::Selector &receiver, Lock &lock) const {
+void Recv::unsubscribe(sync::internal::Selector &receiver) const {
     ChanBase &c = *this->chan;
 
-    c.unsubscribe_recv(receiver, lock);
+    c.unsubscribe_recv(receiver);
 }
 
-void Send::unsubscribe(sync::internal::Selector &receiver, Lock &lock) const {
+void Send::unsubscribe(sync::internal::Selector &receiver) const {
     ChanBase &c = *this->chan;
 
-    c.unsubscribe_send(receiver, lock);
+    c.unsubscribe_send(receiver);
 }
 
 int internal::select_i(arr<OpData> ops, arr<OpData*> ops_ptrs, arr<OpData*> lockfail_ptrs, bool block) {
@@ -1205,14 +1205,9 @@ int internal::select_i(arr<OpData> ops, arr<OpData*> ops_ptrs, arr<OpData*> lock
         int selected_idx = cheaprandn(i);
         OpData *selected_op = ops_ptrs[selected_idx];
         
-        bool lockfail = false;
-        bool ok = selected_op->op.poll(true, &lockfail);
+        bool ok = selected_op->op.poll();
         if (ok) {
             return int(selected_op - ops.data);
-        }
-
-        if (lockfail) {
-            lockfail_ptrs[lockfail_cnt++] = selected_op;
         }
 
         //ops_ptrs[selected_idx] = ops_ptrs[i-1];
@@ -1222,7 +1217,7 @@ int internal::select_i(arr<OpData> ops, arr<OpData*> ops_ptrs, arr<OpData*> lock
     for (int i = 0; i < lockfail_cnt; i++) {
         OpData *selected_op = lockfail_ptrs[i];
 
-        bool ok = selected_op->op.poll(false, nil);
+        bool ok = selected_op->op.poll();
         if (ok) {
             return int(selected_op - ops.data);
         }
@@ -1258,22 +1253,14 @@ int internal::select_i(arr<OpData> ops, arr<OpData*> ops_ptrs, arr<OpData*> lock
         }
 
         LOGX("%d select_i subscribing %#x\n", pthread_self(), (uintptr) &op.selector);
-        int result = op.op.subscribe(op.selector, op.chanlock);
+        int result = op.op.subscribe(op.selector);
         if (result != -1) {
             for (int j = i-1; j >= 0; j--) {
                 OpData &op = *ops_ptrs[j];
                 LOGX("%d select_i 1205 unsubscribing %#x %d\n", pthread_self(), (uintptr) &op.selector, result);
-                op.op.unsubscribe(op.selector, op.chanlock);
+                op.op.unsubscribe(op.selector);
             }
             return result;
-        }
-    }
-
-    // unlock
-    for (int j = i-1; j >= 0; j--) {
-        OpData &op = *ops_ptrs[j];
-        if (op.chanlock.locked) {
-            op.chanlock.unlock();
         }
     }
 
@@ -1291,7 +1278,7 @@ int internal::select_i(arr<OpData> ops, arr<OpData*> ops_ptrs, arr<OpData*> lock
         }
         Lock lock(op.op.chan->lock);
         LOGX("%d select_i 1232 unsubscribing %#x\n", pthread_self(), (uintptr) &op.selector);
-        op.op.unsubscribe(op.selector, lock);
+        op.op.unsubscribe(op.selector);
 
         if constexpr (DebugChecks) {
             if (op.op.chan->adata.receivers.contains(&op.selector)) {
