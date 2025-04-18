@@ -134,7 +134,6 @@ namespace lib::sync {
         } ;
 
         struct ChanBase {
-            Mutex lock;
             const int capacity = 0;
             
             struct Data {
@@ -341,16 +340,7 @@ namespace lib::sync {
             return c.recv_nonblocking(out, nil, ok);
         }
 
-        protected:
-        // void buffer_push(void *elem, bool move) override {
-        //     // printf("buffer push\n");
-        //     // this->unread++;
-        //     if (move) {
-        //         this->buffer.try_push(std::move(*((T*) elem)));
-        //     } else {
-        //         this->buffer.try_push(*((const T*) elem));
-        //     }
-        // }
+    protected:
 
         void push(void *elem, bool move) override {
             if (move) {
@@ -378,17 +368,6 @@ namespace lib::sync {
                 fmt::printf("%d %#x popped %v; size %v\n", pthread_self(), (uintptr) this, (T*) out, buffer.was_size());
             }
         }
-
-        // void buffer_pop(void *out) override {
-        //     // printf("buffer pop\n");
-        //     // this->unread--;
-        //     if (out) {
-        //         *((T*) out) = this->buffer.pop();
-        //         // *((T*) out) = std::move(this->buffer[this->unread]);
-        //     } else {
-        //         this->buffer.pop();
-        //     }
-        // }
 
         int unread() const override {
             return buffer.was_size();

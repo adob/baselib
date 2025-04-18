@@ -989,17 +989,16 @@ again:
     c.adata.receivers_remove(&receiver);
     LOG("%d %#x recv_blocking: receiver going out of scope: %#x\n", pthread_self(), (uintptr) &c, (uintptr) &receiver);
     // fmt::printf("receiver out %#x\n", (uintptr) &receiver);
-    for (Selector *e = c.adata.receivers.head.value; e != nil && intptr(e) > 0; e = e->next) {
-        if (e == &receiver) {
-            panic("!");
-        }
-    }
+    // for (Selector *e = c.adata.receivers.head.value; e != nil && intptr(e) > 0; e = e->next) {
+    //     if (e == &receiver) {
+    //         panic("!");
+    //     }
+    // }
     receiver.OUT_OF_SCOPE = true;
 }
 
 void ChanBase::close(this ChanBase &c) {
     LOG("%d %#x close: channel closing...\n", pthread_self(), (uintptr) &c);
-    Lock lock(c.lock);
 
 reload:
     Data data = c.adata.load();
@@ -1094,7 +1093,6 @@ int ChanBase::length() const {
 }
 
 bool ChanBase::try_recv(this ChanBase &c, void *out, bool *ok) {
-    Lock lock(c.lock);
     return c.recv_nonblocking(out, ok, nil);
 }
 
@@ -1246,11 +1244,11 @@ int internal::select_i(arr<OpData> ops, arr<OpData*> ops_ptrs, arr<OpData*> lock
         op.selector.completer = &completer;
         op.selector.completed = &completed;
 
-        if (i == 0 || &op.op.chan->lock != &ops_ptrs[i-1]->op.chan->lock) {
-            // skip re-locking the same lock
-            // op.chanlock.lock(op.op.chan->lock);
-        } else {
-        }
+        // if (i == 0 || &op.op.chan->lock != &ops_ptrs[i-1]->op.chan->lock) {
+        //     // skip re-locking the same lock
+        //     // op.chanlock.lock(op.op.chan->lock);
+        // } else {
+        // }
 
         LOGX("%d select_i subscribing %#x\n", pthread_self(), (uintptr) &op.selector);
         int result = op.op.subscribe(op.selector);
@@ -1276,7 +1274,6 @@ int internal::select_i(arr<OpData> ops, arr<OpData*> ops_ptrs, arr<OpData*> lock
             LOGX("%d select_i 1228 skip %#x\n", pthread_self(), (uintptr) &op.selector);
             continue;
         }
-        Lock lock(op.op.chan->lock);
         LOGX("%d select_i 1232 unsubscribing %#x\n", pthread_self(), (uintptr) &op.selector);
         op.op.unsubscribe(op.selector);
 
