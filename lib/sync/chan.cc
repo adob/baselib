@@ -5,6 +5,8 @@
 #include "lib/sync/lock.h"
 #include "lib/types.h"
 #include <atomic>
+#include <boost/atomic/atomic_ref.hpp>
+#include <boost/memory_order.hpp>
 #include <ctime>
 #include <netinet/in.h>
 #include <pthread.h>
@@ -175,7 +177,7 @@ bool ChanBase::send_nonblocking(this ChanBase &c, void *elem, bool move, Data *d
                 return true;
             }
         } while (!c.adata.compare_and_swap(&data, {.q = data.q+1, .selector = data.selector}));
-        LOG("%d %#x send_nonblocking_unlocked: q %v -> %v %v\n", pthread_self(), (uintptr) &c, data.q, data.q+1, c.adata.q.load());
+        LOG("%d %#x send_nonblocking_unlocked: q %v -> %v %v\n", pthread_self(), (uintptr) &c, data.q, data.q+1, c.adata.load().q);
         
         c.push(elem, move);
         return true;
@@ -632,7 +634,7 @@ bool ChanBase::recv_nonblocking(this ChanBase &c, void *out, bool *okp, Data *da
                 return true;
             }
         } while (!c.adata.compare_and_swap(&data, {.q = data.q-1, .selector = data.selector}));
-        LOG("%d %#x recv_nonblocking: %v -> %v; actual %v\n", pthread_self(), (uintptr)  &c, data.q, data.q-1, c.adata.q.load());
+        LOG("%d %#x recv_nonblocking: %v -> %v; actual %v\n", pthread_self(), (uintptr)  &c, data.q, data.q-1, c.adata.load().q);
 
 
         c.pop(out);
@@ -1261,12 +1263,6 @@ int internal::select_i(arr<OpData> ops, arr<OpData*> ops_ptrs, bool block) {
         }
         LOGX("%d select_i 1232 unsubscribing %#x\n", pthread_self(), (uintptr) &op.selector);
         op.op.unsubscribe(op.selector);
-
-        if constexpr (DebugChecks) {
-            if (op.op.chan->adata.selectors.contains(&op.selector)) {
-                panic("DebugCheck1");
-            }
-        }
     }
 
     return selected->id;
@@ -1527,38 +1523,26 @@ bool IntrusiveList::empty_atomic() const {
 }
 
 ChanBase::Data ChanBase::AtomicData::load() {
-    sync::Lock lock(mtx);
-    return Data{
-        .q = q.load(),
-        .selector = selectors.head.load(),
-    };
+    boost::atomic_ref<Data> aref(this->raw);
+    static_assert(boost::atomic_ref<Data>::is_always_lock_free);
+
+    return aref.load(boost::memory_order::acquire);
+    
   }
   
 bool ChanBase::AtomicData::compare_and_swap(Data *expected, Data newval) {
-    sync::Lock lock(mtx);
+    boost::atomic_ref<Data> aref(this->raw);
+    static_assert(boost::atomic_ref<Data>::is_always_lock_free);
 
-    // fmt::printf("%d UPDATE CALLED\n", pthread_self());
-
-    if (expected->selector != this->selectors.head.load()) {
-        
-        expected->selector = this->selectors.head.load();
-        LOG("AtomicData update failed because of unexpected selector\n");
-        return false;
-    }
-
-    if (!this->q.compare_and_swap(&expected->q, newval.q)) {
-        LOG("AtomicData update failed because of unexpected q\n");
-        return false;
-    }
-    this->selectors.head = newval.selector;
-    return true;
+    return aref.compare_exchange_strong(*expected, newval, boost::memory_order::release, boost::memory_order::acquire);
 }
 void ChanBase::AtomicData::store(Data data) {
-    sync::Lock lock(mtx);
+    boost::atomic_ref<Data> aref(this->raw);
+    static_assert(boost::atomic_ref<Data>::is_always_lock_free);
 
-    this->q.store(data.q);
-    this->selectors.head = data.selector;
+    return aref.store(data, boost::memory_order::release);
 }
+
 void ChanBase::AtomicData::remove(Selector *e) {
 reload:
     Selector *head = this->selector_load();
@@ -1630,4 +1614,15 @@ again:
 
     this->selector_store(head);
     LOG("%d %#x AtomicData removing %#x unlocked\n", pthread_self(), (uintptr) this, (uintptr) e);
+}
+Selector * ChanBase::AtomicData::selector_load() {
+    return sync::load(this->raw.selector);
+}
+
+void ChanBase::AtomicData::selector_store(Selector *v) {
+    sync::store(this->raw.selector, v);
+}
+
+bool ChanBase::AtomicData::selector_compare_and_swap(Selector **oldval, Selector *newval) {
+    return sync::compare_and_swap(this->raw.selector, oldval, newval);
 }

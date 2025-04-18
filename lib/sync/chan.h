@@ -136,24 +136,18 @@ namespace lib::sync {
         struct ChanBase {
             const int capacity = 0;
             
-            struct Data {
+            struct alignas(sizeof(intptr)*2) Data {
                 size q = 0;
                 Selector *selector = nil;
             } ;
 
             struct AtomicData {
-                sync::Mutex mtx;
+                // sync::Mutex mtx;
 
-                atomic<size> q = 0;
-                // Selector *selectors = nil;
-
-                internal::IntrusiveList selectors;
-                // internal::IntrusiveList senders;
-
+                Data raw;
+            
                 AtomicData() {
-                    // selectors.mtx = &mtx;
-                    // receivers.mtx = &mtx;
-                    // senders.mtx = &mtx;
+
                 }
 
                 Data load();
@@ -161,43 +155,12 @@ namespace lib::sync {
                 bool compare_and_swap(Data *expected, Data newval);
                 void remove(Selector *sel);
 
-                void receivers_clear() {
-                    sync::Lock lock(mtx);
-                    selectors.head = nil;
-                }
+                Selector *selector_load();
 
-                void senders_clear() {
-                    sync::Lock lock(mtx);
-                    selectors.head = nil;
-                }
+                void selector_store(Selector *v);
 
-                // bool senders_head_compare_and_swap(Selector **expected, Selector *newval) {
-                //     sync::Lock lock(mtx);
-                //     return selectors.head.compare_and_swap(expected, newval);
-                // }
-
-                // bool receivers_head_compare_and_swap(Selector **expected, Selector *newval) {
-                //     sync::Lock lock(mtx);
-                //     return selectors.head.compare_and_swap(expected, newval);
-                // }
-
-                Selector *selector_load() {
-                    sync::Lock lock(mtx);
-                    return selectors.head.load();
-                }
-
-                void selector_store(Selector *v) {
-                    sync::Lock lock(mtx);
-                    if (DebugLog) {
-                        fmt::printf("%d %#x sender added %#x\n", pthread_self(), (uintptr) &selectors, (uintptr) v);
-                    }
-                    selectors.head.store(v);
-                }
-
-                bool selector_compare_and_swap(Selector **oldval, Selector *newval) {
-                    sync::Lock lock(mtx);
-                    return this->selectors.head.compare_and_swap(oldval, newval);
-                }
+                bool selector_compare_and_swap(Selector **oldval,
+                                               Selector *newval);
 
             } adata;
         
