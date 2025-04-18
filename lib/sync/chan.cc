@@ -1253,7 +1253,7 @@ int internal::select_i(arr<OpData> ops, arr<OpData*> ops_ptrs, arr<OpData*> lock
 
         if (i == 0 || &op.op.chan->lock != &ops_ptrs[i-1]->op.chan->lock) {
             // skip re-locking the same lock
-            op.chanlock.lock(op.op.chan->lock);
+            // op.chanlock.lock(op.op.chan->lock);
         } else {
         }
 
