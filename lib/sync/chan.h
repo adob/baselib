@@ -138,8 +138,7 @@ namespace lib::sync {
             
             struct Data {
                 int q = 0;
-                Selector *receivers;
-                Selector *senders;
+                Selector *selector = nil;
             } ;
 
             struct AtomicData {
@@ -147,100 +146,102 @@ namespace lib::sync {
 
                 atomic<int> q = 0;
 
-                internal::IntrusiveList receivers;
-                internal::IntrusiveList senders;
+                internal::IntrusiveList selectors;
+                // internal::IntrusiveList senders;
 
                 AtomicData() {
-                    receivers.mtx = &mtx;
-                    senders.mtx = &mtx;
+                    selectors.mtx = &mtx;
+                    // receivers.mtx = &mtx;
+                    // senders.mtx = &mtx;
                 }
 
                 Data load();
+                void store(Data);
                 bool compare_and_swap(Data *expected, Data newval);
                 bool receivers_empty_atomic() {
                     sync::Lock lock(mtx);
-                    return receivers.empty_atomic();
+                    return selectors.empty_atomic();
                 }
 
                 bool senders_empty_atomic() {
                     // sync::Lock lock(mtx);
-                    return senders.empty_atomic();
+                    return selectors.empty_atomic();
                 }
 
                 Selector *receivers_pop() {
                     // sync::Lock lock(mtx);
-                    return receivers.pop();
+                    return selectors.pop();
                 }
 
                 Selector *senders_pop() {
                     // sync::Lock lock(mtx);
-                    return senders.pop();
+                    return selectors.pop();
                 }
 
                 void receivers_push(Selector *sel) {
                     // sync::Lock lock(mtx);
-                    receivers.push(sel);
+                    selectors.push(sel);
                 }
 
                 void senders_push(Selector *sel) {
                     // sync::Lock lock(mtx);
-                    senders.push(sel);
+                    selectors.push(sel);
                 }
 
                 void receivers_remove(Selector *sel) {
                     // sync::Lock lock(mtx);
-                    receivers.remove(sel);
+                    selectors.remove(sel);
                 }
 
                 void senders_remove(Selector *sel) {
                     // sync::Lock lock(mtx);
-                    senders.remove(sel);
+                    selectors.remove(sel);
                 }
 
                 void receivers_clear() {
                     sync::Lock lock(mtx);
-                    receivers.head = nil;
+                    selectors.head = nil;
                 }
 
                 void senders_clear() {
                     sync::Lock lock(mtx);
-                    senders.head = nil;
+                    selectors.head = nil;
                 }
 
-                bool senders_head_compare_and_swap(Selector **expected, Selector *newval) {
-                    sync::Lock lock(mtx);
-                    return senders.head.compare_and_swap(expected, newval);
-                }
+                // bool senders_head_compare_and_swap(Selector **expected, Selector *newval) {
+                //     sync::Lock lock(mtx);
+                //     return selectors.head.compare_and_swap(expected, newval);
+                // }
 
-                bool receivers_head_compare_and_swap(Selector **expected, Selector *newval) {
-                    sync::Lock lock(mtx);
-                    return receivers.head.compare_and_swap(expected, newval);
-                }
+                // bool receivers_head_compare_and_swap(Selector **expected, Selector *newval) {
+                //     sync::Lock lock(mtx);
+                //     return selectors.head.compare_and_swap(expected, newval);
+                // }
 
                 Selector *senders_head_load() {
                     sync::Lock lock(mtx);
-                    return senders.head.load();
+                    return selectors.head.load();
                 }
 
                 Selector *receivers_head_load() {
                     sync::Lock lock(mtx);
-                    return receivers.head.load();
+                    return selectors.head.load();
                 }
 
                 void senders_head_store(Selector *v) {
                     sync::Lock lock(mtx);
                     if (DebugLog) {
-                        fmt::printf("%d %#x sender added %#x\n", pthread_self(), (uintptr) &receivers, (uintptr) v);
+                        fmt::printf("%d %#x sender added %#x\n", pthread_self(), (uintptr) &selectors, (uintptr) v);
                     }
-                    senders.head.store(v);
+                    selectors.head.store(v);
                 }
 
                 void receivers_head_store(Selector *v) {
                     sync::Lock lock(mtx);
                     if (DebugLog) {
-                        fmt::printf("%d %#x receiver added %#x\n", pthread_self(), (uintptr) &receivers, (uintptr) v);
+                        fmt::printf("%d %#x receiver added %#x\n", pthread_self(), (uintptr) &selectors, (uintptr) v);
                     }
-                    receivers.head.store(v);
+                    selectors.head.store(v);
                 }
 
             } adata;

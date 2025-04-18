@@ -33,6 +33,7 @@ void test_chan(testing::T &t) {
 	}
 
     for (int chan_cap = 0; chan_cap < N; chan_cap++) {
+        LOG("test_chan test 1; chan_cap %v\n", chan_cap);
         {
             // Ensure that receive from empty chan blocks.
             Chan<int> c(chan_cap);
@@ -69,6 +70,7 @@ void test_chan(testing::T &t) {
             c.send(0);
         }
 
+        LOG("test_chan test 2; chan_cap %v\n", chan_cap);
         {
             // Ensure that send to full chan blocks.
             Chan<int> c(chan_cap);
@@ -93,6 +95,7 @@ void test_chan(testing::T &t) {
             c.recv();
         }
 
+        LOG("test_chan test 3; chan_cap %v\n", chan_cap);
         {
             // Ensure that we receive 0 from closed chan.
             Chan<int> c(chan_cap);
@@ -117,6 +120,7 @@ void test_chan(testing::T &t) {
             }
         }
 
+        LOG("test_chan test 4; chan_cap %v\n", chan_cap);
         {
             // Ensure that close unblocks receive.
             Chan<int> c(chan_cap);
@@ -135,6 +139,7 @@ void test_chan(testing::T &t) {
             }
         }
 
+        LOG("test_chan test 5; chan_cap %v\n", chan_cap);
         {
             // Send 100 integers,
             // ensure that we receive them non-corrupted in FIFO order.
@@ -151,7 +156,7 @@ void test_chan(testing::T &t) {
                     t.fatalf("chan[%d]: received %v, expected %v", chan_cap, v, i);
                 }
             }
-
+            
             // Same, but using recv2.
             go g2 = [&] {
                 for (int i = 0; i < 100; i++) {
@@ -169,7 +174,7 @@ void test_chan(testing::T &t) {
                     t.fatalf("chan[%d]: received %v, expected %v", chan_cap, v, i);
                 }
             }
-
+            
             // Send 1000 integers in 4 goroutines,
             // ensure that we receive what we send.
             const int P = 4;
@@ -178,7 +183,9 @@ void test_chan(testing::T &t) {
             for (int p = 0; p < P; p++) {
                 g.go([&]{
                     for (int i = 0; i < L; i++) {
+                        LOG("sending %v\n", i);
                         c.send(i);
+                        LOG("sent %v\n", i);
                     }
                 });
             }
@@ -188,28 +195,36 @@ void test_chan(testing::T &t) {
                 g.go([&]{
                     std::unordered_map<int, int> recv;
                     for (int i = 0; i < L; i++) {
+                        LOG("receiving...\n");
                         int v = c.recv();
+                        LOG("received %v\n", v);
                         recv[v] = recv[v] + 1;
                     }
+                    LOG("Sending on done...\n");
                     done.send(recv);
+                    LOG("Sent on done\n");
                 });
             }
             std::unordered_map<int, int> recv;
             for (int p = 0; p < P; p++) {
+                LOG("Receiving on done...\n");
                 for (auto &&[k, v] : done.recv()) {
                     recv[k] = recv[k] + v;
                 }
+                LOG("Received on done\n");
             }
             if (recv.size() != L) {
                 t.fatalf("chan[%d]: received %v values, expected %v", chan_cap, recv.size(), L);
             }
             for (auto &&[_, v] : recv) {
                 if (v != P) {
+                    LOG("chan[%d]: received %v values, expected %v\n", chan_cap, v, P);
                     t.fatalf("chan[%d]: received %v values, expected %v", chan_cap, v, P);
                 }
             }
         }
-
+        
+        LOG("test_chan test 6; chan_cap %v\n", chan_cap);
         {
             // Test len/cap.
             Chan<int> c(chan_cap);
@@ -1317,6 +1332,9 @@ void benchmark_select_nonblock(testing::B &b) {
 int xmain(int, char **) {
     debug::init();
     testing::T t;
+
+    test_chan(t);
+    return 0;
 
     for (;;) {
         test_chan(t);
