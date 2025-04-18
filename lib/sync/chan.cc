@@ -1001,11 +1001,19 @@ void ChanBase::close(this ChanBase &c) {
     LOG("%d %#x close: channel closing...\n", pthread_self(), (uintptr) &c);
     Lock lock(c.lock);
 
-
+reload:
     Data data = c.adata.load();
 again:
     if (data.senders == SelectorClosed) {
         panic("close of closed channel");
+    }
+
+    if (data.receivers == SelectorBusy) {
+        goto reload;
+    }
+
+    if (data.senders == SelectorBusy) {
+        goto reload;
     }
 
     if (!c.adata.compare_and_swap(&data, { .q = data.q, .receivers = SelectorClosed, .senders = SelectorClosed})) {
@@ -1131,7 +1139,7 @@ bool Send::poll(bool try_locks, bool *lock_fail) const {
     //     return false;
     // }
 
-    sync::Lock lock(c.lock);
+    // sync::Lock lock(c.lock);
     return c.send_nonblocking(this->data, this->move, nil);
 }
 
