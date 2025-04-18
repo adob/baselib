@@ -137,20 +137,21 @@ namespace lib::sync {
             const int capacity = 0;
             
             struct Data {
-                int q = 0;
+                size q = 0;
                 Selector *selector = nil;
             } ;
 
             struct AtomicData {
                 sync::Mutex mtx;
 
-                atomic<int> q = 0;
+                atomic<size> q = 0;
+                // Selector *selectors = nil;
 
                 internal::IntrusiveList selectors;
                 // internal::IntrusiveList senders;
 
                 AtomicData() {
-                    selectors.mtx = &mtx;
+                    // selectors.mtx = &mtx;
                     // receivers.mtx = &mtx;
                     // senders.mtx = &mtx;
                 }
@@ -158,45 +159,7 @@ namespace lib::sync {
                 Data load();
                 void store(Data);
                 bool compare_and_swap(Data *expected, Data newval);
-                bool receivers_empty_atomic() {
-                    sync::Lock lock(mtx);
-                    return selectors.empty_atomic();
-                }
-
-                bool senders_empty_atomic() {
-                    // sync::Lock lock(mtx);
-                    return selectors.empty_atomic();
-                }
-
-                Selector *receivers_pop() {
-                    // sync::Lock lock(mtx);
-                    return selectors.pop();
-                }
-
-                Selector *senders_pop() {
-                    // sync::Lock lock(mtx);
-                    return selectors.pop();
-                }
-
-                void receivers_push(Selector *sel) {
-                    // sync::Lock lock(mtx);
-                    selectors.push(sel);
-                }
-
-                void senders_push(Selector *sel) {
-                    // sync::Lock lock(mtx);
-                    selectors.push(sel);
-                }
-
-                void receivers_remove(Selector *sel) {
-                    // sync::Lock lock(mtx);
-                    selectors.remove(sel);
-                }
-
-                void senders_remove(Selector *sel) {
-                    // sync::Lock lock(mtx);
-                    selectors.remove(sel);
-                }
+                void remove(Selector *sel);
 
                 void receivers_clear() {
                     sync::Lock lock(mtx);
@@ -218,17 +181,12 @@ namespace lib::sync {
                 //     return selectors.head.compare_and_swap(expected, newval);
                 // }
 
-                Selector *senders_head_load() {
+                Selector *selector_load() {
                     sync::Lock lock(mtx);
                     return selectors.head.load();
                 }
 
-                Selector *receivers_head_load() {
-                    sync::Lock lock(mtx);
-                    return selectors.head.load();
-                }
-
-                void senders_head_store(Selector *v) {
+                void selector_store(Selector *v) {
                     sync::Lock lock(mtx);
                     if (DebugLog) {
                         fmt::printf("%d %#x sender added %#x\n", pthread_self(), (uintptr) &selectors, (uintptr) v);
@@ -236,12 +194,9 @@ namespace lib::sync {
                     selectors.head.store(v);
                 }
 
-                void receivers_head_store(Selector *v) {
+                bool selector_compare_and_swap(Selector **oldval, Selector *newval) {
                     sync::Lock lock(mtx);
-                    if (DebugLog) {
-                        fmt::printf("%d %#x receiver added %#x\n", pthread_self(), (uintptr) &selectors, (uintptr) v);
-                    }
-                    selectors.head.store(v);
+                    return this->selectors.head.compare_and_swap(oldval, newval);
                 }
 
             } adata;
