@@ -56,7 +56,7 @@ namespace lib::sync {
             bool *ok    = nil;
             bool  move  = false;
 
-            int      id = 0;
+            int id = 0;
 
             enum State {
                 New,
@@ -82,22 +82,22 @@ namespace lib::sync {
         Selector *const SelectorClosed = (Selector*) -2;        
 
         struct IntrusiveList {
-          void push(Selector *e);
+            void push(Selector *e);
 
-          Selector *pop();
+            Selector *pop();
 
-          void remove(Selector *e);
+            void remove(Selector *e);
 
-          bool empty() const;
+            bool empty() const;
 
-          bool empty_atomic() const;
+            bool empty_atomic() const;
 
-          Mutex *mtx = nil;
-          atomic<Selector*> head = nil;
+            Mutex *mtx = nil;
+            atomic<Selector*> head = nil;
 
-          void dump(str s="");
+            void dump(str s="");
 
-          bool contains(Selector *e);
+            bool contains(Selector *e);
         } ;
 
 
@@ -413,15 +413,8 @@ namespace lib::sync {
         }
 
         protected:
-        // void buffer_push(void*, bool) override {}
-
         void push(void *, bool) override;
-        // bool try_
-
-        // void buffer_pop(void *) override {}
-
         int unread() const override;
-
         void set(void *, void *, bool) override {}
     } ;
 
@@ -454,7 +447,6 @@ namespace lib::sync {
         void init(internal::ChanBase *chan, void *data, bool *ok) {
             this->chan = chan;
             this->data = data;
-            // this->mtx = chan.lock;
             this->ok = ok;
         }
 
@@ -492,7 +484,6 @@ namespace lib::sync {
         void init(internal::ChanBase *chan, void *data) {
             this->chan = chan;
             this->data = data;
-            // this->mtx = &chan.lock;
         }
 
         bool poll() const override;
@@ -506,8 +497,6 @@ namespace lib::sync {
 
     namespace internal {
         struct OpData {
-            sync::Lock selector_lock;
-
             SelectOp const& op;
 
             Selector selector;

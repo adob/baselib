@@ -395,6 +395,8 @@ again2:
         LOG("%d %#x send_nonblocking (cap=0): compare-and-swap failed\n", pthread_self(), (uintptr)  &c);
         goto again2;
     }
+
+    // lock receiver then sender (order matters)
     
     // lock receiver; receiver -> busy
     for (Selector::State state = Selector::New; !data.receivers->active->compare_and_swap(&state, Selector::Busy);) {
@@ -765,37 +767,70 @@ again1:
                 goto again1;
             }
 
-            // lock sender
-            for (Selector::State state = Selector::New; !data.senders->active->compare_and_swap(&state, Selector::Busy);) {
+            // lock receiver then sender (order matters)
+            // lock receiver; receiver -> busy
+            for (Selector::State state = Selector::New; !receiver->active->compare_and_swap(&state, Selector::Busy);) {
                 if (state == Selector::Done) {
-                    data.senders->removed = true;
-                    if (data.senders->next != nil) {
-                        data.senders->next->prev = nil;
-                    }
-                    c.adata.senders_head_store(data.senders->next);
-                    LOGX("ADDED 738 %#x to %#x\n", (uintptr) &data.senders->next, (uintptr) &c.adata.senders);
-                    goto reload1;
-                }
-                state = Selector::New;
-                // continue if busy
-            }
-
-            // lock receiver
-            for (Selector::State state = Selector::New; !receiver->active->compare_and_swap(&state, Selector::Done);) {
-                if (state == Selector::Done) {
-                    // undo
-                    data.senders->active->store(Selector::New);
                     c.adata.senders_head_store(data.senders);
                     receiver->completed->wait();
-                    LOGX("%d 778\n", pthread_self());
                     return receiver->completer->load()->id;
                 }
                 state = Selector::New;
                 // continue if busy
             }
+
+            // lock sender; sender -> done
+            for (Selector::State state = Selector::New; !data.senders->active->compare_and_swap(&state, Selector::Done);) {
+                if (state == Selector::Done) {
+                    // undo
+                    receiver->active->store(Selector::New);
+
+                    // next sender
+                    data.senders->removed = true;
+                    if (data.senders->next != nil) {
+                        data.senders->next->prev = nil;
+                    }
+                    c.adata.senders_head_store(data.senders->next);      
+
+                    // TODO go to next sender instead  
+                    goto reload1;
+                }
+
+                state = Selector::New;
+                // continue if busy
+            }
+
+            // // lock sender
+            // for (Selector::State state = Selector::New; !data.senders->active->compare_and_swap(&state, Selector::Busy);) {
+            //     if (state == Selector::Done) {
+            //         data.senders->removed = true;
+            //         if (data.senders->next != nil) {
+            //             data.senders->next->prev = nil;
+            //         }
+            //         c.adata.senders_head_store(data.senders->next);
+            //         LOGX("ADDED 738 %#x to %#x\n", (uintptr) &data.senders->next, (uintptr) &c.adata.senders);
+            //         goto reload1;
+            //     }
+            //     state = Selector::New;
+            //     // continue if busy
+            // }
+
+            // // lock receiver
+            // for (Selector::State state = Selector::New; !receiver->active->compare_and_swap(&state, Selector::Done);) {
+            //     if (state == Selector::Done) {
+            //         // undo
+            //         data.senders->active->store(Selector::New);
+            //         c.adata.senders_head_store(data.senders);
+            //         receiver->completed->wait();
+            //         LOGX("%d 778\n", pthread_self());
+            //         return receiver->completer->load()->id;
+            //     }
+            //     state = Selector::New;
+            //     // continue if busy
+            // }
             LOGX("recv 769 won %#x %#x\n", (uintptr) receiver->active, (uintptr) data.senders->active);
 
-            data.senders->active->store(Selector::Done);
+            receiver->active->store(Selector::Done);
             data.senders->removed = true;
             // fmt::printf("REMOVING 689 %#x\n", (uintptr) sender);
             if (data.senders->next != nil) {
@@ -884,26 +919,11 @@ again2:
         goto again2;
     }
     LOG("%d %#x recv_nonblocking (cap=0): locked\n", pthread_self(), (uintptr) &c);
-    
-    // lock sender; sender -> busy
-    for (Selector::State state = Selector::New; !data.senders->active->compare_and_swap(&state, Selector::Busy);) {
-        if (state == Selector::Done) {
-            data.senders->removed = true;
-            if (data.senders->next != nil) {
-                data.senders->next->prev = nil;
-            }
-            c.adata.senders_head_store(data.senders->next);        
-            goto reload2;
-        }
-        state = Selector::New;
-        // continue if busy
-    }
 
-    // lock receiver; receiver -> done
-    for (Selector::State state = Selector::New; !receiver->active->compare_and_swap(&state, Selector::Done);) {
+    // lock receiver then sender (order matters)
+    // lock receiver; receiver -> busy
+    for (Selector::State state = Selector::New; !receiver->active->compare_and_swap(&state, Selector::Busy);) {
         if (state == Selector::Done) {
-            // undo
-            data.senders->active->store(Selector::New);
             c.adata.senders_head_store(data.senders);
             receiver->completed->wait();
             return receiver->completer->load()->id;
@@ -911,8 +931,57 @@ again2:
         state = Selector::New;
         // continue if busy
     }
-    LOGX("recv 881 won %#x\n", (uintptr) data.senders->active, (uintptr) receiver->active);
-    data.senders->active->store(Selector::Done);
+
+    // lock sender; sender -> done
+    for (Selector::State state = Selector::New; !data.senders->active->compare_and_swap(&state, Selector::Done);) {
+        if (state == Selector::Done) {
+            // undo
+            receiver->active->store(Selector::New);
+
+            // next sender
+            data.senders->removed = true;
+            if (data.senders->next != nil) {
+                data.senders->next->prev = nil;
+            }
+            c.adata.senders_head_store(data.senders->next);      
+
+            // TODO go to next sender instead  
+            goto reload2;
+        }
+
+        state = Selector::New;
+        // continue if busy
+    }
+    // ///
+    
+    // // lock sender; sender -> busy
+    // for (Selector::State state = Selector::New; !data.senders->active->compare_and_swap(&state, Selector::Busy);) {
+    //     if (state == Selector::Done) {
+    //         data.senders->removed = true;
+    //         if (data.senders->next != nil) {
+    //             data.senders->next->prev = nil;
+    //         }
+    //         c.adata.senders_head_store(data.senders->next);        
+    //         goto reload2;
+    //     }
+    //     state = Selector::New;
+    //     // continue if busy
+    // }
+
+    // // lock receiver; receiver -> done
+    // for (Selector::State state = Selector::New; !receiver->active->compare_and_swap(&state, Selector::Done);) {
+    //     if (state == Selector::Done) {
+    //         // undo
+    //         data.senders->active->store(Selector::New);
+    //         c.adata.senders_head_store(data.senders);
+    //         receiver->completed->wait();
+    //         return receiver->completer->load()->id;
+    //     }
+    //     state = Selector::New;
+    //     // continue if busy
+    // }
+    // LOGX("recv 881 won %#x\n", (uintptr) data.senders->active, (uintptr) receiver->active);
+    receiver->active->store(Selector::Done);
     data.senders->removed = true;
     // fmt::printf("REMOVING 767 %#x\n", (uintptr) sender); 
     if (data.senders->next != nil) {
@@ -979,21 +1048,13 @@ again:
     }
     c.adata.receivers_head_store(&receiver);
     LOGX("ADDED 830 %#x to %#x\n", (uintptr) &receiver, (uintptr) &c.adata.receivers);
-    // fmt::printf("receiver in %#x\n", (uintptr) &receiver);
     
-    // lock.unlock();
     LOG("%d %#x recv_blocking: about to wait\n", pthread_self(), (uintptr) &c);
     completed.wait();
 
-    // lock.relock();
+    
     c.adata.receivers_remove(&receiver);
     LOG("%d %#x recv_blocking: receiver going out of scope: %#x\n", pthread_self(), (uintptr) &c, (uintptr) &receiver);
-    // fmt::printf("receiver out %#x\n", (uintptr) &receiver);
-    // for (Selector *e = c.adata.receivers.head.value; e != nil && intptr(e) > 0; e = e->next) {
-    //     if (e == &receiver) {
-    //         panic("!");
-    //     }
-    // }
     receiver.OUT_OF_SCOPE = true;
 }
 
@@ -1185,7 +1246,7 @@ void Send::unsubscribe(sync::internal::Selector &receiver) const {
 int internal::select_i(arr<OpData> ops, arr<OpData*> ops_ptrs, arr<OpData*> lockfail_ptrs, bool block) {
     // fill ops_ptrs array
     int avail_ops = 0;
-    int lockfail_cnt = 0;
+    // int lockfail_cnt = 0;
     int cnt = 0;
     for (OpData &op : ops) {
         op.selector.id = cnt++;
@@ -1208,27 +1269,17 @@ int internal::select_i(arr<OpData> ops, arr<OpData*> ops_ptrs, arr<OpData*> lock
             return int(selected_op - ops.data);
         }
 
-        //ops_ptrs[selected_idx] = ops_ptrs[i-1];
         std::swap(ops_ptrs[selected_idx], ops_ptrs[i-1]);
     }
-
-    for (int i = 0; i < lockfail_cnt; i++) {
-        OpData *selected_op = lockfail_ptrs[i];
-
-        bool ok = selected_op->op.poll();
-        if (ok) {
-            return int(selected_op - ops.data);
-        }
-    }    
 
     if (!block) {
         return -1;
     }
     
     // sort opts_ptr by lock order
-    std::sort(ops_ptrs.begin(), ops_ptrs.begin()+avail_ops, [](OpData *d1, OpData *d2) {
-        return uintptr(d1->op.chan) < uintptr(d2->op.chan);
-    });
+    // std::sort(ops_ptrs.begin(), ops_ptrs.begin()+avail_ops, [](OpData *d1, OpData *d2) {
+    //     return uintptr(d1->op.chan) < uintptr(d2->op.chan);
+    // });
     
     atomic<Selector::State> active = Selector::New;
     atomic<Selector*> completer = nil;
@@ -1244,11 +1295,6 @@ int internal::select_i(arr<OpData> ops, arr<OpData*> ops_ptrs, arr<OpData*> lock
         op.selector.completer = &completer;
         op.selector.completed = &completed;
 
-        // if (i == 0 || &op.op.chan->lock != &ops_ptrs[i-1]->op.chan->lock) {
-        //     // skip re-locking the same lock
-        //     // op.chanlock.lock(op.op.chan->lock);
-        // } else {
-        // }
 
         LOGX("%d select_i subscribing %#x\n", pthread_self(), (uintptr) &op.selector);
         int result = op.op.subscribe(op.selector);
