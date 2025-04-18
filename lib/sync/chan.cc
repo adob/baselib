@@ -1120,7 +1120,7 @@ bool Recv::select(bool blocking) const {
         return true;
     }
 
-    sync::Lock lock(c.lock);
+    // sync::Lock lock(c.lock);
     return c.recv_nonblocking(this->data, this->ok, nil);
 }
 
