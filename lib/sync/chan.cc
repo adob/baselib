@@ -343,8 +343,8 @@ again1:
         for (Selector::State state = Selector::New; !sender->active->compare_and_swap(&state, Selector::Busy);) {
             if (state == Selector::Done) {
                 // undo
-                data.receivers->active->store(Selector::New);
-                c.adata.receivers_head_store(data.receivers);
+                // data.receivers->active->store(Selector::New);
+                // c.adata.receivers_head_store(data.receivers);
 
                 sender->completed->wait();
                 return sender->completer->load()->id;
@@ -591,8 +591,7 @@ bool ChanBase::recv_nonblocking(this ChanBase &c, void *out, bool *okp, Data *da
                     goto reload1;
                 }
 
-                bool b = c.adata.compare_and_swap(&data, {.q = data.q, .receivers = data.receivers, .senders = SelectorBusy});
-                if (!b) {
+                if (!c.adata.compare_and_swap(&data, {.q = data.q, .receivers = data.receivers, .senders = SelectorBusy})) {
                     LOG("%d %#x recv_nonblocking: compare-and-swap failed\n", pthread_self(), (uintptr)  &c);
                     goto again1;
                 }
@@ -602,23 +601,14 @@ bool ChanBase::recv_nonblocking(this ChanBase &c, void *out, bool *okp, Data *da
                     data.senders->next->prev = nil;
                 }
                 
-                b = true;
                 for (Selector::State state = Selector::New; !data.senders->active->compare_and_swap(&state, Selector::Done);) {
                     if (state == Selector::Done) {
-                        b = false;
-                        break;
+                        c.adata.senders_head_store(data.senders->next);
+                        goto reload1;
                     }
                     state = Selector::New;
                     // continue if busy
                 }
-
-                c.adata.senders_head_store(data.senders->next);
-                // LOGX("ADDED 528 %#x to %#x\n", (uintptr) &sender->next, (uintptr) &c.adata.senders);
-                LOG("%d %#x recv_nonblocking: sender popped atomically %#x\n", pthread_self(), (uintptr) &c, (uintptr) data.senders);
-                if (!b) {
-                    goto reload1;
-                }
-                LOGX("recv 604 won %#x\n", (uintptr) data.senders->active);
 
                 c.pop(out);
                 if (okp) {
@@ -627,6 +617,11 @@ bool ChanBase::recv_nonblocking(this ChanBase &c, void *out, bool *okp, Data *da
 
                 LOG("%d %#x recv_nonblocking: special case push\n", pthread_self(), (uintptr)  &c);
                 c.push(data.senders->value, data.senders->move);
+
+                c.adata.senders_head_store(data.senders->next);
+                LOG("%d %#x recv_nonblocking: sender popped atomically %#x\n", pthread_self(), (uintptr) &c, (uintptr) data.senders);
+                
+                LOGX("recv 604 won %#x\n", (uintptr) data.senders->active);
                 LOGX("%d about to store 601 %#x\n", pthread_self(), (uintptr) data.senders);
                 data.senders->completer->store(data.senders);
                 data.senders->completed->notify();
@@ -806,10 +801,7 @@ again1:
             if (data.senders->next != nil) {
                 data.senders->next->prev = nil;
             }
-            c.adata.senders_head_store(data.senders->next);
-            LOGX("ADDED 763 %#x to %#x\n", (uintptr) &data.senders->next, (uintptr) &c.adata.senders);
 
-            LOG("%d %#x recv_nonblocking: sender popped atomically %#x\n", pthread_self(), (uintptr) &c, (uintptr) data.senders);
             c.pop(receiver->value);
             if (receiver->ok) {
                 *receiver->ok = true;
@@ -817,6 +809,12 @@ again1:
 
             LOG("%d %#x recv_nonblocking: special case push\n", pthread_self(), (uintptr)  &c);
             c.push(data.senders->value, data.senders->move);
+            
+            c.adata.senders_head_store(data.senders->next);
+            LOGX("ADDED 763 %#x to %#x\n", (uintptr) &data.senders->next, (uintptr) &c.adata.senders);
+
+            LOG("%d %#x recv_nonblocking: sender popped atomically %#x\n", pthread_self(), (uintptr) &c, (uintptr) data.senders);
+            
             LOGX("%d about to store 777 %#x\n", pthread_self(), (uintptr) data.senders);
             data.senders->completer->store(data.senders);
             data.senders->completed->notify();
@@ -944,14 +942,13 @@ again2:
 void ChanBase::recv_blocking(this ChanBase &c, void *out, bool *ok) {
     LOG("%d %#x recv_blocking\n", pthread_self(), (uintptr) &c);
 
-    sync::Lock lock(c.lock);
 again:
     Data data;
     if (c.recv_nonblocking(out, ok, &data)) {
         LOG("%d %#x recv_blocking: recv nonblocking unlocked succeeded\n", pthread_self(), (uintptr) &c);
         return;
     }
-    
+    sync::Lock lock(c.lock);
     LOG("%d %#x recv_blocking: recv nonblocking unlocked failed\n", pthread_self(), (uintptr) &c);
 
     if (data.receivers == SelectorBusy) {
