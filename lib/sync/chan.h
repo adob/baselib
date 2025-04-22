@@ -1,14 +1,10 @@
 #pragma once
 
 #include <boost/circular_buffer.hpp>
-#include "deps/atomic_queue/include/atomic_queue/atomic_queue.h"
 #include <atomic>
-#include <pthread.h>
 
 #include "lib/base.h"
-#include "atomic.h"
-#include "lib/io/io_stream.h"
-#include "lib/str.h"
+#include "lib/sync/atomic.h"
 #include "mutex.h"
 #include "cond.h"
 #include "lock.h"
@@ -23,9 +19,105 @@ namespace lib::sync {
     struct Recv;
     struct Send;
 
+    constexpr bool DebugChecks = true;
+
     namespace internal {
-        constexpr bool DebugChecks = true;
-        constexpr bool DebugLog    = false;
+        // template <typename T>
+        // struct Queue {
+
+        // } ;
+
+        template <typename T>
+        struct IntrusiveList {
+            struct Element {
+                T *prev = nil;
+                T *next = nil;
+            } ;
+
+            void push(T *e) {
+                // printf("PUSH this(%p) %p\n", this, e);
+                e->next = this->head;
+                e->prev = nil;
+
+                if (this->head) {
+                    this->head->prev = e;
+                }
+
+                this->head = e;
+                // dump();
+            }
+
+            T *pop() {
+                // printf("POP this(%p)\n", this);
+                T *e = this->head;
+                this->head = e->next;
+
+                if (e->next) {
+                    e->next->prev = nil; 
+                }
+                // dump();
+                return e;
+            }
+
+            void remove(T *e) {
+                // printf("REMOVE this(%p) %p\n", this, e);
+                if constexpr (DebugChecks) {
+                    bool found = false;
+                    for (T *elem = this->head; elem != nil; elem = elem->next) {
+                        if (e == elem) {
+                            found = true;
+                            break;
+                        }
+                    }
+                    if (!found) {
+                        printf("PANIC!!! %p\n", this);
+                        dump();
+
+                        panic("element not found");
+                    }
+                }
+                if (!e->prev) {
+                    this->head = e->next;
+                } else {
+                    e->prev->next = e->next;
+                }
+
+                if (e->next) {
+                    e->next->prev = e->prev;
+                }
+            }
+
+            bool empty() const {
+                return this->head == nil;
+            }
+
+            T *head = nil;
+
+            void dump() {
+                //flockfile(stdout);
+                if (!this->head) {
+                    printf("empty list this(%p)\n", this);
+                    return;
+                }
+                printf("DUMP this(%p) [%p", this, this->head);
+                for (T *elem = this->head->next; elem != nil; elem = elem->next) {
+                    printf(" -> %p", elem);
+                }
+
+                printf("]\n");
+                //funlockfile(stdout);
+            }
+
+            bool contains(T *e) {
+                for (T *elem = this->head; elem != nil; elem = elem->next) {
+                    if (e == elem) {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+        } ;
 
         struct Waiter {
             std::atomic<int> state = 0;
@@ -50,127 +142,43 @@ namespace lib::sync {
                 }
             }
         } ;
-        
-        struct Selector {
-            void *value = nil;
-            bool *ok    = nil;
-            bool  move  = false;
 
-            int id = 0;
+        struct Selector : IntrusiveList<Selector>::Element {
+            // sync::Mutex *mtx = nil;
+            // sync::Cond  *cond = nil;
 
-            enum State {
-                New,
-                Busy,
-                Done,
-            } ;
+            void    *value = nil;
+            bool    *ok = nil;
+            bool    move = false;
 
-            atomic<State>      *active = nil;
+            int      id = 0;
+
+            std::atomic<bool>      *active = nil;
+            Waiter *completed;
             atomic<Selector*> *completer = nil;
-            Waiter *completed = nil;
-            atomic<State>      state = New;
-            bool removed = false;
+            bool done = false;
 
             bool panic = false;
-
-            Selector *prev = nil;
-            Selector *next = nil;
-
-            bool OUT_OF_SCOPE = false;
         };
 
-        Selector *const SelectorBusy = (Selector*) -1;
-        Selector *const SelectorClosed = (Selector*) -2;        
-
-        struct IntrusiveList {
-            void push(Selector *e);
-
-            Selector *pop();
-
-            void remove(Selector *e);
-
-            bool empty() const;
-
-            bool empty_atomic() const;
-
-            Mutex *mtx = nil;
-            atomic<Selector*> head = nil;
-
-            void dump(str s="");
-
-            bool contains(Selector *e);
-        } ;
-
-
-
-        struct Allocator {
-            // void *allocate(size n) {}
-            // void deallocated(void *p, size n) noexcept {}
-        } ;
-
-        template <typename T>
-        struct AllocatorT {
-            typedef T value_type;
-            
-            Allocator alloc;
-
-            AllocatorT() = default;
-            
-            template <typename U>
-            constexpr AllocatorT(const AllocatorT<U>&) noexcept {}
-
-            T *allocate(size_t n) {
-                fmt::printf("ALLOCATE %v %v\n", sizeof(T), n);
-                return (T*) ::malloc(sizeof(T) * n);
-            }
-
-            void deallocate(T *p, size n) noexcept {
-                fmt::printf("FREE %#X %v\n", (intptr) p, n);
-                ::free(p);
-            }
-
-            template<class U>
-            bool operator==(const AllocatorT <U>&) { return true; }
- 
-        } ;
-
         struct ChanBase {
-            const int capacity = 0;
-            
-            struct alignas(sizeof(intptr)*2) Data {
-                size q = 0;
-                Selector *selector = nil;
-            } ;
+            int       unread = 0;
+            const int       capacity = 0;
+            //void       *receiver = nil;
 
-            struct AtomicData {
-                // sync::Mutex mtx;
-
-                Data raw;
-            
-                AtomicData() {
-
-                }
-
-                Data load();
-                void store(Data);
-                bool compare_and_swap(Data *expected, Data newval);
-                void remove(Selector *sel);
-
-                Selector *selector_load();
-
-                void selector_store(Selector *v);
-
-                bool selector_compare_and_swap(Selector **oldval,
-                                               Selector *newval);
-
-            } adata;
+            internal::IntrusiveList<internal::Selector>  receivers;
+            internal::IntrusiveList<internal::Selector>    senders;
         
             enum State : byte {
                 Open,
+                //CanRecv,
                 Closed
-            };
-
-            atomic<State> state = atomic<State>(Open);
+            } state = Open;
             
+            Mutex    lock;
+            //Cond     r_cond;
+            //Cond     send_cond;
+
             ChanBase(int capacity);
 
             void close(this ChanBase &c);
@@ -183,30 +191,32 @@ namespace lib::sync {
             int length() const;
 
         protected:
-            virtual void push(void *data, bool move) = 0; 
-            virtual void pop(void *out) = 0;
+            virtual void buffer_push(void *elem, bool move) = 0;
             virtual void set(void *dest, void *val, bool move) = 0;
-            virtual int unread() const = 0;
+            virtual void buffer_pop(void *out) = 0;
 
             void send_i(this ChanBase &c, void *elem, bool move);
-            bool send_nonblocking_i(this ChanBase &c, void *elem, bool move);
-            bool send_nonblocking(this ChanBase &c, void *elem, bool move, Data *data_out);
-            int send_nonblocking_sel(this ChanBase &c, Selector *receiver);
+            bool send_nonblocking(this ChanBase &c, void *elem, bool move, Lock&);
+            void send_blocking(this ChanBase &c, void *elem, bool move, Lock&);
 
-            void send_blocking(this ChanBase &c, void *elem, bool move);
+            void recv_i(this ChanBase &c, void *out, bool *closed);
+            bool recv_nonblocking(this ChanBase &c, void *out, bool *closed, Lock&);
+            void recv_blocking(this ChanBase &c, void *out, bool *closed, Lock&);
 
-        
-            bool recv_nonblocking(this ChanBase &c, void *out, bool *ok, Data *data_out);
-            int recv_nonblocking_sel(this ChanBase &c, Selector *receiver);
-            void recv_blocking(this ChanBase &c, void *out, bool *ok);
+            bool try_recv(this ChanBase &c, void *out, bool *ok, bool try_locks, bool *lock_fail);
+            bool try_send(this ChanBase &c, void *out, bool move, bool try_locks, bool *lock_fail);
 
-            bool try_recv(this ChanBase &c, void *out, bool *ok);
+            // bool can_recv(this ChanBase &c, Selector **selout, bool try_locks, bool *lock_fail, sync::Lock sendlock, sync::Lock &);
+            // bool can_send(this ChanBase &c, Selector **selout, bool try_locks, bool *lock_fail, sync::Lock recvlock, sync::Lock &);
 
-            int subscribe_recv(this ChanBase &c, internal::Selector &receiver);
-            int subscribe_send(this ChanBase &c, internal::Selector &sender);
+            // void recv_now(this ChanBase &c, void *out, bool *ok, Selector *sel, sync::Lock sendlock, sync::Lock &chanlock);
+            // void send_now(this ChanBase &c, void *out, bool move, Selector *sel, sync::Lock sendlock, sync::Lock &chanlock);
 
-            void unsubscribe_recv(this ChanBase &c, internal::Selector &receiver);
-            void unsubscribe_send(this ChanBase &c, internal::Selector &sender);
+            bool subscribe_recv(this ChanBase &c, internal::Selector &receiver, Lock&);
+            bool subscribe_send(this ChanBase &c, internal::Selector &sender, Lock&);
+
+            void unsubscribe_recv(this ChanBase &c, internal::Selector &receiver, Lock&);
+            void unsubscribe_send(this ChanBase &c, internal::Selector &sender, Lock&);
 
             void send(ChanBase &c, void *elem, void(*)(ChanBase &c, void *elem));
 
@@ -223,73 +233,45 @@ namespace lib::sync {
 
     template <typename T>
     struct Chan : internal::ChanBase {
-        // boost::circular_buffer<T> buffer;
-        // https://github.com/max0x7ba/atomic_queue?tab=readme-ov-file
-        atomic_queue::AtomicQueueB2<T/*, internal::AllocatorT<T>*/> buffer;
+        boost::circular_buffer<T> buffer;
 
-        Chan(int capacity = 0) : ChanBase(capacity), buffer(capacity) {
-            //printf("BUFFER SIZE %lu\n", sizeof(buffer));
-            //printf("capacity %u\n", buffer.capacity());
-        }
+        Chan(int capacity = 0) : ChanBase(capacity), buffer(capacity) {}
+
 
         void send(this Chan &c, T &&elem) {
             c.send_i(&elem, true);
         }
 
         void send(this Chan &c, T const& elem) {
-            if constexpr (internal::DebugLog) {
-                fmt::printf("%d %#x send %v\n", pthread_self(), (uintptr) &c, elem);
-            }
             c.send_i((void*) &elem, false);
         }
 
         T recv(this Chan &c, bool *ok = nil) {
             T t = {};
-            c.recv_blocking(&t, ok);
+            c.recv_i(&t, ok);
             return t;
         }
 
-        bool recv_nonblocking(this Chan &c, T *out=nil, bool *ok = nil) {
-            return c.recv_nonblocking(out, nil, ok);
-        }
-
-    protected:
-
-        void push(void *elem, bool move) override {
+        protected:
+        void buffer_push(void *elem, bool move) override {
+            // printf("buffer push\n");
+            this->unread++;
             if (move) {
-                this->buffer.push(std::move(*((T*) elem)));
+                this->buffer.push_front(std::move(*((T*) elem)));
             } else {
-                this->buffer.push(*((const T*) elem));
+                this->buffer.push_front(*((const T*) elem));
             }
-
-            if constexpr (internal::DebugLog) {
-                fmt::printf("%d %#x pushed %v; size %v\n", pthread_self(), (uintptr) this, (T*) elem, buffer.was_size());
-            }
-                
         }
 
-        void pop(void *out) override {
-            if constexpr (internal::DebugLog) {
-                fmt::printf("%d %#x about to pop...\n", pthread_self(), (uintptr) this);
-            }
+        void buffer_pop(void *out) override {
+            // printf("buffer pop\n");
+            this->unread--;
             if (out) {
-                *((T*) out) = buffer.pop();
-            } else {
-                buffer.pop();
+                *((T*) out) = std::move(this->buffer[this->unread]);
             }
-            if constexpr (internal::DebugLog) {
-                fmt::printf("%d %#x popped %v; size %v\n", pthread_self(), (uintptr) this, (T*) out, buffer.was_size());
-            }
-        }
-
-        int unread() const override {
-            return buffer.was_size();
         }
 
         void set(void *dest, void *val, bool move) override {
-            if constexpr (internal::DebugLog) {
-                fmt::printf("%d %#x set %v\n", pthread_self(), (uintptr) this, (T*) val);
-            }
             if (val == nil) {
                 *((T*) dest) = {};
             } else if (move) {
@@ -303,7 +285,6 @@ namespace lib::sync {
     template <>
     struct Chan<void> : internal::ChanBase {
         Chan(int capacity = 0) : ChanBase(capacity) {}
-        atomic<int> unread_v = atomic<int>(0);
 
         void send(this Chan &c) {
             c.send_i(0, false);
@@ -315,19 +296,16 @@ namespace lib::sync {
                 ok = &b;
             }
 
-            c.recv_blocking(0, ok);
+            c.recv_i(0, ok);
 
             return *ok;
         }
 
-        bool recv_nonblocking(this Chan &c) {
-            sync::Lock lock;
-            return c.ChanBase::recv_nonblocking(nil, nil, nil);
-        }
-
         protected:
-        void push(void *, bool) override;
-        int unread() const override;
+        void buffer_push(void*, bool) override {}
+
+        void buffer_pop(void *) override {}
+
         void set(void *, void *, bool) override {}
     } ;
 
@@ -335,12 +313,10 @@ namespace lib::sync {
         internal::ChanBase *chan;
         void *data;
         
-        virtual bool poll() const = 0;
+        virtual bool poll(bool try_locks, bool *lock_fail) const = 0;
 
-        virtual int subscribe(sync::internal::Selector &receiver) const = 0;
-        virtual void unsubscribe(sync::internal::Selector &receiver) const = 0;
-        
-        virtual bool select(bool blocking) const = 0;
+        virtual bool subscribe(sync::internal::Selector &receiver, Lock&) const = 0;
+        virtual void unsubscribe(sync::internal::Selector &receiver, Lock&) const = 0;
     } ;  
 
     struct Recv : SelectOp {
@@ -360,15 +336,14 @@ namespace lib::sync {
         void init(internal::ChanBase *chan, void *data, bool *ok) {
             this->chan = chan;
             this->data = data;
+            // this->mtx = chan.lock;
             this->ok = ok;
         }
 
-        bool poll() const override;
+        bool poll(bool try_locks, bool *lock_fail) const override;
 
-        int subscribe(sync::internal::Selector &receiver) const override;
-        void unsubscribe(sync::internal::Selector &receiver) const override;
-
-        bool select(bool blocking) const override;
+        bool subscribe(sync::internal::Selector &receiver, Lock&) const override;
+        void unsubscribe(sync::internal::Selector &receiver, Lock&) const override;
     } ;
     
     struct Send : SelectOp {
@@ -397,19 +372,21 @@ namespace lib::sync {
         void init(internal::ChanBase *chan, void *data) {
             this->chan = chan;
             this->data = data;
+            // this->mtx = &chan.lock;
         }
 
-        bool poll() const override;
+        bool poll(bool try_locks, bool *lock_fail) const override;
 
-        int subscribe(sync::internal::Selector &receiver) const override;
-        void unsubscribe(sync::internal::Selector &receive) const override;
-
-        bool select(bool blocking) const override;
+        bool subscribe(sync::internal::Selector &receiver, Lock&) const override;
+        void unsubscribe(sync::internal::Selector &receive, Lock&) const override;
     } ;
 
 
     namespace internal {
         struct OpData {
+            sync::Lock chanlock;
+            sync::Lock selector_lock;
+
             SelectOp const& op;
 
             Selector selector;
@@ -419,31 +396,38 @@ namespace lib::sync {
             OpData(SelectOp const& op) : op(op) {}
         } ;
 
-        int select_i(arr<OpData> ops, arr<OpData*> ops_ptrs, bool blocking);
-        bool select_one(OpData const &op, bool blocking);
+        int select_i(arr<OpData> ops, arr<OpData*> ops_ptrs, arr<OpData*> lockfail_ptrs, bool blocking, bool debug=false);
     }
 
     template <typename... Args>
     int select(Args&&... ops) {
-        if constexpr (sizeof...(ops) == 1) {
-            internal::select_one(ops..., true);
-            return 0;
-        }
         std::array<internal::OpData, sizeof...(Args)> ops_data = {ops...};
         std::array<internal::OpData*, sizeof...(Args)> ops_ptrs = {};
+        std::array<internal::OpData*, sizeof...(Args)> ops_ptrs2 = {};
 
-        return internal::select_i(arr(ops_data.data(), ops_data.size()), arr(ops_ptrs.data(), ops_ptrs.size()), true);
+        return internal::select_i(arr(ops_data.data(), ops_data.size()), arr(ops_ptrs.data(), ops_ptrs.size()), arr(ops_ptrs2.data(), ops_ptrs2.size()), true);
+
+    }
+
+    template <typename... Args>
+    int select_debug(Args&&... ops) {
+        std::array<internal::OpData, sizeof...(Args)> ops_data = {ops...};
+        std::array<internal::OpData*, sizeof...(Args)> ops_ptrs = {};
+        std::array<internal::OpData*, sizeof...(Args)> ops_ptrs2 = {};
+
+        return internal::select_i(arr(ops_data.data(), ops_data.size()), arr(ops_ptrs.data(), ops_ptrs.size()), arr(ops_ptrs2.data(), ops_ptrs2.size()), true, true);
     }
 
     template <typename... Args>
     int poll(Args&&... ops) {
-        if constexpr (sizeof...(ops) == 1) {
-            bool b = internal::select_one(ops..., false);
-            return b ? 0 : -1;
-        }
         std::array<internal::OpData, sizeof...(Args)> ops_data = {ops...};
         std::array<internal::OpData*, sizeof...(Args)> ops_ptrs = {};
+        std::array<internal::OpData*, sizeof...(Args)> ops_ptrs2 = {};
 
-        return internal::select_i(arr(ops_data.data(), ops_data.size()), arr(ops_ptrs.data(), ops_ptrs.size()), false);
+        return internal::select_i(arr(ops_data.data(), ops_data.size()), arr(ops_ptrs.data(), ops_ptrs.size()), arr(ops_ptrs2.data(), ops_ptrs2.size()), false);
     }
+
+
+
+   
 }
