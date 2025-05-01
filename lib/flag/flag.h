@@ -1,6 +1,8 @@
 #pragma once
 
-#include "lib/base.h"
+#include <functional>
+
+#include "lib/str.h"
 
 namespace lib::flag {
     struct FlagSet {

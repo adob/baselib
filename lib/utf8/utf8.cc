@@ -1,6 +1,6 @@
 #include "utf8.h"
 #include "codes.h"
-#include "lib/io/io_stream.h"
+#include "lib/io/io.h"
 #include "lib/math.h"
 
 using namespace lib;

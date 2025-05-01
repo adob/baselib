@@ -1,5 +1,5 @@
 #include "testing.h"
-#include "lib/io/io_stream.h"
+#include "lib/io/io.h"
 #include "lib/sync/map.h"
 #include "matcher.h"
 #include "example.h"

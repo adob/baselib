@@ -1,11 +1,6 @@
 #include "itoa.h"
 
-#include "deps/fmt/include/fmt/base.h"
-#include "deps/fmt/include/fmt/format.h"
 #include "lib/exceptions.h"
-#include "lib/io/io_stream.h"
-#include "lib/strconv/quote.h"
-#include "lib/fmt/fmt.h"
 #include "lib/testing/testing.h"
 
 using namespace lib;

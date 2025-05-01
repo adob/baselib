@@ -1,4 +1,4 @@
-#include "lib/io/io_stream.h"
+#include "lib/io/io.h"
 #include "lib/str.h"
 #include "lib/utf8/decode.h"
 #include "lib/utf8/encode.h"

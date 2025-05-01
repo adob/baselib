@@ -1,6 +1,6 @@
 #pragma once
 
-#include "lib/io/io_stream.h"
+#include "lib/io/io.h"
 #include <type_traits>
 
 namespace lib::strconv {
@@ -32,18 +32,13 @@ namespace lib::strconv {
     // format_int returns the string representation of i in the given base,
     // for 2 <= base <= 36. The result uses the lower-case letters 'a' to 'z'
     // for digit values >= 10.
-    Formatter<intmax> format_int(intmax i, int base);
+    Formatter<intmax> format_int(int64 i, int base);
 
     // format_uint returns the string representation of i in the given base,
     // for 2 <= base <= 36. The result uses the lower-case letters 'a' to 'z'
     // for digit values >= 10.
-    Formatter<uintmax> format_uint(uintmax i, int base);
+    Formatter<uintmax> format_uint(uint64 i, int base);
 
     // Itoa is equivalent to [FormatInt](int64(i), 10).
     Formatter<intmax> itoa(intmax i);
-
-    #if __WORDSIZE < 64
-    Formatter<int64> format_int(int64 i, int base);
-    Formatter<uint64> format_uint(uint64 i, int base);
-    #endif
 }

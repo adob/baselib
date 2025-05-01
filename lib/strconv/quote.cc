@@ -1,6 +1,6 @@
 #include "quote.h"
 
-#include "lib/io/io_stream.h"
+#include "lib/io/io.h"
 #include "lib/utf8/decode.h"
 #include "lib/utf8/encode.h"
 #include "lib/utf8/utf8.h"

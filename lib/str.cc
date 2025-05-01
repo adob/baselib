@@ -1,7 +1,7 @@
 #include "str.h"
 #include "lib/utf8/encode.h"
 #include "lib/utf8/utf8.h"
-#include "lib/io/io_stream.h"
+#include "lib/io/io.h"
 
 using namespace lib;
 

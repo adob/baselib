@@ -11,7 +11,7 @@
 // #endif
 
 #include "panic.h"
-#include "lib/io/io_stream.h"
+#include "lib/io/io.h"
 #include "lib/str.h"
 
 #include "fmt.h"

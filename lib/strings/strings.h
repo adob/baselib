@@ -1,16 +1,13 @@
 #pragma once
 
-#include "../base.h"
+#include <vector>
+
 #include "../utf8.h"
-#include "lib/io/io_stream.h"
+#include "lib/io/io.h"
 #include "lib/math/math.h"
 #include "lib/types.h"
-#include <limits>
 
 namespace lib::strings {
-    namespace detail {
-        
-    }
 
     // contains_rune reports whether the Unicode code point r is within s.
     bool contains_rune(str s, rune r);

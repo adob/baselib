@@ -1,5 +1,5 @@
 #include "fs.h"
-#include "lib/io/io_stream.h"
+#include "lib/io/io.h"
 
 using namespace lib;
 using namespace fs;

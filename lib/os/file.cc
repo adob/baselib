@@ -13,8 +13,8 @@
 #include "lib/fmt/fmt.h"
 #include "lib/fs/fs.h"
 #include "lib/filepath/path.h"
-#include "lib/io/io_stream.h"
-#include "lib/io/utils.h"
+#include "lib/io/io.h"
+#include "lib/io/util.h"
 #include "lib/os/file_posix.h"
 #include "lib/os/types.h"
 
@@ -28,7 +28,8 @@ using namespace os;
 
 os::File::File(File&& other)
     : io::Buffered(std::move(other)),
-      fd(other.fd) { 
+      fd(other.fd),
+      name(std::move(other.name)) { 
     other.fd = -1; 
 }
 
@@ -319,6 +320,8 @@ File& File::operator = (File&& other) {
 
     fd = other.fd;
     other.fd = -1;
+
+    name = std::move(other.name);
 
     io::Buffered::operator=(std::move(other));
 

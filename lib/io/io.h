@@ -3,7 +3,6 @@
 #include "lib/error.h"
 #include "lib/array.h"
 
-
 namespace lib::io {
     struct Writer;
     struct Reader;

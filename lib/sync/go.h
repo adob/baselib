@@ -52,29 +52,41 @@ namespace lib::sync {
             }
         } ;
 
-        bool done = false;
         std::thread thread;
+        bool active = false;
+
+        go() {}
 
         template<typename Function, typename... Args>
         go(Function&& f, Args&&... args) : 
-            thread(Wrapper<Function>{std::forward<Function>(f)}, std::forward<Args>(args)...) {        
+            thread(Wrapper<Function>{std::forward<Function>(f)}, std::forward<Args>(args)...), active(true) {        
         }
 
         void join() {
-            if (this->done) {
+            if (!this->active) {
                 return;
             }
-            this->done = true;
+            this->active = false;
             thread.join();
         }
 
         void detach() {
-            this->done = true;
+            this->active = false;
             thread.detach();
         }
 
+        go& operator=(go &&other) {
+            if (this->active) {
+                panic("assignment to active go");
+            }
+            this->active = other.active;
+            this->thread = std::move(other.thread);
+            other.active = false;
+            return *this;
+        }
+
         ~go() {
-            if (!this->done) {
+            if (this->active) {
                 thread.join();
             }
         }

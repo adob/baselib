@@ -1,6 +1,6 @@
 #include "../testing/testing.h"
 #include "lib/error.h"
-#include "lib/io/io_stream.h"
+#include "lib/io/io.h"
 
 #include "lib/print.h"
 

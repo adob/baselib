@@ -4,7 +4,7 @@
 #include <tuple>
 #include <utility>
 
-#include "lib/io/io_stream.h"
+#include "lib/io/io.h"
 #include "lib/errors/errors.h"
 #include "lib/os/stdio.h"
 
@@ -580,8 +580,8 @@ namespace lib::fmt {
         
     }
 
-    // sprint formats using the default formats for its operands and returns the resulting string.
-    // Spaces are always added between operands and a newline is appended.
+    // Args formats using the default formats for its operands and returns the resulting string.
+    // Spaces are added between operands when neither is a string.
     template<typename... Args>
     Sprinter<Args...> sprint(const Args & ... args) {
         return Sprinter<Args...>(args...);

@@ -2,7 +2,7 @@
 #include "lib/strings.h"
 #include "benchmark.h"
 #include "func.h"
-#include "lib/io/io_stream.h"
+#include "lib/io/io.h"
 
 #include "lib/print.h"
 #include "lib/time/time.h"

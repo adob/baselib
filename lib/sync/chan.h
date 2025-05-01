@@ -273,7 +273,7 @@ namespace lib::sync {
 
         void set(void *dest, void *val, bool move) override {
             if (val == nil) {
-                *((T*) dest) = {};
+                *((T*) dest) = T{};
             } else if (move) {
                 *((T*) dest) = std::move(*(T*) val);
             } else {

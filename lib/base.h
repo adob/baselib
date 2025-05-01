@@ -7,7 +7,7 @@
 #include "./bitflag.h"
 #include "./error.h"
 #include "./panic.h"
-#include "./io/io_stream.h"
+#include "./io/io.h"
 #include "./fmt/fmt.h"
 #include "./errors/errors.h"
 #include "./utils.h"

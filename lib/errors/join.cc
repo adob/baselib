@@ -5,7 +5,7 @@
 using namespace lib;
 using namespace errors;
 
-void JoinError::fmt(io::Reader &out, error err) const {
+void JoinError::fmt(io::Writer &out, error err) const {
     if (len(this->errs) == 0) {
         return;
     }

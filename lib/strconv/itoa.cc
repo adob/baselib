@@ -153,12 +153,6 @@ void strconv::detail::format_bits(io::Writer &out, uintmax u, int base, bool neg
     
 }
 
-#if __WORDSIZE < 64
-void strconv::detail::format_bits(io::Writer &out, uint64 u, int base, bool neg, error err) {
-    return format_bits_impl(out, u, base, neg, err);
-}
-#endif
-
 template <typename T>
 Formatter<T>::Formatter(T t, int base) : val(t), base(base) {}
 
@@ -172,14 +166,14 @@ void Formatter<T>::write_to(io::Writer &out, error err) const {
 	format_bits(out, static_cast<std::make_unsigned_t<T>>(val), base, val < 0, err);
 }
 
-Formatter<intmax> strconv::format_int(intmax i, int base) {
+Formatter<intmax> strconv::format_int(int64 i, int base) {
     if (base < 2 || base > len(digits)) {
 		panic("strconv: illegal format_int base");
 	}
     return Formatter<intmax>(i, base);
 }
 
-Formatter<uintmax> strconv::format_uint(uintmax i, int base) {
+Formatter<uintmax> strconv::format_uint(uint64 i, int base) {
     if (base < 2 || base > len(digits)) {
 		panic("strconv: illegal format_int base");
 	}
@@ -189,15 +183,6 @@ Formatter<uintmax> strconv::format_uint(uintmax i, int base) {
 Formatter<intmax> strconv::itoa(intmax i) {
     return format_int(i, 10);
 }
-
-#if __WORDSIZE < 64
-Formatter<int64> strconv::format_int(int64 i, int base) {
-    return Formatter<int64>(i, base);
-}
-Formatter<uint64> strconv::format_uint(uint64 i, int base) {
-    return Formatter<uint64>(i, base);
-}
-#endif
 
 
 

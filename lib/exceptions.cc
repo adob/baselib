@@ -1,7 +1,7 @@
 #include "./exceptions.h"
 #include "./str.h"
 #include "./panic.h"
-#include "lib/io/io_stream.h"
+#include "lib/io/io.h"
 #include "fmt/fmt.h"
 //#include "fmt/fmt.h"
 
@@ -13,7 +13,11 @@ void exceptions::out_of_memory() {
 }
 
 void exceptions::bad_index(size got, size max) {
-    throw BadIndex(got, max);
+    #if __cpp_exceptions
+        throw BadIndex(got, max);
+    #else
+        panic("bad index");
+    #endif
 }
 
 void exceptions::assertion() {

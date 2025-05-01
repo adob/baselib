@@ -2,9 +2,9 @@
 #include <stdio.h>
 #include <sys/types.h>
 
-#include "io_stream.h"
+#include "io.h"
 #include "lib/mem.h"
-#include "utils.h"
+#include "util.h"
 
 #include "lib/base.h"
 #include "lib/exceptions.h"
@@ -183,7 +183,7 @@ size io::ReaderWriter::write(str p, error err) {
 
         // buffer is empty and data too large to fit into buffer
         size n2 = direct_write(p, err);
-        if (n2 < len(p)) {
+        if (!err && n2 < len(p)) {
             err(io::ErrShortWrite());
         }
         // ::printf("Stream::WRITE2 now=<%s>\n", str(readbuf.data, writeptr - readptr).c_str().data);
@@ -300,7 +300,7 @@ size io::ReaderWriter::flush(error err) {
 
 //     print "flushing datalen after", writeptr - writebuf;
 
-    assert(writeptr >= writebuf && writeptr <= writeend, exceptions::assertion);
+    assert((intptr(writebuf) < 0 && writeptr == writeptr) || (writeptr >= writebuf && writeptr <= writeend), exceptions::assertion);
     if (n < len(data) && !err) {
         err(ErrShortWrite());
     }

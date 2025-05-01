@@ -2,7 +2,7 @@
 #include <errno.h>
 #include "lib/base.h"
 #include "lib/fs/fs.h"
-#include "lib/io/io_stream.h"
+#include "lib/io/io.h"
 
 namespace lib::os {
 

@@ -1,6 +1,5 @@
 #pragma once
 
-#include <functional>
 #include <type_traits>
 
 #include "types.h"
@@ -54,6 +53,10 @@ namespace lib {
         template <typename T>
         bool is() const requires std::derived_from<T, Error> {
             return errors::is(*this, type_id<T>);
+        }
+
+        bool same(Error const &other) const {
+            return errors::is(*this, other.type);
         }
 
         template <typename T>
@@ -307,37 +310,30 @@ namespace lib {
         LoggingError();
     };
 
-    struct ErrorRecorder : ErrorReporterInterface {
-
-        // template <typename ClassType, typename Signature>
-        // class BoundMethod {
-        // private:
-        //     ClassType* instance;
-        //     Signature ClassType::* method;
-
-        // public:
-        //     // Constructor to bind an instance and a member function
-        //     BoundMethod(ClassType* obj, Signature ClassType::* func)
-        //         : instance(obj), method(func) {}
-
-        //     // Callable operator to invoke the bound function
-        //     template <typename... Args>
-        //     auto operator()(Args&&... args) const -> decltype((instance->*method)(std::forward<Args>(args)...)) {
-        //         return (instance->*method)(std::forward<Args>(args)...);
-        //     }
-        // };
-
+    struct SavedError : Error {
         String msg;
-        // ErrorReporter<BoundMethod<ErrorRecorder, void(Error const&)>> error_reporter = BoundMethod(this, &ErrorRecorder::handle_error);
-        // ErrorRecorder();
-        
-        // void handle_error(Error const& e);
+
+        SavedError(TypeID id, str msg);
+        virtual void fmt(io::Writer &out, error err) const override;
+    } ;
+
+    struct ErrorRecorder : ErrorReporterInterface {
+        String msg;
+        TypeID type = nil;
+
         void report(Error&) override;
+        void report(Error const &);
         using ErrorReporterInterface::report;
         void fmt(io::Writer &out, error err) const;
         explicit operator bool() const {
             return this->has_error;
         }
+
+        bool is(Error const &other);
+
+        SavedError to_error() const;
+
+        bool operator==(ErrorRecorder const &other) const;
     };
 }
 

@@ -1,5 +1,5 @@
 #include "benchmark.h"
-#include "lib/io/io_stream.h"
+#include "lib/io/io.h"
 #include "lib/runtime/debug.h"
 #include "lib/testing/benchmark.h"
 

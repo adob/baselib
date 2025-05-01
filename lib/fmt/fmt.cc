@@ -1,7 +1,7 @@
 #include "fmt.h"
 #include <limits>
 #include <type_traits>
-#include "lib/io/io_stream.h"
+#include "lib/io/io.h"
 #include "lib/strconv/ftoa.h"
 #include "lib/types.h"
 #include "lib/utf8/decode.h"

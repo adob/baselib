@@ -1,8 +1,14 @@
 #pragma once
 
-#include "lib/io/io_stream.h"
+#include "lib/io/io.h"
 #include "lib/str.h"
 #include <stdio.h>
+
+#ifdef ARDUIINO
+#include "stdio_arduino.h"
+#else
+#include "stdio_unix.h"
+#endif
 
 #define SECOND(a, b, ...) b
 

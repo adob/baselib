@@ -3,7 +3,7 @@
 #include "lib/array.h"
 #include "lib/types.h"
 #include "lib/str.h"
-#include "lib/io/io_stream.h"
+#include "lib/io/io.h"
 
 namespace lib::utf8 {
     struct DecodeRuneResult {

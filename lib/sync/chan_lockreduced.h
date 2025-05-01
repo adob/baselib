@@ -7,7 +7,7 @@
 
 #include "lib/base.h"
 #include "atomic.h"
-#include "lib/io/io_stream.h"
+#include "lib/io/io.h"
 #include "lib/str.h"
 #include "mutex.h"
 #include "cond.h"

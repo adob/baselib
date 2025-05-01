@@ -1,7 +1,6 @@
 #pragma once
 
-#include "lib/base.h"
-#include "io_stream.h"
+#include "io.h"
 
 namespace lib::io {
     using namespace lib;

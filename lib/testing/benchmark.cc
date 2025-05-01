@@ -3,7 +3,7 @@
 #include <unordered_map>
 
 #include "lib/flag/flag.h"
-#include "lib/io/io_stream.h"
+#include "lib/io/io.h"
 #include "lib/math/math.h"
 #include "lib/runtime/debug.h"
 #include "lib/runtime/mstats.h"

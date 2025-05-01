@@ -1,7 +1,7 @@
 #pragma once
 
 #include "lib/types.h"
-#include "lib/io/io_stream.h"
+#include "lib/io/io.h"
 
 namespace lib::strconv {
     enum Flag {

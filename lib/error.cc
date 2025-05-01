@@ -163,8 +163,7 @@ void BasicError::fmt(io::Writer &out, error err) const {
 // }
 
 void ErrorRecorder::report(Error &e) {
-    this->has_error = true;
-    this->msg = fmt::stringify(e);
+    this->report((Error const&) e);
 }
 
 void ErrorRecorder::fmt(io::Writer &out, error err) const {
@@ -174,4 +173,43 @@ void ErrorRecorder::fmt(io::Writer &out, error err) const {
     }
 
     out.write(this->msg, err);
+}
+
+bool ErrorRecorder::is(Error const &other) {
+  if (!this->has_error) {
+    return false;
+  }
+  if (this->type != other.type) {
+    return false;
+  }
+  if (this->msg != fmt::stringify(other)) {
+    return false;
+  }
+  return true;
+}
+
+bool ErrorRecorder::operator==(ErrorRecorder const &other) const {
+    if (!has_error) {
+        return !other.has_error;
+    }
+
+  return other.has_error && type == other.type && msg == other.msg;
+}
+
+
+SavedError::SavedError(TypeID id, str msg) : Error(id), msg(msg) {}
+
+void SavedError::fmt(io::Writer &out, error err) const {
+    out.write(msg, err);
+}
+
+
+SavedError ErrorRecorder::to_error() const {
+  return SavedError(type, msg);
+}
+
+void ErrorRecorder::report(Error const &e) {
+    this->has_error = true;
+    this->type = e.type;
+    this->msg = fmt::stringify(e);
 }

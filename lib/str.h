@@ -356,6 +356,9 @@ namespace lib {
         }
 
         Buffer& operator = (Buffer &&other) {
+            // if (this == &other) {
+            //     return *this;
+            // }
             this->~Buffer();
             data = other.data;
             len = other.len;
@@ -686,15 +689,20 @@ namespace lib {
         }
 
         CString& operator = (const CString& other) {
+            if (other.buffer.len == 0) {
+                this->length = 0;
+                return *this;
+            }
             if (other.length > buffer.len) {
-                buffer.resize(other.length);
+                buffer.resize(other.length+1);
             }
             length = other.length;
             memcpy(buffer.data, other.buffer.data, length+1);
+
             return *this;
         }
 
-        CString& operator = (String&& other) {
+        CString& operator = (CString&& other) {
             buffer = std::move(other.buffer);
             length = other.length;
             other.length = 0;

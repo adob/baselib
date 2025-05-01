@@ -1,9 +1,8 @@
 #pragma once
 
-#include "../base.h"
-#include "../fmt.h"
-#include "../debug.h"
-#include "lib/io/io_stream.h"
+#include <functional>
+
+#include "lib/io/io.h"
 #include "lib/runtime/symtab.h"
 #include "lib/sync/chan.h"
 #include "lib/sync/mutex.h"

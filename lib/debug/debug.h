@@ -2,7 +2,7 @@
 
 #include <exception>
 #include <vector>
-#include "lib/io/io_stream.h"
+#include "lib/io/io.h"
 
 namespace lib::debug {
     void init();

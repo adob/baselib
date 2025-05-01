@@ -1,22 +1,12 @@
-#include "utils.h"
+#include "util.h"
 
 #include "lib/error.h"
-#include "lib/io/io_stream.h"
-#include "lib/print.h"
+#include "lib/io/io.h"
 
 using namespace lib;
-using namespace io;
+using namespace lib::io;
 
 #pragma GCC diagnostic ignored "-Wshadow"
-
-// namespace lib::io {
-//     Error EOF("EOF");
-//     Error ErrUnexpectedEOF("unexpected EOF");
-//     Error ErrShortWrite("short write");
-//     Error ErrShortBuffer("short buffer");
-    
-//     Error ErrIO("IO error");
-// }
 
 size io::read_full(io::Writer &input, buf buffer, error err) {
     return read_at_least(input, buffer, len(buffer), err);
@@ -30,8 +20,6 @@ size io::read_at_least(io::Writer &in, buf buffer, size min, error err) {
     
     size n = 0;
     while (n < min) {
-        //in.read(buf(), ErrorReporter([](const Error &) {}));
-        //in.read(buf(), ErrorReporter([](const Error &) {});
         ReadResult r = in.read(buffer + n, err);
         n += r.nbytes;
         if (err) {
