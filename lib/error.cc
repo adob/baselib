@@ -33,7 +33,6 @@ namespace {
     }
 }
 
-
 IgnoringError::IgnoringError() :
         error(error_reporter),
         error_reporter(ignore_handler) {}

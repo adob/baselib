@@ -434,7 +434,7 @@ namespace lib::fmt {
     // println
     template <typename ...Args>
     void println(const Args &...arg) {
-        ffprint(os::stdout, error::ignore, arg...);
+        fprint(os::stdout, error::ignore, arg..., '\n');
     }
 
      

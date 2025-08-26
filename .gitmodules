@@ -10,6 +10,6 @@
 [submodule "deps/atomic_queue"]
 	path = deps/atomic_queue
 	url = git@github.com:adob/atomic_queue.git
-[submodule "deps/circular_buffer"]
-	path = deps/circular_buffer
-	url = https://github.com/boostorg/circular_buffer.git
+[submodule "deps/boost"]
+	path = deps/boost
+	url = https://github.com/boostorg/boost.git

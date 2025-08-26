@@ -1,13 +1,10 @@
 {
     "$schema": "https://raw.githubusercontent.com/platformio/platformio-core/develop/platformio/assets/schema/library.json",
-    "name": "lib",
+    "name": "base1lib",
     "version": "0.0.0",
-    "--dependencies": {
-        "espressif/esp-boost": "^0.1.1"
-    },
     "build": {
         "includeDir": "../",
         "srcDir": ".",
-        "srcFilter":  "+<lib/*.cc> +<lib/errors/*.cc> +<lib/fmt/*.cc> +<lib/io/io.cc> +<lib/os/stdio_arduino.cc> +<lib/io/util.cc> +<lib/math/*.cc> +<lib/strconv/*.cc> +<lib/strings/*.cc> +<lib/time/*.cc> +<lib/unicode/*.cc> +<lib/utf8/*.cc> +<lib/varint/*.cc> -<**/*_test.cc> -<**/*_unix.cc>"
+        "srcFilter":  "+<lib/*.cc> +<lib/errors/*.cc> +<lib/fmt/*.cc> +<lib/io/*.cc> +<lib/os/error.cc> +<lib/os/stdio_posix.cc> +<lib/math/*.cc> +<lib/strconv/*.cc> +<lib/strings/*.cc> +<lib/sync/*.cc> +<lib/time/*.cc> +<lib/unicode/*.cc> +<lib/utf8/*.cc> +<lib/varint/*.cc> -<**/*_test.cc> -<**/*_unix.cc> -<**/*_experimental.cc>"
     }
 }

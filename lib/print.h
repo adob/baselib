@@ -9,9 +9,8 @@ namespace prettyprint {
     
     struct PrintFormatted {
         ::lib::fmt::State printer;
-        IgnoringError error_handler;
         
-        PrintFormatted(io::Writer &f, str format) :  printer(f, format, error_handler) {}
+        PrintFormatted(io::Writer &f, str format) :  printer(f, format, error::ignore) {}
         
         template <typename T>
         PrintFormatted& operator , (T const &t) {
@@ -26,7 +25,7 @@ namespace prettyprint {
         
         template <typename T>
         PrintUnformatted& operator , (T const &t) {
-            out.write(' ', error::ignore);
+            out.write_byte(' ', error::ignore);
             ::lib::fmt::write(out, t, error::ignore);
             return *this;
         }
@@ -84,7 +83,7 @@ namespace prettyprint {
         }
         
         ~Print() {
-             out.write('\n', error::ignore);
+             out.write_byte('\n', error::ignore);
              out.flush(error::ignore);
         }
 

@@ -162,7 +162,7 @@ size RuneDecoder::decode(str s, size limit, io::Writer &w, error err) {
                     state = 0;
                     runecount++;
                     if (i == 0) {  
-                        w.write(buffer[0], err);
+                        w.write_byte(buffer[0], err);
                     }
                     goto restart;
                 }
@@ -171,7 +171,7 @@ size RuneDecoder::decode(str s, size limit, io::Writer &w, error err) {
                     state = 0;
                     runecount++;
                     if (i == 0) {  
-                        w.write(buffer[0], err);
+                        w.write_byte(buffer[0], err);
                     }
                     continue;
                 }

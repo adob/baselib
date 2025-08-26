@@ -21,7 +21,7 @@ namespace lib {
     struct str;
     struct error;
 
-#ifdef __cpp_exceptions
+// #ifdef __cpp_exceptions
     struct Exception {
         //backward::StackTrace *stacktrace = nil;
         
@@ -30,7 +30,7 @@ namespace lib {
         Exception();
         ~Exception();
     };
-#endif
+// #endif
 }
 
 namespace lib::exceptions {

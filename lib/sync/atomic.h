@@ -20,6 +20,8 @@ namespace lib::sync {
 
         atomic() : value(0) {}
         atomic(T val) : value(val) {}
+        
+        atomic<T> &operator=(atomic<T> const &other) = delete;
 
         constexpr static bool DebugLog = false;
 

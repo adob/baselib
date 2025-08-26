@@ -164,7 +164,7 @@ void test_rune_truncate(testing::T &t) {
 
             void write_to(io::Writer &w, error err) const override {
                 for (size i = 0; i < len(s); i++) {
-                    w.write(s[i], err);
+                    w.write_byte(s[i], err);
                 }
             }
         } ;

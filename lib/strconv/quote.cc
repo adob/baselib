@@ -114,7 +114,7 @@ static bool is_in_graphic_list(rune r) {
             
 static void quote_with(io::Writer &out, str s, char quote, bool ascii_only, error &err) {
     const bool graphic_only = false;
-    out.write(quote, err);
+    out.write_byte(quote, err);
     
     for (int width = 0; len(s) > 0; s = s+width) {
         byte b = s[0];
@@ -125,18 +125,18 @@ static void quote_with(io::Writer &out, str s, char quote, bool ascii_only, erro
         }
         if (width == 1 && r == utf8::RuneError) {
             out.write("\\x", err);
-            out.write(lowerhex[b>>4], err);
-            out.write(lowerhex[b&0xF], err);
+            out.write_byte(lowerhex[b>>4], err);
+            out.write_byte(lowerhex[b&0xF], err);
             continue;
         }
         if (r == (rune) quote || r == '\\') { // always backslashed
-            out.write('\\', err);
-            out.write(b, err);;
+            out.write_byte('\\', err);
+            out.write_byte(b, err);;
             continue;
         }
         if (ascii_only) {
             if (r < utf8::RuneSelf && is_print(r)) {
-                out.write((char) r, err);
+                out.write_byte((char) r, err);
                 continue;
             }
         } else if (is_print(r) || (graphic_only && is_in_graphic_list(r))) {
@@ -154,8 +154,8 @@ static void quote_with(io::Writer &out, str s, char quote, bool ascii_only, erro
             default:
                 if (r < ' ' || r == 0x7f) {
                     out.write("\\x", err); 
-                    out.write(lowerhex[b>>4], err);
-                    out.write(lowerhex[b&0xF], err);
+                    out.write_byte(lowerhex[b>>4], err);
+                    out.write_byte(lowerhex[b&0xF], err);
                     break;
                 } 
                 
@@ -166,17 +166,17 @@ static void quote_with(io::Writer &out, str s, char quote, bool ascii_only, erro
                 if (r < 0x10000) {
                     out.write("\\u", err);
                     for (int si = 12; si >= 0; si -= 4) {
-                        out.write(lowerhex[ (r>>si) & 0xF ], err);
+                        out.write_byte(lowerhex[ (r>>si) & 0xF ], err);
                     }
                 } else {
                     out.write("\\U", err);
                     for (int si = 28; si >= 0; si -= 4) {
-                        out.write(lowerhex[ (r>>si) & 0xF ], err);
+                        out.write_byte(lowerhex[ (r>>si) & 0xF ], err);
                     }
                 }
         }
     }
-    out.write(quote, err);
+    out.write_byte(quote, err);
 }
 
 static void quote_with_state(io::Writer &out, utf8::RuneDecoder &state, str s, bool eof, char quote, bool ascii_only, error &err) {
@@ -194,18 +194,18 @@ static void quote_with_state(io::Writer &out, utf8::RuneDecoder &state, str s, b
         
         if (!is_valid) {
             out.write("\\x", err);
-            out.write(lowerhex[r>>4], err);
-            out.write(lowerhex[r&0xF], err);
+            out.write_byte(lowerhex[r>>4], err);
+            out.write_byte(lowerhex[r&0xF], err);
             continue;
         }
         if (r == (rune) quote || r == '\\') { // always backslashed
-            out.write('\\', err);
-            out.write(byte(r), err);;
+            out.write_byte('\\', err);
+            out.write_byte(byte(r), err);;
             continue;
         }
         if (ascii_only) {
             if (r < utf8::RuneSelf && is_print(r)) {
-                out.write((char) r, err);
+                out.write_byte((char) r, err);
                 continue;
             }
         } else if (is_print(r) || (graphic_only && is_in_graphic_list(r))) {
@@ -224,8 +224,8 @@ static void quote_with_state(io::Writer &out, utf8::RuneDecoder &state, str s, b
             default:
                 if (r < ' ' || r == 0x7f) {
                     out.write("\\x", err); 
-                    out.write(lowerhex[byte(r)>>4], err);
-                    out.write(lowerhex[byte(r)&0xF], err);
+                    out.write_byte(lowerhex[byte(r)>>4], err);
+                    out.write_byte(lowerhex[byte(r)&0xF], err);
                     break;
                 } 
                 
@@ -236,12 +236,12 @@ static void quote_with_state(io::Writer &out, utf8::RuneDecoder &state, str s, b
                 if (r < 0x10000) {
                     out.write("\\u", err);
                     for (int si = 12; si >= 0; si -= 4) {
-                        out.write(lowerhex[ (r>>si) & 0xF ], err);
+                        out.write_byte(lowerhex[ (r>>si) & 0xF ], err);
                     }
                 } else {
                     out.write("\\U", err);
                     for (int si = 28; si >= 0; si -= 4) {
-                        out.write(lowerhex[ (r>>si) & 0xF ], err);
+                        out.write_byte(lowerhex[ (r>>si) & 0xF ], err);
                     }
                 }
         }
@@ -348,10 +348,10 @@ void WriterToQuoter::write_to(io::Writer &out, error err) const {
     writer.out = &out;
     writer.ascii_only = this->ascii_only;
 
-    out.write('"', err);
+    out.write_byte('"', err);
     this->w->write_to(writer, err);
     quote_with_state(out, writer.state, "", true, '"', ascii_only, err);
-    out.write('"', err);
+    out.write_byte('"', err);
 }
 
 WriterToQuoter strconv::quote_to_ascii(io::WriterTo const &w) {

@@ -137,7 +137,7 @@ static void format_bits_impl(io::Writer &out, T u, int base, bool neg, error err
  // small returns the string for an i with 0 <= i < nSmalls.
 static void small(io::Writer &out, int i, error err) {
 	if (i < 10) {
-		out.write(digits[i], err);
+		out.write_byte(digits[i], err);
         return;
 	}
 	
@@ -180,7 +180,7 @@ Formatter<uintmax> strconv::format_uint(uint64 i, int base) {
     return Formatter<uintmax>(i, base);
 }
 
-Formatter<intmax> strconv::itoa(intmax i) {
+Formatter<intmax> strconv::itoa(int64 i) {
     return format_int(i, 10);
 }
 

@@ -13,7 +13,7 @@ void JoinError::fmt(io::Writer &out, error err) const {
     this->errs[0]->fmt(out, err);
 
     for (const Error *e : this->errs+1) {
-        out.write('\n', err);;
+        out.write_byte('\n', err);;
         e->fmt(out, err);
     }
 }

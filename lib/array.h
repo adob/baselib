@@ -19,12 +19,12 @@ namespace lib {
         }
 
         constexpr T& operator [] (size n) {
-            assert(n < N, exceptions::bad_index, n, N-1);
+            LIB_CHECK(n < N, exceptions::bad_index, n, N-1);
             return data[n];
         }
 
         constexpr T const& operator [] (size n) const {
-            assert(n < N, exceptions::bad_index, n, N-1);
+            LIB_CHECK(n < N, exceptions::bad_index, n, N-1);
             return data[n];
         }
 
@@ -45,13 +45,13 @@ namespace lib {
         }
 
 //         slice<T> slice(size i) const {
-//             assert(usize(i) <= N, exceptions::bad_index, i, len);
+//             LIB_CHECK(usize(i) <= N, exceptions::bad_index, i, len);
 //             return slice<T>(data+i, len-i);
 //         }
 //
 //         slice<T> slice(size i, size j) const {
-//             assert(usize(j) <= usize(len), exceptions::bad_index, i , len);
-//             assert(i <= j, exceptions::bad_index, i, j);
+//             LIB_CHECK(usize(j) <= usize(len), exceptions::bad_index, i , len);
+//             LIB_CHECK(i <= j, exceptions::bad_index, i, j);
 //             return slice(data+i, j-i);
 //         }
 //
@@ -83,18 +83,18 @@ namespace lib {
         byte data[N];
 
         constexpr buf slice(size i) {
-            assert(usize(i) <= N, exceptions::bad_index, i , N);
+            LIB_CHECK(usize(i) <= N, exceptions::bad_index, i , N);
             return buf(data+i, N-i);
         }
 
         constexpr buf slice(size i, size j) {
-            assert(usize(j) <= N, exceptions::bad_index, i , N);
-            assert(i <= j, exceptions::bad_index, i, j);
+            LIB_CHECK(usize(j) <= N, exceptions::bad_index, i , N);
+            LIB_CHECK(i <= j, exceptions::bad_index, i, j);
             return buf(data+i, j-i);
         }
 
         constexpr byte &operator[] (size i) {
-            assert(usize(i) < N, exceptions::bad_index, i, N);
+            LIB_CHECK(usize(i) < N, exceptions::bad_index, i, N);
             return data[i];
         }
 
@@ -168,13 +168,13 @@ namespace lib {
         arr(V &vec) : data(vec.data()), len(vec.size()) {}
 
         arr slice(size i) const {
-            assert(usize(i) <= usize(len), exceptions::bad_index, i, len);
+            LIB_CHECK(usize(i) <= usize(len), exceptions::bad_index, i, len);
             return arr(data+i, len-i);
         }
 
         arr slice(size i, size j) const {
-            assert(usize(j) <= usize(len), exceptions::bad_index, i , len);
-            assert(i <= j, exceptions::bad_index, i, j);
+            LIB_CHECK(usize(j) <= usize(len), exceptions::bad_index, i , len);
+            LIB_CHECK(i <= j, exceptions::bad_index, i, j);
             return arr(data+i, j-i);
         }
 
@@ -187,11 +187,11 @@ namespace lib {
         }
 
         T& operator [] (size i) {
-            assert(usize(i) < usize(len), exceptions::bad_index, i, len-1);
+            LIB_CHECK(usize(i) < usize(len), exceptions::bad_index, i, len-1);
             return data[i];
         }
         constexpr const T& operator [] (size i) const {
-            assert(usize(i) < usize(len), exceptions::bad_index, i, len-1);
+            LIB_CHECK(usize(i) < usize(len), exceptions::bad_index, i, len-1);
             return data[i];
         }
 
@@ -245,13 +245,13 @@ namespace lib {
     //     constexpr view(std::initializer_list<T> list) : arr<const T>(list.begin(), list.size()) {}
 
     //     // view slice(size i) const {
-    //     //     assert(usize(i) <= usize(len), exceptions::bad_index, i, len);
+    //     //     LIB_CHECK(usize(i) <= usize(len), exceptions::bad_index, i, len);
     //     //     return arr(data+i, len-i);
     //     // }
 
     //     // view slice(size i, size j) const {
-    //     //     assert(usize(j) <= usize(len), exceptions::bad_index, i , len);
-    //     //     assert(i <= j, exceptions::bad_index, i, j);
+    //     //     LIB_CHECK(usize(j) <= usize(len), exceptions::bad_index, i , len);
+    //     //     LIB_CHECK(i <= j, exceptions::bad_index, i, j);
     //     //     return arr(data+i, j-i);
     //     // }
 
@@ -264,11 +264,11 @@ namespace lib {
     //     // }
 
     //     // T& operator [] (size i) {
-    //     //     assert(usize(i) < usize(len), exceptions::bad_index, i, len-1);
+    //     //     LIB_CHECK(usize(i) < usize(len), exceptions::bad_index, i, len-1);
     //     //     return data[i];
     //     // }
     //     // constexpr const T& operator [] (size i) const {
-    //     //     assert(usize(i) < usize(len), exceptions::bad_index, i, len-1);
+    //     //     LIB_CHECK(usize(i) < usize(len), exceptions::bad_index, i, len-1);
     //     //     return data[i];
     //     // }
 
@@ -323,13 +323,13 @@ namespace lib {
     //     constexpr view(T (&&data)[N]) : data(data), len(N) { }
 
     //     view slice(size i) const {
-    //         assert(usize(i) <= usize(len), exceptions::bad_index, i, len);
+    //         LIB_CHECK(usize(i) <= usize(len), exceptions::bad_index, i, len);
     //         return view(data+i, len-i);
     //     }
 
     //     view slice(size i, size j) const {
-    //         assert(usize(j) <= usize(len), exceptions::bad_index, i , len);
-    //         assert(i <= j, exceptions::bad_index, i, j);
+    //         LIB_CHECK(usize(j) <= usize(len), exceptions::bad_index, i , len);
+    //         LIB_CHECK(i <= j, exceptions::bad_index, i, j);
     //         return array(data+i, j-i);
     //     }
 
@@ -342,7 +342,7 @@ namespace lib {
     //     }
 
     //     constexpr const T& operator [] (size i) const {
-    //         assert(usize(i) < usize(len), exceptions::bad_index, i, len-1);
+    //         LIB_CHECK(usize(i) < usize(len), exceptions::bad_index, i, len-1);
     //         return data[i];
     //     }
 

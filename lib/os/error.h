@@ -13,7 +13,6 @@ namespace lib::os {
 
         virtual void fmt(io::Writer &out, error err) const override;
         virtual bool is(TypeID) const override;
-        
     } ;
 
     struct SyscallError : ErrorBase<SyscallError> {

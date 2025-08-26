@@ -496,8 +496,8 @@ int internal::select_i(arr<OpData> ops, arr<OpData*> ops_ptrs, arr<OpData*> lock
         op.selector.completed = &completed;
         op.selector.completer = &completer;
 
+        // skip re-locking the same lock
         if (i == 0 || &op.op.chan->lock != &ops_ptrs[i-1]->op.chan->lock) {
-            // skip re-locking the same lock
             op.chanlock.lock(op.op.chan->lock);
         }
 
@@ -545,4 +545,26 @@ int internal::select_i(arr<OpData> ops, arr<OpData*> ops_ptrs, arr<OpData*> lock
     }
 
     return selected->id;
+}
+void lib::sync::internal::Waiter::notify() {
+    // printf("NOTIFY %p\n", this);
+    state.store(1, std::memory_order::release);
+    state.notify_one();
+    state.store(2);
+}
+
+void lib::sync::internal::Waiter::wait() {
+    // printf("WAITING START %p\n", this);
+    for (;;) {
+        int s = state.load(std::memory_order::acquire);
+        if (s == 0) {
+            state.wait(0);
+            continue;
+        }
+        if (s == 2) {
+            // printf("WAITING DONE %p\n", this);
+            return;
+        }
+        // spin wait
+    }
 }

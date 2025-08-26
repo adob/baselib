@@ -1,56 +1,35 @@
 #include "mutex.h"
 #include "lib/os/error.h"
-#ifndef ARDUINO
-
-#include "lib/base.h"
-#include "lib/os.h"
 
 using namespace lib;
 using namespace sync;
 
-Mutex::Mutex() {
-    pthread_mutexattr_t attr;
-    
-    if (int code = pthread_mutexattr_init(&attr)) {
-        panic(os::Errno(code));
+#ifdef ESP_PLATFORM
+    Mutex::Mutex() {
+        mutex = xSemaphoreCreateMutexStatic(&data);
     }
 
-    if (int code = pthread_mutexattr_setpshared(&attr, PTHREAD_PROCESS_PRIVATE)) {
-        pthread_mutexattr_destroy(&attr);
-        panic(os::Errno(code));
+    Mutex::~Mutex() {
+        vSemaphoreDelete(mutex);
     }
+#endif
 
-    //         if (pthread_mutexattr_settype&attr, PTHREAD_MUTEX_DEFAULT) {
-    //             pthread_mutexattr_destory(&attr);
-    //             throw error(errno);
-    //         }
-    //         
-    //         if (pthread_mutexattr_setprotocol&attr, PTHREAD_PRIO_NONE)) {
-    //             pthread_mutexattr_destory(&attr);
-    //             throw error(errno);
-    //         }
-
-    if (int code = pthread_mutex_init(&mutex, &attr)) {
-        pthread_mutexattr_destroy(&attr);
-        panic(os::Errno(code));
-    }
-
-    if (int code = pthread_mutexattr_destroy(&attr)) {
-        panic(os::Errno(code));
-    }
-    //print "create";
-}
 
 void Mutex::lock() {
-    //print "lock";
-    //debug::print_backtrace();
+#ifdef ESP_PLATFORM
+    xSemaphoreTake(mutex, portMAX_DELAY);
+#else
     if (int code = pthread_mutex_lock(&mutex)) {
         panic(os::Errno(code));
     }
-        
+#endif
+    
 }
 
 bool Mutex::try_lock() {
+#ifdef ESP_PLATFORM
+    return xSemaphoreTake(mutex, 0) == pdTRUE;
+#else
     int r = pthread_mutex_trylock(&mutex);
     if (r == 0) {
         return true;
@@ -60,13 +39,19 @@ bool Mutex::try_lock() {
     }
     panic(os::Errno(r));
     return false;
+#endif
 }
 
 void Mutex::unlock() {
-    //print "unlock";
+#ifdef ESP_PLATFORM
+    if (xSemaphoreGive(mutex) == pdFALSE) {
+        panic("xSemaphoreGive");
+    }
+#else   
     if (int code = pthread_mutex_unlock(&mutex)) {
         panic(os::Errno(code));
     }
+#endif
 }
     
 // Mutex::~Mutex() {
@@ -75,5 +60,3 @@ void Mutex::unlock() {
 //         panic(os::from_errno(code));
 //     }
 // }
-    
-#endif

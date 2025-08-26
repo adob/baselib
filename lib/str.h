@@ -58,13 +58,13 @@ namespace lib {
         constexpr str(const byte *data, size strlen) : data((const char*) (const void *) data), len(strlen) {}
 
         constexpr str slice(size i) const {
-            assert(usize(i) <= usize(len), exceptions::bad_index, i, len);
+            LIB_CHECK(usize(i) <= usize(len), exceptions::bad_index, i, len);
             return str(data + i, len - i);
         }
 
         constexpr str slice(size i, size j) const {
-            assert(usize(j) <= usize(len), exceptions::bad_index, i, len);
-            assert(i <= j, exceptions::bad_index, i, j);
+            LIB_CHECK(usize(j) <= usize(len), exceptions::bad_index, i, len);
+            LIB_CHECK(i <= j, exceptions::bad_index, i, j);
             return str(data+i, j-i);
         }
 
@@ -77,7 +77,7 @@ namespace lib {
         }
 
         constexpr char operator [] (size i) const {
-            assert(usize(i) < usize(len), exceptions::bad_index, i, len-1);
+            LIB_CHECK(usize(i) < usize(len), exceptions::bad_index, i, len-1);
             return data[i];
         }
 
@@ -186,13 +186,13 @@ namespace lib {
 //         constexpr slice(T (&&arr)[N]) : arr(arr), len(N) { }
 //
 //         slice slice(size i) const {
-//             assert(usize(i) <= usize(len), exceptions::bad_index, i, len);
+//             LIB_CHECK(usize(i) <= usize(len), exceptions::bad_index, i, len);
 //             return slice(arr+i, len-i);
 //         }
 //
 //         slice slice(size i, size j) const {
-//             assert(usize(j) <= usize(len), exceptions::bad_index, i , len);
-//             assert(i <= j, exceptions::bad_index, i, j);
+//             LIB_CHECK(usize(j) <= usize(len), exceptions::bad_index, i , len);
+//             LIB_CHECK(i <= j, exceptions::bad_index, i, j);
 //             return slice(arr+i, j-i);
 //         }
 //
@@ -205,11 +205,11 @@ namespace lib {
 //         }
 //
 //         T& operator [] (size i) {
-//             assert(usize(i) < usize(len), exceptions::bad_index, i, len-1);
+//             LIB_CHECK(usize(i) < usize(len), exceptions::bad_index, i, len-1);
 //             return arr[i];
 //         }
 //         constexpr const T& operator [] (size i) const {
-//             assert(usize(i) < usize(len), exceptions::bad_index, i, len-1);
+//             LIB_CHECK(usize(i) < usize(len), exceptions::bad_index, i, len-1);
 //             return arr[i];
 //         }
 //
@@ -246,13 +246,13 @@ namespace lib {
         template <size N> constexpr buf(uint8 (&bytes)[N]) : data(bytes), len(N) {}
 
         constexpr buf slice(size i) const {
-            assert(usize(i) <= usize(len), exceptions::bad_index, i, len);
+            LIB_CHECK(usize(i) <= usize(len), exceptions::bad_index, i, len);
             return buf(data+i, len-i);
         }
 
         constexpr buf slice(size i, size j) const  {
-            assert(usize(j) <= usize(len), exceptions::bad_index, i , len);
-            assert(i <= j, exceptions::bad_index, i, j);
+            LIB_CHECK(usize(j) <= usize(len), exceptions::bad_index, i , len);
+            LIB_CHECK(i <= j, exceptions::bad_index, i, j);
             return buf(data+i, j-i);
         }
 
@@ -278,7 +278,7 @@ namespace lib {
         }
 
         constexpr byte& operator [] (size i) {
-            assert(usize(i) < usize(len), exceptions::bad_index, i,len-1);
+            LIB_CHECK(usize(i) < usize(len), exceptions::bad_index, i,len-1);
             return data[i];
         }
 
@@ -435,7 +435,7 @@ namespace lib {
 
         void append(str s) {
             size newlen = length + s.len;
-            // assert(newlen >= length, exceptions::overflow);
+            // LIB_CHECK(newlen >= length, exceptions::overflow);
 
             ensure(newlen);
             memcpy(buffer.data + length, s.data, s.len);
@@ -453,7 +453,7 @@ namespace lib {
         // expand expands string length by additional number of bytes
         // and returns the newly-allocated data. New data is uninitialized.
         buf expand(size additional) {
-            size newlen = length += additional;
+            size newlen = length + additional;
             ensure(newlen);
 
             buf b = buffer[length, newlen];
@@ -474,24 +474,24 @@ namespace lib {
         std::string std_string() const;
 
         constexpr str slice(size i) const {
-            assert(usize(i) <= usize(length), exceptions::bad_index, i, length);
+            LIB_CHECK(usize(i) <= usize(length), exceptions::bad_index, i, length);
             return str(buffer.data+i, length-i);
         }
 
         constexpr buf slice(size i) {
-            assert(usize(i) <= usize(length), exceptions::bad_index, i, length);
+            LIB_CHECK(usize(i) <= usize(length), exceptions::bad_index, i, length);
             return buf(buffer.data+i, length-i);
         }
 
         constexpr str slice(size i, size j) const  {
-            assert(usize(j) <= usize(length), exceptions::bad_index, i , length);
-            assert(i <= j, exceptions::bad_index, i, j);
+            LIB_CHECK(usize(j) <= usize(length), exceptions::bad_index, i , length);
+            LIB_CHECK(i <= j, exceptions::bad_index, i, j);
             return str(buffer.data+i, j-i);
         }
 
         constexpr buf slice(size i, size j) {
-            assert(usize(j) <= usize(length), exceptions::bad_index, i , length);
-            assert(i <= j, exceptions::bad_index, i, j);
+            LIB_CHECK(usize(j) <= usize(length), exceptions::bad_index, i , length);
+            LIB_CHECK(i <= j, exceptions::bad_index, i, j);
             return buf(buffer.data+i, j-i);
         }
 
@@ -558,12 +558,12 @@ namespace lib {
         }
 
         constexpr char operator [] (size i) const {
-            assert(usize(i) < usize(length), exceptions::bad_index, i,length-1);
+            LIB_CHECK(usize(i) < usize(length), exceptions::bad_index, i,length-1);
             return buffer.data[i];
         }
 
         constexpr char& operator [] (size i) {
-            assert(usize(i) < usize(length), exceptions::bad_index, i,length-1);
+            LIB_CHECK(usize(i) < usize(length), exceptions::bad_index, i,length-1);
             return ((char*) buffer.data)[i];
         }
 
@@ -660,7 +660,7 @@ namespace lib {
 
         void append(str s) {
             size newlen = length + s.len;
-            assert(newlen >= length, exceptions::overflow);
+            LIB_CHECK(newlen >= length, exceptions::overflow);
 
             ensure(newlen);
             memcpy(buffer.data + length, s.data, s.len);

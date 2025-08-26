@@ -3,7 +3,6 @@
 #include <errno.h>
 
 #include "error.h"
-#include "../fs.h"
 #include "lib/fmt/fmt.h"
 using namespace lib;
 

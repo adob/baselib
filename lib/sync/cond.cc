@@ -4,7 +4,7 @@
 using namespace lib;
 using namespace sync;
 
-#ifndef ARDUINO
+#ifndef ESP_PLATFORM
 
 // Cond::Cond() {
 //     pthread_condattr_t attr;

@@ -26,7 +26,7 @@ struct OutputIt {
     constexpr OutputIt(io::Writer *w, error *err) : w(w), err(err) {}
 
     constexpr OutputIt& operator=(char c) {
-        w->write(c, *err);
+        w->write_byte(c, *err);
         return *this;
       }
 
@@ -84,32 +84,32 @@ static void fmt_x(io::Writer &out, int prec, byte fmt, bool neg, uint64 mant, in
 
 	// sign, 0x, leading digit
 	if (neg) {
-		out.write('-', err);
+		out.write_byte('-', err);
 	} else if (flags & FlagPlus) {
-		out.write('+', err);
+		out.write_byte('+', err);
 	} else if (flags & FlagSpace) {
-		out.write(' ', err);
+		out.write_byte(' ', err);
 	}
-	out.write('0', err);
-	out.write('x', err);
-	out.write('0'+byte((mant>>60)&1), err);
+	out.write_byte('0', err);
+	out.write_byte('x', err);
+	out.write_byte('0'+byte((mant>>60)&1), err);
 
 	// .fraction
 	mant <<= 4; // remove leading 0 or 1
 	if (prec < 0 && mant != 0) {
-		out.write('.', err);
+		out.write_byte('.', err);
 		while (mant != 0) {
-			out.write(hex[(mant>>60)&15], err);
+			out.write_byte(hex[(mant>>60)&15], err);
 			mant <<= 4;
 		}
 	} else if (prec > 0) {
-		out.write('.', err);
+		out.write_byte('.', err);
 		for (int i = 0; i < prec; i++) {
-			out.write(hex[(mant>>60)&15], err);
+			out.write_byte(hex[(mant>>60)&15], err);
 			mant <<= 4;
 		}
 	} else if (flags & FlagSharp) {
-		out.write('.', err);
+		out.write_byte('.', err);
 	}
 
 	// p±
@@ -117,28 +117,28 @@ static void fmt_x(io::Writer &out, int prec, byte fmt, bool neg, uint64 mant, in
 	// if (fmt == 'X') {
 	// 	ch = 'P';
 	// }
-	out.write(ch, err);
+	out.write_byte(ch, err);
 	if (exp < 0) {
 		ch = '-';
 		exp = -exp;
 	} else {
 		ch = '+';
 	}
-	out.write(ch, err);
+	out.write_byte(ch, err);
 
 	// dd or ddd or dddd
 	if (exp < 100) {
-		out.write(byte(exp/10)+'0', err); 
-		out.write(byte(exp%10)+'0', err);
+		out.write_byte(byte(exp/10)+'0', err); 
+		out.write_byte(byte(exp%10)+'0', err);
 	} else if (exp < 1000) {
-		out.write(byte(exp/100)+'0', err);
-		out.write(byte((exp/10)%10)+'0', err);
-		out.write(byte(exp%10)+'0', err);
+		out.write_byte(byte(exp/100)+'0', err);
+		out.write_byte(byte((exp/10)%10)+'0', err);
+		out.write_byte(byte(exp%10)+'0', err);
 	} else  {
-		out.write(byte(exp/1000)+'0', err);
-		out.write(byte(exp/100)%10+'0', err);
-		out.write(byte((exp/10)%10)+'0', err);
-		out.write(byte(exp%10)+'0', err);
+		out.write_byte(byte(exp/1000)+'0', err);
+		out.write_byte(byte(exp/100)%10+'0', err);
+		out.write_byte(byte((exp/10)%10)+'0', err);
+		out.write_byte(byte(exp%10)+'0', err);
 	}
 }
 
@@ -146,19 +146,19 @@ static void fmt_x(io::Writer &out, int prec, byte fmt, bool neg, uint64 mant, in
 static void fmt_b(io::Writer &out, bool neg, uint64 mant, int exp, FloatInfo const &flt, error err) {
 	// sign
 	if (neg) {
-		out.write('-', err);
+		out.write_byte('-', err);
 	}
 
 	// mantissa
 	format_bits(out, mant, 10, false, err);
 
 	// p
-	out.write('p', err);
+	out.write_byte('p', err);
 	
 	// ±exponent
 	exp -= int(flt.mantbits);
 	if (exp >= 0) {
-		out.write('+', err);
+		out.write_byte('+', err);
 	}
 	format_bits(out, exp, 10, exp < 0, err);
 }
@@ -222,15 +222,15 @@ static void ftoa(io::Writer &out, std::variant<float32,float64> val, char fmt, i
 		
 		if (mant != 0) {
 			if (flags & FlagPlus) {
-				bufrw.write('+', err);
+				bufrw.write_byte('+', err);
 			} else if (flags & FlagSpace) {
-				bufrw.write(' ', err);
+				bufrw.write_byte(' ', err);
 			}
 			s = "NaN";
 		} else if (neg) {
 			s = "-Inf";
 		} else {
-			bufrw.write(flags & FlagSpace ? ' ' : '+', err);
+			bufrw.write_byte(flags & FlagSpace ? ' ' : '+', err);
 			s = "Inf";
 		}
 		
@@ -284,8 +284,8 @@ static void ftoa(io::Writer &out, std::variant<float32,float64> val, char fmt, i
 
 	default:
 		// unknown format
-		out.write('%', err);
-		out.write(fmt, err);
+		out.write_byte('%', err);
+		out.write_byte(fmt, err);
 		return;
 	}
 

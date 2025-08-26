@@ -233,31 +233,31 @@ namespace lib {
     struct LoggingError;
 
     struct error {
-        constexpr error(ErrorReporterInterface &&reporter) : reporter(reporter) {}
-        constexpr error(ErrorReporterInterface &reporter) : reporter(reporter) {}
+        constexpr error(ErrorReporterInterface &&reporter) : reporter(&reporter) {}
+        constexpr error(ErrorReporterInterface &reporter) : reporter(&reporter) {}
         
         template <typename T>
         constexpr error(T const &fn, ErrorReporterTmp<T> &&tmp = {}) 
-        requires (std::is_invocable_v<T, Error&> && !std::is_base_of_v<error, T> && !std::is_base_of_v<ErrorReporterInterface, T>)
-        // requires (std::is_invocable_v<T, Error&> && !std::is_base_of_v<error, T>())
-        : reporter(tmp) {
+            requires (std::is_invocable_v<T, Error&> && !std::is_base_of_v<error, T> && !std::is_base_of_v<ErrorReporterInterface, T>)
+            : reporter(&tmp) 
+        {
             tmp.handler = &fn;
         }
 
         error(error const& other) : reporter(other.reporter) {}
-        error(error &other) : reporter(other.reporter) {}
+        // error(error &other) : reporter(other.reporter) {}
         error(error &&other) : reporter(other.reporter) {}
 
         //error(std::function<void(const Error&)> const &f) : reporter(ErrorReporter(f)) {}
 
         void operator()(str s) const {
-            reporter.report(s);
+            reporter->report(s);
         }
 
         template <typename T>
         void operator()(T &&e) const requires std::is_base_of_v<Error, std::remove_cvref_t<T>> {
             e.init();
-            reporter.report(e);
+            reporter->report(e);
         }
         // void operator()(Error &&e) const {
         //     reporter.report(e);
@@ -269,11 +269,11 @@ namespace lib {
 
         template<typename Arg, typename ...Args>
         void operator()(str f, Arg const & arg, const Args &... args) {
-            reporter.report(f, arg, args...);
+            reporter->report(f, arg, args...);
         }
         
         explicit operator bool() const {
-            return reporter.has_error;
+            return reporter->has_error;
         }
 
         inline static struct {
@@ -289,7 +289,7 @@ namespace lib {
         } log;
 
     private:
-        ErrorReporterInterface &reporter;
+        ErrorReporterInterface *reporter;
     } ;
 
     struct IgnoringError : error {

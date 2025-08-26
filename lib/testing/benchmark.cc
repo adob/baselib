@@ -649,7 +649,7 @@ String BenchmarkResult::string() const {
     std::sort(extra_keys.begin(), extra_keys.end());
 	
 	for (String &k : extra_keys) {
-		buf.write('\t', error::ignore);
+		buf.write_byte('\t', error::ignore);
 		pretty_print(buf, r.extra.at(k), k);
 	}
 

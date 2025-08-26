@@ -44,11 +44,15 @@ namespace lib::sync {
             
             template <typename ...Args>
             void operator()(Args && ...args)  { 
-                try {
+                #ifdef  __cpp_exceptions
+                    try {
+                        f(std::forward<Args>(args)...);
+                    } catch (sync::exceptions::GoExit const&) {
+                        // do nothing
+                    }
+                #else
                     f(std::forward<Args>(args)...);
-                } catch (sync::exceptions::GoExit const&) {
-                    // do nothing
-                }
+                #endif
             }
         } ;
 

@@ -10,7 +10,11 @@ using namespace sync;
 // }
 
 void sync::goexit() {
+#ifdef __cpp_exceptions
     throw sync::exceptions::GoExit();
+#else
+    panic("unimplemented");
+#endif
 }
 
 void sync::exceptions::GoExit::fmt(io::Reader &out, error err) const {

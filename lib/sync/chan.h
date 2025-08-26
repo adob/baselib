@@ -122,25 +122,9 @@ namespace lib::sync {
         struct Waiter {
             std::atomic<int> state = 0;
 
-            void notify() {
-                state.store(1, std::memory_order::release);
-                state.notify_one();
-                state.store(2);
-            }
+            void notify();
 
-            void wait() {
-                for (;;) {
-                    int s = state.load(std::memory_order::acquire);
-                    if (s == 0) {
-                        state.wait(0);
-                        continue;
-                    }
-                    if (s == 2) {
-                        return;
-                    }
-                    // spin wait
-                }
-            }
+            void wait();
         } ;
 
         struct Selector : IntrusiveList<Selector>::Element {

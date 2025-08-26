@@ -49,6 +49,7 @@ namespace lib::io {
         // if readbuf.data > 0: read buffer exsits
 
         void setbuf(buf);
+        void setbufs(buf readbuf, buf writebuf);
 
       public:
         virtual ReadResult direct_read(buf bytes, error err) = 0;
@@ -57,7 +58,7 @@ namespace lib::io {
         ReadResult read(buf bytes, error err);
 
         size write(str data, error err);
-        size write(byte byte, error err);
+        size write_byte(byte byte, error err);
 
         size write_repeated(str data, size cnt, error err);
         size write_repeated(char c, size cnt, error err);
@@ -128,6 +129,7 @@ namespace lib::io {
     };
 
     struct Buffer : ReaderWriter {
+        byte *data = nil;
         ReadResult direct_read(buf bytes, error err) override;
         size       direct_write(str data, error err) override;
 

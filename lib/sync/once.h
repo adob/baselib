@@ -45,12 +45,16 @@ namespace lib::sync {
                 return;
             }
 
+        #ifdef __cpp_exceptions
             try {
                 f();
             } catch (...) {
                 o.done.store(true);
                 throw;
             }
+        #else
+            f();
+        #endif
 
             o.done.store(true);
         }

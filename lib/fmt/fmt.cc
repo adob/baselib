@@ -387,13 +387,13 @@ void Fmt::fmt_integer(T n, bool is_signed, int base, char verb, str digits, bool
         out.write_repeated(padchar, pad_width, err);
     }
     if (negative)
-        out.write('-', error::ignore);
+        out.write_byte('-', error::ignore);
     else if (plus)
-        out.write('+', error::ignore);
+        out.write_byte('+', error::ignore);
     else if (space)
-        out.write(' ', error::ignore);
+        out.write_byte(' ', error::ignore);
     if (sharp) {
-        if (base == 8)       out.write('0', err);
+        if (base == 8)       out.write_byte('0', err);
         else if (base == 2)  out.write("0b", err);
         else if (base == 16) out.write("0x", err);
     }
@@ -797,8 +797,8 @@ void Fmt::fmt_wx(io::WriterTo const &w, str digits) {
                 if (cnt == 0) {
                     if (sharp) {
                         // Add leading 0x or 0X.
-                        out->write('0', err);
-                        out->write(digits[16], err);
+                        out->write_byte('0', err);
+                        out->write_byte(digits[16], err);
                     }
                 }
 
@@ -808,17 +808,17 @@ void Fmt::fmt_wx(io::WriterTo const &w, str digits) {
 
                 if (space && cnt > 0) {
                     // Separate elements with a space.
-                    this->out->write(' ', err);
+                    this->out->write_byte(' ', err);
                     if (sharp) {
                         // Add leading 0x or 0X for each element.
-                        this->out->write('0', err);
-                        this->out->write(digits[16], err);
+                        this->out->write_byte('0', err);
+                        this->out->write_byte(digits[16], err);
                     }
                 }
 		
                 // Encode each byte as two hexadecimal digits.
-                this->out->write(digits[b>>4], err);
-                this->out->write(digits[b&0xF], err);
+                this->out->write_byte(digits[b>>4], err);
+                this->out->write_byte(digits[b&0xF], err);
 
                 cnt++;
             }
@@ -910,7 +910,7 @@ void Fmt::write_string(str s) {
     this->out.write(s, err);
 }
 void Fmt::write_byte(byte b) {
-    this->out.write(b, err);
+    this->out.write_byte(b, err);
 }
 
 void Fmt::write_repeated(byte b, size count) {

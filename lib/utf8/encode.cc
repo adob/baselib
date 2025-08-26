@@ -88,12 +88,12 @@ str utf8::encode(buf b, rune r) {
 
 int utf8::encode(io::Writer &out, rune r, error err) {
     if (r <= rune1_max) {
-        out.write(byte(r), err);
+        out.write_byte(byte(r), err);
         return 1;
     }
 	if (r <= rune2_max) {
-		out.write(t2 | byte(r>>6), err);
-		out.write(tx | (byte(r)&maskx), err);
+		out.write_byte(t2 | byte(r>>6), err);
+		out.write_byte(tx | (byte(r)&maskx), err);
 		return 2;
     }
 
@@ -102,16 +102,16 @@ int utf8::encode(io::Writer &out, rune r, error err) {
     }
 
     if (r <= rune3_max) {
-		out.write(t3 | byte(r>>12), err);
-		out.write(tx | (byte(r>>6)&maskx), err);
-		out.write(tx | (byte(r)&maskx), err);
+		out.write_byte(t3 | byte(r>>12), err);
+		out.write_byte(tx | (byte(r>>6)&maskx), err);
+		out.write_byte(tx | (byte(r)&maskx), err);
 		return 3;
     }
 
-    out.write(t4 | byte(r>>18), err);
-    out.write(tx | (byte(r>>12)&maskx), err);
-    out.write(tx | (byte(r>>6)&maskx), err);
-    out.write(tx | (byte(r)&maskx), err);
+    out.write_byte(t4 | byte(r>>18), err);
+    out.write_byte(tx | (byte(r>>12)&maskx), err);
+    out.write_byte(tx | (byte(r>>6)&maskx), err);
+    out.write_byte(tx | (byte(r)&maskx), err);
 
     return 4;
 }

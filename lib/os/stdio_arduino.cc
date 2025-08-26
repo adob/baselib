@@ -1,6 +1,7 @@
 // StdStream
 
 // #include <Arduino.h>
+#ifdef ARDUINO
 
 #include "stdio.h"
 #include "lib/io/util.h"
@@ -61,3 +62,5 @@ io::ReadResult os::StdStream::direct_read(buf bytes, error err) {
     serial_write(data);
     return len(data);
  }
+
+ #endif

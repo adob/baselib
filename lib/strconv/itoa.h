@@ -40,5 +40,5 @@ namespace lib::strconv {
     Formatter<uintmax> format_uint(uint64 i, int base);
 
     // Itoa is equivalent to [FormatInt](int64(i), 10).
-    Formatter<intmax> itoa(intmax i);
+    Formatter<intmax> itoa(int64 i);
 }
