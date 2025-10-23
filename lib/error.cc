@@ -161,7 +161,7 @@ void BasicError::fmt(io::Writer &out, error err) const {
 //     this->msg = fmt::stringify(e);
 // }
 
-void ErrorRecorder::report(Error &e) {
+void ErrorRecorder::handle(Error &e) {
     this->report((Error const&) e);
 }
 

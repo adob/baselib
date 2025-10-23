@@ -51,7 +51,7 @@ namespace lib {
     template<size_t N>
     struct StringLiteral {
         constexpr StringLiteral(const char (&str)[N]) {
-            for (size i = 0; i < N; i++) {
+            for (usize i = 0; i < N; i++) {
                 value[i]= str[i];
             }
         }

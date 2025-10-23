@@ -29,7 +29,7 @@ namespace lib {
     struct Error;
     
     template <typename T>
-    struct ErrorReporter;
+    struct ErrorFunc;
 
     void panic(const Error &e);
 
@@ -149,9 +149,19 @@ namespace lib {
 
     // struct HandlingErrorReporter;
 
-    struct ErrorReporterInterface {
+    struct ErrorReporter {
         bool has_error = false;
-        virtual void report(Error&) = 0;
+        virtual void handle(Error&) = 0;
+        
+        void report(Error& e) {
+            if (this->has_error) {
+                return;
+            }
+        
+            this->has_error = true;
+
+            this->handle(e);
+        }
 
         void report(Error &&e) {
             report((Error&) e);
@@ -159,30 +169,6 @@ namespace lib {
 
         template<typename ...Args>
         void report(str f, const Args &... args);
-    } ;
-
-    template <typename T>
-    struct ErrorReporter : ErrorReporterInterface {
-        
-        //std::function<void(const Error&)> handler;
-
-        //constexpr ErrorReporter(std::invocable<const Error &> auto &&callable) : handler(callable) {}
-
-        T handler;
-
-        ErrorReporter(T &&handler) : handler(handler) {};
-        ErrorReporter(T &handler) : handler(handler) {};
-        void report(Error &e) override {
-            if (this->has_error) {
-                return;
-            }
-        
-            this->has_error = true;
-            
-            this->handler(e);
-        }
-
-        using ErrorReporterInterface::report;
 
         void operator()(Error &e) {
             this->report(e);
@@ -199,20 +185,29 @@ namespace lib {
         explicit operator bool() const {
             return this->has_error;
         }
-
     } ;
 
     template <typename T>
-    struct ErrorReporterTmp : ErrorReporterInterface {
+    struct ErrorFunc : ErrorReporter {
+        
+        //std::function<void(const Error&)> handler;
+
+        //constexpr ErrorReporter(std::invocable<const Error &> auto &&callable) : handler(callable) {}
+
+        T handler;
+
+        ErrorFunc(T &&handler) : handler(handler) {};
+        ErrorFunc(T &handler) : handler(handler) {};
+        void handle(Error &e) override {            
+            this->handler(e);
+        }
+    } ;
+
+    template <typename T>
+    struct ErrorReporterTmp : ErrorReporter {
         const T *handler = nil;
         
-        void report(Error &e) override {
-            if (this->has_error) {
-                return;
-            }
-        
-            this->has_error = true;
-            
+        void handle(Error &e) override {            
             (*this->handler)(e);
         }
     };
@@ -233,12 +228,12 @@ namespace lib {
     struct LoggingError;
 
     struct error {
-        constexpr error(ErrorReporterInterface &&reporter) : reporter(&reporter) {}
-        constexpr error(ErrorReporterInterface &reporter) : reporter(&reporter) {}
+        constexpr error(ErrorReporter &&reporter) : reporter(&reporter) {}
+        constexpr error(ErrorReporter &reporter) : reporter(&reporter) {}
         
         template <typename T>
         constexpr error(T const &fn, ErrorReporterTmp<T> &&tmp = {}) 
-            requires (std::is_invocable_v<T, Error&> && !std::is_base_of_v<error, T> && !std::is_base_of_v<ErrorReporterInterface, T>)
+            requires (std::is_invocable_v<T, Error&> && !std::is_base_of_v<error, T> && !std::is_base_of_v<ErrorReporter, T>)
             : reporter(&tmp) 
         {
             tmp.handler = &fn;
@@ -289,23 +284,23 @@ namespace lib {
         } log;
 
     private:
-        ErrorReporterInterface *reporter;
+        ErrorReporter *reporter;
     } ;
 
     struct IgnoringError : error {
-        ErrorReporter<void(*)(const Error&)> error_reporter;
+        ErrorFunc<void(*)(const Error&)> error_reporter;
 
         IgnoringError();
     };
 
     struct PanickingError : error {
-        ErrorReporter<void(*)(const Error&)> error_reporter;
+        ErrorFunc<void(*)(const Error&)> error_reporter;
 
         PanickingError();
     };
 
     struct LoggingError : error {
-        ErrorReporter<void(*)(const Error&)> error_reporter;
+        ErrorFunc<void(*)(const Error&)> error_reporter;
 
         LoggingError();
     };
@@ -317,13 +312,13 @@ namespace lib {
         virtual void fmt(io::Writer &out, error err) const override;
     } ;
 
-    struct ErrorRecorder : ErrorReporterInterface {
+    struct ErrorRecorder : ErrorReporter {
         String msg;
         TypeID type = nil;
 
-        void report(Error&) override;
+        void handle(Error&) override;
         void report(Error const &);
-        using ErrorReporterInterface::report;
+        using ErrorReporter::report;
         void fmt(io::Writer &out, error err) const;
         explicit operator bool() const {
             return this->has_error;

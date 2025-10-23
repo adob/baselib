@@ -4,15 +4,29 @@
 
 #include "error.h"
 #include "lib/fmt/fmt.h"
+#include "lib/io/io.h"
 using namespace lib;
 
 namespace lib::os {
 
-    void Errno::fmt(io::Writer &out, error err) const {
-        char buf[1024];
+    static void write_errno(io::Writer &out, int code, error err) {
+        char buf[256];
+        if (code < 0) {
+            code = -code;
+        }
 
-        char *s = strerror_r(this->code, buf, sizeof(buf));
+        char *s = strerror_r(code, buf, sizeof(buf));
         out.write(str::from_c_str(s), err);
+    }
+
+    static void write_error(io::Writer &out, str description, int code, error err) {
+        out.write(description, err);
+        out.write(": ", err);
+        write_errno(out, code, err);
+    }
+
+    void Errno::fmt(io::Writer &out, error err) const {
+        write_errno(out, this->code, err);
     }
 
     bool Errno::is(TypeID target) const {
@@ -36,19 +50,11 @@ namespace lib::os {
     }
 
     void SyscallError::fmt(io::Writer &out, error err) const {
-        char buf[1024];
-
-        char *s = strerror_r(this->code, buf, sizeof(buf));
-
-        fmt::fprintf(out, err, "%s: %s", this->syscall, s);
+        write_error(out, this->syscall, this->code, err);
     }
 
     void Error::fmt(io::Writer &out, error err) const {
-        char buf[1024];
-
-        char *s = strerror_r(this->code, buf, sizeof(buf));
-
-        fmt::fprintf(out, err, "%s: %s", this->function_name, s);
+        write_error(out, this->function_name, this->code, err);
     }
 
 //     Error ErrPERM("Operation not permitted");

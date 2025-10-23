@@ -3,6 +3,7 @@
 #include <sstream>
 #include <tuple>
 #include <utility>
+#include <stdio.h>
 
 #include "lib/io/io.h"
 #include "lib/errors/errors.h"
@@ -605,7 +606,7 @@ namespace lib::fmt {
 
 namespace lib {
     template<typename ...Args>
-    void ErrorReporterInterface::report(str f, const Args &... args) {
+    void ErrorReporter::report(str f, const Args &... args) {
         auto writer = fmt::sprintf(f, args...);
         this->report(errors::WriterToError(writer));
     }

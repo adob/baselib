@@ -3,4 +3,4 @@ PKGCONFIG = [
     #"libelf"
 ]
 
-LINKFLAGS = ["-lcpptrace"]
+LDFLAGS = ["-lcpptrace"]

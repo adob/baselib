@@ -102,7 +102,7 @@ int64 strconv::parse_int(str s, int base, int bit_size, error err) {
 	}
 
 	// Convert unsigned and check range.
-	uint64 un = parse_uint(s, base, bit_size, ErrorReporter([&](Error &e) {
+	uint64 un = parse_uint(s, base, bit_size, ErrorFunc([&](Error &e) {
 		NumError &ne = e.cast<NumError>();
 		ne.func = fn_parse_int;
 		ne.num = s0;

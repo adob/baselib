@@ -1,1 +1,1 @@
-LINKFLAGS = ["-lelf"]
+LDFLAGS = ["-lelf"]

@@ -66,6 +66,7 @@ Lock::~Lock() {
     }
 }
 
+#if !defined(ESP_PLATFORM) && !defined(AZURE_RTOS)
 // RLock
 RLock::RLock(RWMutex *mtx) : mutex(mtx) {
     if (mtx) {
@@ -189,7 +190,7 @@ WLock::~WLock() {
         mutex->unlock();
     }
 }
-
+#endif
 // TryLock::TryLock(Mutex& mutex) : mutex(mutex) {
 //     locked = mutex.try_lock();
 // }

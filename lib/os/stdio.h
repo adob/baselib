@@ -43,9 +43,7 @@
     operator FILE*() const { \
         return builtin_##ARG(); \
     } \
-} inline ARG;
-
-
+} inline ARG __attribute__((unused));
 
 #if !IS_PARENS(stdout)
     #if !IS_SELF(stdout)

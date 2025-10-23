@@ -1,8 +1,8 @@
+#ifndef __ZEPHYR__
 #include "chan.h"
 
 #include "lib/print.h"
 #include <atomic>
-#include <netinet/in.h>
 #include <pthread.h>
 
 using namespace lib;
@@ -568,3 +568,4 @@ void lib::sync::internal::Waiter::wait() {
         // spin wait
     }
 }
+#endif

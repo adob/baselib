@@ -23,32 +23,32 @@ namespace lib::sync {
         
         atomic<T> &operator=(atomic<T> const &other) = delete;
 
-        constexpr static bool DebugLog = false;
+        // constexpr static bool DebugLog = false;
 
         T add(T delta, MemoryOrder order = SeqCst) {
             // Lock l(mtx);
             T out = __atomic_add_fetch(&value, delta, order);
-            if constexpr (DebugLog) {
-                printf("%lu atomic add %d + %d -> %d\n", pthread_self(), value, delta, out);
-            }
+            // if constexpr (DebugLog) {
+            //     printf("%lu atomic add %d + %d -> %d\n", pthread_self(), value, delta, out);
+            // }
             return out;
         }
 
         T load(MemoryOrder order = Acquire) const {
             // Lock l(mtx);
             T out =  __atomic_load_n(&value, order);
-            if constexpr (DebugLog) {
-                printf("%u atomic load %d\n", pthread_self(), out);
-            }
+            // if constexpr (DebugLog) {
+            //     printf("%u atomic load %d\n", pthread_self(), out);
+            // }
             return out;
         }
 
         void store(T newval, MemoryOrder order = Release) {
             // Lock l(mtx);
             __atomic_store_n(&value, newval, order);
-            if constexpr (DebugLog) {
-                printf("%u atomic store %d\n", pthread_self(), newval);
-            }
+            // if constexpr (DebugLog) {
+            //     printf("%u atomic store %d\n", pthread_self(), newval);
+            // }
         }
 
         bool compare_and_swap(T *oldval, T newval, 
@@ -57,9 +57,9 @@ namespace lib::sync {
             ) {
             // Lock l(mtx);
             bool b = __atomic_compare_exchange_n(&value, oldval, newval, false, success_meemorder, failure_memorder);
-            if constexpr (DebugLog) {
-                printf("%u atomic compare-and-swap %d -> %d; ok %d\n", pthread_self(), *oldval, newval, b);
-            }
+            // if constexpr (DebugLog) {
+            //     printf("%u atomic compare-and-swap %d -> %d; ok %d\n", pthread_self(), *oldval, newval, b);
+            // }
             return b;
         }
     } ;

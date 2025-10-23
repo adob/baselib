@@ -46,8 +46,8 @@ io::ReadResult os::StdStream::direct_read(buf bytes, error err) {
             return n;
         }
 
-    err(io::ErrIO());
-    return n;
+        err(io::ErrIO());
+        return n;
     }
  
     return n;

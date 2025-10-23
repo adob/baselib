@@ -16,6 +16,7 @@ namespace lib::sync {
     //void *thread_func(void *arg);
 
     struct Thread {
+        #ifndef __ZEPHYR__
         std::thread thread;
 
         template<typename Function, typename... Args>
@@ -28,6 +29,7 @@ namespace lib::sync {
         ~Thread() {
             this->thread.detach();
         }
+        #endif
     } ;
 
     namespace exceptions {
@@ -61,10 +63,17 @@ namespace lib::sync {
 
         go() {}
 
+    #ifdef __ZEPHYR__
+        template<typename Function, typename... Args>
+        go(Function&& f, Args&&... args) {        
+            panic("unimplemented");
+        }
+    #else
         template<typename Function, typename... Args>
         go(Function&& f, Args&&... args) : 
             thread(Wrapper<Function>{std::forward<Function>(f)}, std::forward<Args>(args)...), active(true) {        
         }
+    #endif
 
         void join() {
             if (!this->active) {

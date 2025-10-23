@@ -380,4 +380,13 @@ namespace lib {
         return t.size();
     }
 
+    template <size N>
+    constexpr size len(const char (&str)[N]) {
+        return N-1;
+    }
+
+    template <typename T, size N>
+    constexpr size len(const T (&arr)[N]) {
+        return N;
+    }
 }

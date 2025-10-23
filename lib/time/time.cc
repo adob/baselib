@@ -63,6 +63,8 @@ const arr<int32> DaysBefore = {{
 const time::duration MinDuration = int64(-1) << 63;
 const time::duration MaxDuration = (uint64(1)<<63) - 1;
 
+#ifdef __ZEPHYR__
+#else
 const int64 btime_ns = []{
     String data = os::read_file("/proc/stat",error::panic);
     for (str line : strings::split(data, "\n")) {
@@ -79,8 +81,12 @@ const int64 btime_ns = []{
     panic("btime not found in /proc/stat");
     return int64(0);
 }();
+#endif
 
 time::monotime time::clock() {
+#ifdef __ZEPHYR__
+	panic("unimplemented");
+#else
     struct timespec ts;
     int ret = clock_gettime(CLOCK_BOOTTIME, &ts);
     if (ret) {
@@ -88,9 +94,13 @@ time::monotime time::clock() {
     }
 
     return { ts.tv_sec*1'000'000'000 + ts.tv_nsec };
+#endif
 }
 
 time::time time::now() {
+#ifdef __ZEPHYR__
+	panic("unimplemented");
+#else
     struct timespec boottime;
     int ret = clock_gettime(CLOCK_BOOTTIME, &boottime);
     if (ret) {
@@ -99,7 +109,7 @@ time::time time::now() {
 
     int64 boot_ns = boottime.tv_sec*1'000'000'000 + boottime.tv_nsec;
 	return {boot_ns};
-
+#endif
     // struct timespec walltime;
     // ret = clock_gettime(CLOCK_REALTIME, &walltime);
     // if (ret) {
@@ -122,19 +132,23 @@ time::time time::now() {
 }
 
 void time::sleep(duration d) {
-     struct timespec req = {
+#ifdef __ZEPHYR__
+	panic("unimplemented");
+#else
+    struct timespec req = {
         .tv_sec  = d.nsecs / 1'000'000'000,
         .tv_nsec = d.nsecs % 1'000'000'000
      };
      
-  retry:
-     int r = nanosleep(&req, &req);
-     if (r != 0) {
+retry:
+    int r = nanosleep(&req, &req);
+    if (r != 0) {
         if (errno == EINTR) {
             goto retry;
         }
-        panic("nanosleep failed");
-     }
+    	panic("nanosleep failed");
+    }
+#endif
 }
 
 float64 time::duration::seconds() const {
@@ -261,14 +275,21 @@ time::time time::date(int year, Month month, int day, int hour, int min, int sec
 }
 
 time::time time::unix(const struct timespec& walltime) {
+#ifdef __ZEPHYR__
+	panic("unimplemented");
+#else
     int64 sec = walltime.tv_sec;
     int32 nsec = int32(walltime.tv_nsec);
 
 	return time{ (sec*1'000'000 + nsec) - btime_ns };
 	// return time {uint64(nsec), sec + UnixToInternal, /*Local*/};
+#endif
 }
 
 time::time time::unix(int64 sec, int32 nsec) {
+#ifdef __ZEPHYR__
+	panic("unimplemented");
+#else
 	int64 timestamp_ns = sec*1'000'000 + nsec;
 	int64 since_boot_ns = timestamp_ns - btime_ns;
 	// if (nsec < 0 || nsec >= 1'000'000'000) {
@@ -282,6 +303,7 @@ time::time time::unix(int64 sec, int32 nsec) {
 	// }
 
 	return time {since_boot_ns, /*Local*/};
+#endif
 }
 
 // time::time unix(int64 sec, int64 nsec) {
@@ -309,8 +331,12 @@ int64 time::time::unix() const {
 }
 
 int64 time::time::unix_nano() const {
+#ifdef __ZEPHYR__
+	panic("unimplemented");
+#else
 	time const &t = *this;
 	return btime_ns + t.nsecs;
+#endif
 }
 
 // int64 time::time::sec() const {

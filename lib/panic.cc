@@ -35,15 +35,16 @@ void lib::panic() {
 }
 
 void lib::panic(Error const& e) {
+#ifdef __cpp_exceptions
     io::Buffer b;
     e.fmt(b, error::ignore);
-
-#ifdef __cpp_exceptions
     exceptions::Panic ex(b.to_string());
     
     throw ex;
 #else
-    panic(b.str());
+    //panic(b.str());
+    fmt::fprintf(stderr, "panic: %v\n", e);
+    abort();
 #endif
 }
 

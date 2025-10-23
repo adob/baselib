@@ -1,7 +1,10 @@
 #pragma once
 
-#include "rwmutex.h"
 #include "mutex.h"
+
+#if !defined(ESP_PLATFORM) && !defined(AZURE_RTOS)
+#include "rwmutex.h"
+#endif
 
 namespace lib::sync {
     struct Lock {
@@ -21,6 +24,7 @@ namespace lib::sync {
         ~Lock();
     } ;
 
+    #if !defined(ESP_PLATFORM) && !defined(AZURE_RTOS)
     struct RLock {
         RWMutex *mutex = nil;
         bool locked = false;
@@ -55,6 +59,7 @@ namespace lib::sync {
         ~WLock();
     } ;
 
+    #endif
 
     // struct TryLock {
     //     Mutex& mutex;

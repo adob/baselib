@@ -18,7 +18,7 @@ using namespace io;
 
 #pragma GCC diagnostic ignored "-Wshadow"
 
-// #define LOGF(...) printf(__VA_ARGS__)
+//#define LOGF(...) printf(__VA_ARGS__)
 #define LOGF(...)
 
 io::ReaderWriter::ReaderWriter(io::ReaderWriter &&other) {
@@ -46,7 +46,6 @@ io::ReaderWriter& io::ReaderWriter::operator=(ReaderWriter&& other) {
 }
 
 byte io::ReaderWriter::read_byte(error err) {
-    // print "read_byte";
     if (readptr == readend) [[unlikely]] {
         bool use_readbuf = check_readbuf(1);
         
@@ -60,7 +59,6 @@ byte io::ReaderWriter::read_byte(error err) {
             return b;
         }
         
-        // print "L70";
         ReadResult r = direct_read(readbuf, err);
         // print "direct_read", r.eof, r.nbytes;
         readptr = readbuf.data;
@@ -70,7 +68,6 @@ byte io::ReaderWriter::read_byte(error err) {
             return 0;
         }
     }
-
     return *(readptr++);
 }
 
@@ -101,7 +98,7 @@ ReadResult io::ReaderWriter::read(buf p, error err) {
             return {0, true};
         }
 
-        size amt = std::min(p.len, readend - readptr);
+        size amt = std::min(size(p.len), size(readend - readptr));
         memmove(p.data, readptr, size_t(amt));
         readptr += amt;
         bool eof = r.eof && amt == r.nbytes;
@@ -109,7 +106,7 @@ ReadResult io::ReaderWriter::read(buf p, error err) {
         return ReadResult{amt, eof};
     }
 
-    size amt = std::min(p.len, readend - readptr);
+    size amt = std::min(size(p.len), size(readend - readptr));
     memmove(p.data, readptr, size_t(amt));
     readptr += amt;
     return ReadResult{amt, false};
@@ -117,19 +114,25 @@ ReadResult io::ReaderWriter::read(buf p, error err) {
 
 
 bool ReaderWriter::check_readbuf(size nbytes) {
-    intptr ptr = intptr(readbuf.data);
-    if (ptr >= 0) {
-        // large read
+    // intptr ptr = intptr(readbuf.data);print "io:L120", ptr;
+    // if (ptr >= 0) {
+    //     // large read
+    //     return nbytes <= len(readbuf);
+    // }
+
+    if (readbuf.data != 0) {
+        // allocated
         return nbytes <= len(readbuf);
     }
 
-    size newsize = -ptr;
+    //size newsize = -ptr;
+    size newsize = readbuf.len;
 
     if (nbytes > newsize) {
         // large read; don't allocate
         return false;
     }
-    
+    // print "io:L132";
     readbuf.data = mem::alloc(newsize);
     readbuf.len = newsize;
 
@@ -238,16 +241,24 @@ size io::ReaderWriter::write_byte(byte b, error err) {
 
 bool ReaderWriter::check_writebuf(size nbytes) {
     LOGF("io::Stream::check_writebuf this %lx, ptr %ld; size %ld\n", this, intptr(writebuf), nbytes);
-    intptr ptr = intptr(writebuf);
-    if (ptr > 0) {
+    // intptr ptr = intptr(writebuf);
+    // if (ptr > 0) {
+    //     return true;
+    // }
+    if (uintptr(writebuf) > 1) {
         return true;
     }
 
-    if (ptr == 0) {
+    // if (ptr == 0) {
+    //     return false;
+    // }
+    
+    if (writebuf == 0) {
         return false;
     }
 
-    size newsize = -ptr;
+    // size newsize = -ptr;
+    size newsize = (size) writeptr;
 
     if (nbytes > newsize) {
         // large write; don't allocate
@@ -369,16 +380,20 @@ void io::ReaderWriter::setbufs(buf readbuf, buf writebuf) {
 void Buffered::resize_readbuf(size newsize) {
     LOGF("io::Buffered::resize_readbuf this %p\n", this);
 
-    intptr ptr = intptr(readbuf.data);
-    if (ptr <= 0) {
-        ptr = -newsize;
-        readbuf.data = (byte*) ptr;
-        //readend = (byte*) ptr;
+    // intptr ptr = intptr(readbuf.data);
+    // if (ptr <= 0) {
+    //     ptr = -newsize;
+    //     readbuf.data = (byte*) ptr;
+    //     //readend = (byte*) ptr;
+    //     return;
+    // }
+    if (readbuf.data == 0) {
+        readbuf.len = newsize;
         return;
     }
 
-    size readptr_idx = std::min(readptr - readbuf.data, newsize);
-    size readend_idx = std::min(readend - readbuf.data, newsize);
+    size readptr_idx = std::min(uintptr(readptr - readbuf.data), uintptr(newsize));
+    size readend_idx = std::min(uintptr(readend - readbuf.data), uintptr(newsize));
 
     readbuf.data = mem::realloc(readbuf.data, newsize);
     readbuf.len = newsize;
@@ -389,12 +404,18 @@ void Buffered::resize_readbuf(size newsize) {
 void Buffered::resize_writebuf(size newsize) {
     LOGF("io::Buffered::resize_writebuf this %p; size %ld\n", this, newsize);
 
-    intptr ptr = intptr(writebuf);
-    if (ptr <= 0) {
-        //LOGF("io::Buffered::resize_writebuf 1\n");
-        ptr = -newsize;
-        writebuf = (byte*) ptr;
-        //writeend = (byte*) ptr;
+    // intptr ptr = intptr(writebuf);
+    // if (ptr <= 0) {
+    //     //LOGF("io::Buffered::resize_writebuf 1\n");
+    //     ptr = -newsize;
+    //     writebuf = (byte*) ptr;
+    //     //writeend = (byte*) ptr;
+    //     return;
+    // }
+
+    if (uintptr(writebuf) <= 1) {
+        writebuf = (byte*) 1;
+        writeend = writeptr = (byte*) newsize;
         return;
     }
 
@@ -409,12 +430,12 @@ void Buffered::resize_writebuf(size newsize) {
 }
 
 Buffered::~Buffered() {
-    if (intptr(readbuf.data) > 0) {
+    if (uintptr(readbuf.data) != 0) {
         ::free(readbuf.data);
         readbuf.data = nil;
     }
 
-    if (intptr(writebuf) > 0) {
+    if (uintptr(writebuf) > 1) {
         ::free(writebuf);
         writebuf = nil;
     }
