@@ -43,6 +43,9 @@ namespace lib {
         template <usize N>
         constexpr str(const byte (&bytes)[N]) : data((const char*)bytes), len(N) { }
 
+        template <usize N>
+        constexpr str(const char8_t (&bytes)[N]) : data((const char*)bytes), len(N) { }
+
         str(std::string const& s) : data(s.data()), len(s.size()) {}
         str(std::string_view s) : data(s.data()), len(s.size()) {}
         explicit constexpr str(std::span<uint8> s) : data((const char *) s.data()), len(s.size()) {}

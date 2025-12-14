@@ -4,6 +4,7 @@
 
 #include "io.h"
 #include "lib/mem.h"
+#include "lib/str.h"
 #include "util.h"
 
 #include "lib/base.h"
@@ -56,6 +57,7 @@ byte io::ReaderWriter::read_byte(error err) {
             if (nbytes == 0) {
                 err(io::ErrUnexpectedEOF());
             }
+            // print "read_byte got 0x%2X" % b;
             return b;
         }
         
@@ -68,6 +70,7 @@ byte io::ReaderWriter::read_byte(error err) {
             return 0;
         }
     }
+    // print "read_byte got 0x%2X" % *(readptr+1);
     return *(readptr++);
 }
 
@@ -110,6 +113,58 @@ ReadResult io::ReaderWriter::read(buf p, error err) {
     memmove(p.data, readptr, size_t(amt));
     readptr += amt;
     return ReadResult{amt, false};
+}
+
+
+str io::ReaderWriter::skip(size length, error err) {
+    str s = peek(length, err);
+    readptr += len(s);
+    return s;
+}
+
+str io::ReaderWriter::peek(size length, error err) {
+    if (readptr == readend) [[unlikely]] {
+        // buffer is empty
+
+        bool use_readbuf = check_readbuf(length);
+        if (!use_readbuf) {
+            return {};
+        }
+
+        // one read
+        ReadResult r = direct_read(readbuf, err);
+        
+        LIB_CHECK(usize(r.nbytes) <= usize(len(readbuf)), exceptions::assertion);
+        readptr = readbuf.data;
+        readend = readptr + r.nbytes;
+        if (r.nbytes == 0) {
+            return {};
+        }
+    }
+
+    size amt = std::min(size(length), size(readend - readptr));
+    str ret(readptr, amt);
+    return ret;
+}
+
+byte io::ReaderWriter::peek_byte(error err) {
+    if (readptr == readend) [[unlikely]] {
+        bool use_readbuf = check_readbuf(1);
+        
+        if (!use_readbuf) {
+            err("no buffer");
+        }
+        
+        ReadResult r = direct_read(readbuf, err);
+        readptr = readbuf.data;
+        readend = readptr + r.nbytes;
+        if (r.nbytes == 0) {
+            err(io::ErrUnexpectedEOF());
+            return 0;
+        }
+    }
+    
+    return *(readptr+1);
 }
 
 
@@ -347,6 +402,35 @@ void io::ReaderWriter::reset() {
     //      ^                   ^                 ^
     //    writebuf           writeptr          writeend
 
+}
+
+String io::ReaderWriter::read_string(byte delim, error err) {
+    io::ReaderWriter &r = *this;
+    String s;
+
+    for (;;) {
+        byte c;
+
+        ReadResult res = r.read(buf(&c, 1), err);
+        if (err) {
+            return s;
+        }
+
+        if (res.nbytes > 0) {
+            s.append(c);
+        }
+        
+        if (res.eof) {
+            break;
+        }
+
+        if (c == delim) {
+            break;
+        }
+    }
+    
+    
+    return s;
 }
 
 void io::ReaderWriter::setbuf(buf buf) {

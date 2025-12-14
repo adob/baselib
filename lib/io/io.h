@@ -56,6 +56,23 @@ namespace lib::io {
         virtual size       direct_write(str data, error err) = 0;
 
         ReadResult read(buf bytes, error err);
+        byte read_byte(error err);
+
+        byte peek_byte(error err);
+        str peek(size cnt, error err);
+
+        // advances the buffer by up to length bytes and returns a reference to
+        // the advanced bytes
+        str skip(size cnt, error err);
+
+        // read_string reads until the first occurrence of delim in the input,
+        // returning a string containing the data up to and including the delimiter.
+        // If ReadString encounters an error before finding a delimiter,
+        // it returns the data read before the error and the error itself (often io.EOF).
+        // ReadString returns err != nil if and only if the returned data does not end in
+        // delim.
+        // For simple uses, a Scanner may be more convenient.
+        String read_string(byte delim, error err);
 
         size write(str data, error err);
         size write_byte(byte byte, error err);
@@ -63,7 +80,8 @@ namespace lib::io {
         size write_repeated(str data, size cnt, error err);
         size write_repeated(char c, size cnt, error err);
 
-        byte read_byte(error err);
+        
+        
 
         size write_available();
         size flush(error err);

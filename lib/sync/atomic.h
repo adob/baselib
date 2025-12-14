@@ -36,16 +36,28 @@ namespace lib::sync {
 
         T load(MemoryOrder order = Acquire) const {
             // Lock l(mtx);
-            T out =  __atomic_load_n(&value, order);
+            if constexpr (std::is_floating_point_v<T> && sizeof(T) == sizeof(uint32)) {
+                uint32 *value_u32 = (uint32*) &value;
+                uint32 result =__atomic_load_n(value_u32, order);
+                return *(float*) &result;
+            } else {
+                return __atomic_load_n(&value, order);
+            }
             // if constexpr (DebugLog) {
             //     printf("%u atomic load %d\n", pthread_self(), out);
             // }
-            return out;
         }
 
         void store(T newval, MemoryOrder order = Release) {
             // Lock l(mtx);
-            __atomic_store_n(&value, newval, order);
+            if constexpr (std::is_floating_point_v<T> && sizeof(T) == sizeof(uint32)) {
+                uint32 *value_u32 = (uint32*) &value;
+                uint32 *newval_u32 = (uint32*) &newval;
+
+                __atomic_store_n(value_u32, *newval_u32, order);
+            } else {
+                __atomic_store_n(&value, newval, order);
+            }
             // if constexpr (DebugLog) {
             //     printf("%u atomic store %d\n", pthread_self(), newval);
             // }

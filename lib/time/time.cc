@@ -8,6 +8,11 @@
 #include "lib/os/file.h"
 #include "lib/strings/strings.h"
 
+#ifdef __ZEPHYR__
+#include "zephyr/kernel.h"
+#include "zephyr/sys/time_units.h"
+#endif
+
 
 using namespace lib;
 
@@ -85,7 +90,7 @@ const int64 btime_ns = []{
 
 time::monotime time::clock() {
 #ifdef __ZEPHYR__
-	panic("unimplemented");
+	return { k_cyc_to_ns_floor64(k_cycle_get_64()) };
 #else
     struct timespec ts;
     int ret = clock_gettime(CLOCK_BOOTTIME, &ts);
