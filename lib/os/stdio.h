@@ -24,13 +24,13 @@
 //#define BOOL(x) NOT(NOT(x))
 
 #define X(...) 0
-#define CHECK(arg1, arg2) CHECK2(arg1, arg2)
+#define CHECK1(arg1, arg2) CHECK2(arg1, arg2)
 #define CHECK2(arg1, arg2) arg1 arg2
 
 #define TEST_stdout 1
 #define TEST_stderr 1
 
-#define IS_PARENS(arg) NOT(CHECK(X, arg))
+#define IS_PARENS(arg) NOT(CHECK1(X, arg))
 #define IS_SELF(arg) CAT2(TEST_, arg)
 
 #define NS_DECL(ARG) namespace { \
@@ -77,7 +77,7 @@
 #undef NOT
 #undef _NOT_0
 #undef X
-#undef CHECK
+#undef CHECK1
 #undef CHECK2
 //#undef BOOL
 #undef TEST_stdout

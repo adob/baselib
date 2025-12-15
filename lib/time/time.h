@@ -5,6 +5,11 @@
 #include "lib/base.h"
 #include "lib/types.h"
 
+#ifdef unix
+#undef unix
+#define unix unix
+#endif
+
 namespace lib::time {
     using namespace lib;
 
