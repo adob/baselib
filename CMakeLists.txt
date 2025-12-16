@@ -11,10 +11,13 @@ project(${CURRENT_DIRNAME} VERSION 0.0.0 LANGUAGES CXX)
 file(GLOB SOURCES 
     ${CMAKE_CURRENT_LIST_DIR}/lib/*.cc
     ${CMAKE_CURRENT_LIST_DIR}/lib/errors/*.cc
+    ${CMAKE_CURRENT_LIST_DIR}/lib/filepath/*.cc
     ${CMAKE_CURRENT_LIST_DIR}/lib/fmt/*.cc
+    ${CMAKE_CURRENT_LIST_DIR}/lib/fs/*.cc
     ${CMAKE_CURRENT_LIST_DIR}/lib/io/*.cc
     ${CMAKE_CURRENT_LIST_DIR}/lib/os/*.cc
     ${CMAKE_CURRENT_LIST_DIR}/lib/math/*.cc
+    ${CMAKE_CURRENT_LIST_DIR}/lib/serial/*.cc
     ${CMAKE_CURRENT_LIST_DIR}/lib/strconv/*.cc
     ${CMAKE_CURRENT_LIST_DIR}/lib/strings/*.cc
     ${CMAKE_CURRENT_LIST_DIR}/lib/sync/*.cc
