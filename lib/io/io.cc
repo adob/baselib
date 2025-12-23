@@ -208,10 +208,8 @@ size io::ReaderWriter::write(str p, error err) {
         // p is larger than available buffer space
         size n1 = 0;
         if (check_writebuf(len(p))) {
-            // printf("BUFFER EXISTS\n");
             // buffer exists
             if (writeptr > writebuf) {
-                // printf("BUFFER IS NONEMPTY\n");
                 // buffer has data
                 // write into buffer and flush buffer
                 n1 = copy(avail, p);

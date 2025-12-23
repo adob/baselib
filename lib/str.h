@@ -96,6 +96,13 @@ namespace lib {
             return slice(i);
         }
 
+        constexpr str operator += (size i) {
+            LIB_CHECK(usize(i) <= usize(len), exceptions::bad_index, i, len);
+            this->data += i;
+            this->len -= i;
+            return *this;
+        }
+
         constexpr explicit operator bool () const {
             return len != 0;
         }

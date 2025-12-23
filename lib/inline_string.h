@@ -130,31 +130,31 @@ namespace lib {
             return slice(i);
         }
 
-        constexpr String& operator += (str s) {
+        constexpr InlineString<N>& operator += (str s) {
             append(s);
             return *this;
         }
 
-        constexpr String& operator += (char c) {
+        constexpr InlineString<N>& operator += (char c) {
             append(c);
             return *this;
         }
 
-        String&& operator+(this String &&s, String const &other) {
+        InlineString<N>&& operator+(this String &&s, String const &other) {
             s.append(other);
             return s;
         }
 
-        String& operator += (io::WriterTo const &writer_to);
+        InlineString<N>& operator += (io::WriterTo const &writer_to);
 
-        String& operator = (str s) {
+        InlineString<N>& operator = (str s) {
             length = std::min(N, len(s));
             memmove(bytes, s.data, length);
             
             return *this;
         }
 
-        String& operator = (buf b) {
+        InlineString<N>& operator = (buf b) {
             return *this = str(b);
         }
 
@@ -175,7 +175,7 @@ namespace lib {
         // String& operator = (StringPlus<N> const&);
 
         template <usize M>
-        String& operator =(const char (&s)[M]) {
+        InlineString<N>& operator =(const char (&s)[M]) {
             length = std::min(N, size(M-1));
             memmove(bytes, s, length);
             return *this;
