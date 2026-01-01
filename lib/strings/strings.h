@@ -1,11 +1,13 @@
 #pragma once
 
+#include <functional>
 #include <vector>
 
 #include "../utf8.h"
 #include "lib/io/io.h"
 #include "lib/math/math.h"
 #include "lib/types.h"
+#include "lib/utf8/decode.h"
 
 namespace lib::strings {
 
@@ -52,6 +54,20 @@ namespace lib::strings {
         return -1;
     }
 
+    // LastIndexFunc returns the index into s of the last
+    // Unicode code point satisfying f(c), or -1 if none do.
+    template <typename Func>
+    size last_index_func(str s, Func &&f, bool truth = true) {
+        for (size i = len(s); i > 0;) {
+            int size;
+            rune r = utf8::decode_last_rune(s+i, size);
+            i -= size;
+            if (f(r) == truth) {
+                return i;
+            }
+        }
+        return -1;
+    }
 
     // index_rune returns the index of the first instance of the Unicode code point
     // r, or -1 if rune is not present in s.
@@ -94,6 +110,46 @@ namespace lib::strings {
         }
         return -1;
     }
+
+    // trim returns a slice of the string s with all leading and
+    // trailing Unicode code points contained in cutset removed.
+    str trim(str s, str cutset);
+
+    // trim_left returns a slice of the string s with all leading
+    // Unicode code points contained in cutset removed.
+    //
+    // To remove a prefix, use [trim_prefix] instead.
+    str trim_left(str s, str cutset);
+
+    // trim_rght returns a slice of the string s, with all trailing
+    // Unicode code points contained in cutset removed.
+    //
+    // To remove a suffix, use [trim_suffix] instead.
+    str trim_right(str s, str cutset);
+
+    // trim_space returns a slice of the string s, with all leading
+    // and trailing white space removed, as defined by Unicode.
+    str trim_space(str s);
+
+    // TrimPrefix returns s without the provided leading prefix string.
+    // If s doesn't start with prefix, s is returned unchanged.
+    str trim_prefix(str s, str prefix);
+
+    // trim_suffix returns s without the provided trailing suffix string.
+    // If s doesn't end with suffix, s is returned unchanged.
+    str trim_suffix(str s, str suffix);
+
+    // trim_func returns a slice of the string s with all leading
+    // and trailing Unicode code points c satisfying f(c) removed.
+    str trim_func(str s, std::function<bool(rune)> f);
+
+    // trim_left_func returns a slice of the string s with all leading
+    // Unicode code points c satisfying f(c) removed.
+    str trim_left_func(str s, std::function<bool(rune)> f);
+
+    // trim_right_func returns a slice of the string s with all trailing
+    // Unicode code points c satisfying f(c) removed.
+    str trim_right_func(str s, std::function<bool(rune)> f);
 
     // template <typename Func>
     // str ltrim(str s, Func&& f) {
@@ -164,6 +220,21 @@ namespace lib::strings {
     //     }
     //     return s;
     // }
+
+    // replace returns a copy of the string s with the first n
+    // non-overlapping instances of old replaced by new.
+    // If old is empty, it matches at the beginning of the string
+    // and after each UTF-8 sequence, yielding up to k+1 replacements
+    // for a k-rune string.
+    // If n < 0, there is no limit on the number of replacements.
+    String replace(str s, str old, str news, size n);
+
+    // replace_all returns a copy of the string s with all
+    // non-overlapping instances of old replaced by new.
+    // If old is empty, it matches at the beginning of the string
+    // and after each UTF-8 sequence, yielding up to k+1 replacements
+    // for a k-rune string.
+    String replace_all(str s, str old, str news);
 
     inline String replace_all(str s, char old, char replacement) {
         String result = s;

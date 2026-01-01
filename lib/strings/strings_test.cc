@@ -5,6 +5,7 @@
 #include "lib/str.h"
 #include "lib/testing/testing.h"
 #include "lib/testing/benchmark.h"
+#include <functional>
 #include <random>
 #include <vector>
 
@@ -984,66 +985,66 @@ void test_split(testing::T &t) {
 
 // func TestTrimSpace(t *testing.T) { runStringTests(t, TrimSpace, "TrimSpace", trimSpaceTests) }
 
-// var trimTests = []struct {
-// 	f            string
-// 	in, arg, out string
-// }{
-// 	{"Trim", "abba", "a", "bb"},
-// 	{"Trim", "abba", "ab", ""},
-// 	{"TrimLeft", "abba", "ab", ""},
-// 	{"TrimRight", "abba", "ab", ""},
-// 	{"TrimLeft", "abba", "a", "bba"},
-// 	{"TrimLeft", "abba", "b", "abba"},
-// 	{"TrimRight", "abba", "a", "abb"},
-// 	{"TrimRight", "abba", "b", "abba"},
-// 	{"Trim", "<tag>", "<>", "tag"},
-// 	{"Trim", "* listitem", " *", "listitem"},
-// 	{"Trim", `"quote"`, `"`, "quote"},
-// 	{"Trim", "\u2C6F\u2C6F\u0250\u0250\u2C6F\u2C6F", "\u2C6F", "\u0250\u0250"},
-// 	{"Trim", "\x80test\xff", "\xff", "test"},
-// 	{"Trim", " Ġ ", " ", "Ġ"},
-// 	{"Trim", " Ġİ0", "0 ", "Ġİ"},
-// 	//empty string tests
-// 	{"Trim", "abba", "", "abba"},
-// 	{"Trim", "", "123", ""},
-// 	{"Trim", "", "", ""},
-// 	{"TrimLeft", "abba", "", "abba"},
-// 	{"TrimLeft", "", "123", ""},
-// 	{"TrimLeft", "", "", ""},
-// 	{"TrimRight", "abba", "", "abba"},
-// 	{"TrimRight", "", "123", ""},
-// 	{"TrimRight", "", "", ""},
-// 	{"TrimRight", "☺\xc0", "☺", "☺\xc0"},
-// 	{"TrimPrefix", "aabb", "a", "abb"},
-// 	{"TrimPrefix", "aabb", "b", "aabb"},
-// 	{"TrimSuffix", "aabb", "a", "aabb"},
-// 	{"TrimSuffix", "aabb", "b", "aab"},
-// }
+struct {
+	str f;
+	str in, arg, out;
+} const trim_tests[] = {
+	{"trim", "abba", "a", "bb"},
+	{"trim", "abba", "ab", ""},
+	{"trim_left", "abba", "ab", ""},
+	{"trim_right", "abba", "ab", ""},
+	{"trim_left", "abba", "a", "bba"},
+	{"trim_left", "abba", "b", "abba"},
+	{"trim_right", "abba", "a", "abb"},
+	{"trim_right", "abba", "b", "abba"},
+	{"trim", "<tag>", "<>", "tag"},
+	{"trim", "* listitem", " *", "listitem"},
+	{"trim", "\"quote\"", "\"", "quote"},
+	{"trim", "\u2C6F\u2C6F\u0250\u0250\u2C6F\u2C6F", "\u2C6F", "\u0250\u0250"},
+	{"trim", "\x80test\xff", "\xff", "test"},
+	{"trim", " Ġ ", " ", "Ġ"},
+	{"trim", " Ġİ0", "0 ", "Ġİ"},
+	//empty string tests
+	{"trim", "abba", "", "abba"},
+	{"trim", "", "123", ""},
+	{"trim", "", "", ""},
+	{"trim_left", "abba", "", "abba"},
+	{"trim_left", "", "123", ""},
+	{"trim_left", "", "", ""},
+	{"trim_right", "abba", "", "abba"},
+	{"trim_right", "", "123", ""},
+	{"trim_right", "", "", ""},
+	{"trim_right", "☺\xc0", "☺", "☺\xc0"},
+	{"trim_prefix", "aabb", "a", "abb"},
+	{"trim_prefix", "aabb", "b", "aabb"},
+	{"trim_suffix", "aabb", "a", "aabb"},
+	{"trim_suffix", "aabb", "b", "aab"},
+};
 
-// func TestTrim(t *testing.T) {
-// 	for _, tc := range trimTests {
-// 		name := tc.f
-// 		var f func(string, string) string
-// 		switch name {
-// 		case "Trim":
-// 			f = Trim
-// 		case "TrimLeft":
-// 			f = TrimLeft
-// 		case "TrimRight":
-// 			f = TrimRight
-// 		case "TrimPrefix":
-// 			f = TrimPrefix
-// 		case "TrimSuffix":
-// 			f = TrimSuffix
-// 		default:
-// 			t.Errorf("Undefined trim function %s", name)
-// 		}
-// 		actual := f(tc.in, tc.arg)
-// 		if actual != tc.out {
-// 			t.Errorf("%s(%q, %q) = %q; want %q", name, tc.in, tc.arg, actual, tc.out)
-// 		}
-// 	}
-// }
+void test_trim(testing::T &t) {
+	for (auto const & tc : trim_tests) {
+		str name = tc.f;
+		std::function<str(str,str)> f;
+		
+		if (name == "trim") {
+			f = trim;
+		} else if (name == "trim_left") {
+			f = trim_left;
+		} else if (name == "trim_right") {
+			f = trim_right;
+		} else if (name == "trim_prefix") {
+			f = trim_prefix;
+		} else if (name == "trim_suffix") {
+			f = trim_suffix;
+		} else {
+			t.errorf("Undefined trim function %s", name);
+		}
+		str actual = f(tc.in, tc.arg);
+		if (actual != tc.out) {
+			t.errorf("%s(%q, %q) = %q; want %q", name, tc.in, tc.arg, actual, tc.out);
+		}
+	}
+}
 
 // func BenchmarkTrim(b *testing.B) {
 // 	b.ReportAllocs()
@@ -1053,16 +1054,16 @@ void test_split(testing::T &t) {
 // 			name := tc.f
 // 			var f func(string, string) string
 // 			switch name {
-// 			case "Trim":
-// 				f = Trim
+// 			case "trim":
+// 				f = trim
 // 			case "TrimLeft":
 // 				f = TrimLeft
-// 			case "TrimRight":
+// 			case "trim_right":
 // 				f = TrimRight
-// 			case "TrimPrefix":
-// 				f = TrimPrefix
-// 			case "TrimSuffix":
-// 				f = TrimSuffix
+// 			case "trim_prefix":
+// 				f = trim_prefix
+// 			case "trim_suffix":
+// 				f = trim_suffix
 // 			default:
 // 				b.Errorf("Undefined trim function %s", name)
 // 			}
@@ -1542,46 +1543,46 @@ void test_split(testing::T &t) {
 // 	}
 // }
 
-// var ReplaceTests = []struct {
-// 	in       string
-// 	old, new string
-// 	n        int
-// 	out      string
-// }{
-// 	{"hello", "l", "L", 0, "hello"},
-// 	{"hello", "l", "L", -1, "heLLo"},
-// 	{"hello", "x", "X", -1, "hello"},
-// 	{"", "x", "X", -1, ""},
-// 	{"radar", "r", "<r>", -1, "<r>ada<r>"},
-// 	{"", "", "<>", -1, "<>"},
-// 	{"banana", "a", "<>", -1, "b<>n<>n<>"},
-// 	{"banana", "a", "<>", 1, "b<>nana"},
-// 	{"banana", "a", "<>", 1000, "b<>n<>n<>"},
-// 	{"banana", "an", "<>", -1, "b<><>a"},
-// 	{"banana", "ana", "<>", -1, "b<>na"},
-// 	{"banana", "", "<>", -1, "<>b<>a<>n<>a<>n<>a<>"},
-// 	{"banana", "", "<>", 10, "<>b<>a<>n<>a<>n<>a<>"},
-// 	{"banana", "", "<>", 6, "<>b<>a<>n<>a<>n<>a"},
-// 	{"banana", "", "<>", 5, "<>b<>a<>n<>a<>na"},
-// 	{"banana", "", "<>", 1, "<>banana"},
-// 	{"banana", "a", "a", -1, "banana"},
-// 	{"banana", "a", "a", 1, "banana"},
-// 	{"☺☻☹", "", "<>", -1, "<>☺<>☻<>☹<>"},
-// }
+struct {
+	str in;
+	str old, news;
+	size n;
+	str out;
+} const ReplaceTests[] = {
+	{"hello", "l", "L", 0, "hello"},
+	{"hello", "l", "L", -1, "heLLo"},
+	{"hello", "x", "X", -1, "hello"},
+	{"", "x", "X", -1, ""},
+	{"radar", "r", "<r>", -1, "<r>ada<r>"},
+	{"", "", "<>", -1, "<>"},
+	{"banana", "a", "<>", -1, "b<>n<>n<>"},
+	{"banana", "a", "<>", 1, "b<>nana"},
+	{"banana", "a", "<>", 1000, "b<>n<>n<>"},
+	{"banana", "an", "<>", -1, "b<><>a"},
+	{"banana", "ana", "<>", -1, "b<>na"},
+	{"banana", "", "<>", -1, "<>b<>a<>n<>a<>n<>a<>"},
+	{"banana", "", "<>", 10, "<>b<>a<>n<>a<>n<>a<>"},
+	{"banana", "", "<>", 6, "<>b<>a<>n<>a<>n<>a"},
+	{"banana", "", "<>", 5, "<>b<>a<>n<>a<>na"},
+	{"banana", "", "<>", 1, "<>banana"},
+	{"banana", "a", "a", -1, "banana"},
+	{"banana", "a", "a", 1, "banana"},
+	{"☺☻☹", "", "<>", -1, "<>☺<>☻<>☹<>"},
+};
 
-// func TestReplace(t *testing.T) {
-// 	for _, tt := range ReplaceTests {
-// 		if s := Replace(tt.in, tt.old, tt.new, tt.n); s != tt.out {
-// 			t.Errorf("Replace(%q, %q, %q, %d) = %q, want %q", tt.in, tt.old, tt.new, tt.n, s, tt.out)
-// 		}
-// 		if tt.n == -1 {
-// 			s := ReplaceAll(tt.in, tt.old, tt.new)
-// 			if s != tt.out {
-// 				t.Errorf("ReplaceAll(%q, %q, %q) = %q, want %q", tt.in, tt.old, tt.new, s, tt.out)
-// 			}
-// 		}
-// 	}
-// }
+void test_replace(testing::T &t) {
+	for (auto &&tt : ReplaceTests) {
+		if (String s = replace(tt.in, tt.old, tt.news, tt.n); s != tt.out) {
+			t.errorf("Replace(%q, %q, %q, %d) = %q, want %q", tt.in, tt.old, tt.news, tt.n, s, tt.out);
+		}
+		if (tt.n == -1) {
+			String s = replace_all(tt.in, tt.old, tt.news);
+			if (s != tt.out) {
+				t.errorf("ReplaceAll(%q, %q, %q) = %q, want %q", tt.in, tt.old, tt.news, s, tt.out);
+			}
+		}
+	}
+}
 
 // var TitleTests = []struct {
 // 	in, out string
@@ -2198,7 +2199,7 @@ void test_split(testing::T &t) {
 // 			b.Run(fmt.Sprintf("%d:%d", k, j), func(b *testing.B) {
 // 				x := Repeat(cs[:j], k) // Always matches set
 // 				for i := 0; i < b.N; i++ {
-// 					Trim(x[:k], cs[:j])
+// 					trim(x[:k], cs[:j])
 // 				}
 // 			})
 // 		}
@@ -2208,7 +2209,7 @@ void test_split(testing::T &t) {
 // func BenchmarkTrimByte(b *testing.B) {
 // 	x := "  the quick brown fox   "
 // 	for i := 0; i < b.N; i++ {
-// 		Trim(x, " ")
+// 		trim(x, " ")
 // 	}
 // }
 

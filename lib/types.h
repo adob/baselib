@@ -104,6 +104,21 @@ namespace lib {
             return Self {self_val * other};
         }
 
+        // template <typename Self, typename Integral>
+        // requires std::derived_from<Self, numeric> && (std::integral<Integral> || std::floating_point<Integral>)
+        // constexpr friend Self operator*(Self self, Integral other) {
+        //     auto [self_val] = self;
+        //     return Self {static_cast<decltype(self_val)>(self_val * other)};
+        // }
+
+        // // 2 * T
+        // template <typename Self, typename Integral>
+        // requires std::derived_from<Self, numeric> && (std::integral<Integral> || std::floating_point<Integral>)
+        // constexpr friend Self operator*(Integral other, Self self) {
+        //     auto [self_val] = self;
+        //     return Self {static_cast<decltype(self_val)>(self_val * other)};
+        // }
+
         constexpr explicit operator bool(this auto self) {
             auto [self_val] = self;
             return bool(self_val);

@@ -7,6 +7,7 @@
 using namespace lib;
 using namespace os;
 
+StdStream os::stdin(::stdin, 0);
 StdStream os::stdout(::stdout, 1);
 StdStream os::stderr(::stderr, 2);
 

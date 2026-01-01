@@ -55,9 +55,9 @@ struct StringWriter : io::Writer {
     }
 } ;
 
-String::String(rune r) : buffer(utf8::UTFMax), length(0) {
-    this->length = len(utf8::encode(buffer, r));
-}
+// String::String(rune r) : buffer(utf8::UTFMax), length(0) {
+//     this->length = len(utf8::encode(buffer, r));
+// }
 
 String::String(io::WriterTo const &w) {
     io::Buffer buffer;

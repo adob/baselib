@@ -65,7 +65,7 @@ namespace prettyprint {
     };
     
     struct Print {
-        fmt::BufferedWriter out;
+        ::lib::fmt::BufferedWriter out;
         Print(io::Writer &f) : out(f) {}
         
         template <size_t N>

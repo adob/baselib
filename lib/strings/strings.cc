@@ -5,6 +5,7 @@
 #include "lib/print.h"
 #include "lib/strings/2way.h"
 #include "lib/utf8/decode.h"
+#include <ctype.h>
 #include <vector>
 
 using namespace lib;
@@ -712,3 +713,246 @@ size strings::count(str s, str substr) {
 // 	}
 // 	return -1
 // }
+
+static str trim_left_byte(str s, byte c) {
+	while (len(s) > 0 && s[0] == c) {
+		s = s+1;
+	}
+	return s;
+}
+
+static str trim_right_byte(str s, byte c) {
+	while (len(s) > 0 && s[len(s)-1] == c) {
+		s = s[0,len(s)-1];
+	}
+	return s;
+}
+
+static str trim_left_ascii(str s, ASCIISet const &as) {
+	while (len(s) > 0) {
+		if (!as.contains(s[0])) {
+			break;
+		}
+		s = s + 1;
+	}
+	return s;
+}
+
+static str trim_right_ascii(str s, ASCIISet const &as) {
+	while (len(s) > 0) {
+		if (!as.contains(s[len(s)-1])) {
+			break;
+		}
+		s = s[0,len(s)-1];
+	}
+	return s;
+}
+
+static str trim_left_unicode(str s, str cutset) {
+	while (len(s) > 0) {
+        rune r = s[0];
+        int n = 1;
+		if (r >= utf8::RuneSelf) {
+            r = utf8::decode_rune(s, n);
+		}
+		if (!contains_rune(cutset, r)) {
+			break;
+		}
+		s = s + n;
+	}
+	return s;
+}
+
+static str trim_right_unicode(str s, str cutset) {
+    while (len(s) > 0) {
+        rune r = s[len(s)-1];
+        int n = 1;
+		if (r >= utf8::RuneSelf) {
+            r = utf8::decode_last_rune(s, n);
+		}
+		if (!contains_rune(cutset, r)) {
+			break;
+		}
+		s = s[0,len(s)-n];
+	}
+	return s;
+}
+
+
+str strings::trim(str s, str cutset) {
+    if (s == "" || cutset == "") {
+		return s;
+	}
+	if (len(cutset) == 1 && cutset[0] < utf8::RuneSelf) {
+		return trim_left_byte(trim_right_byte(s, cutset[0]), cutset[0]);
+	}
+
+    ASCIISet as = make_ascii_set(cutset);
+    if (as.ok) {
+        return trim_left_ascii(trim_right_ascii(s, as), as);
+    }
+	return trim_left_unicode(trim_right_unicode(s, cutset), cutset);
+
+    return "";
+}
+
+lib::str lib::strings::trim_left(str s, str cutset) {
+    if (s == "" || cutset == "") {
+		return s;
+	}
+	if (len(cutset) == 1 && cutset[0] < utf8::RuneSelf) {
+		return trim_left_byte(s, cutset[0]);
+	}
+    ASCIISet as = make_ascii_set(cutset);
+	if (as.ok) {
+		return trim_left_ascii(s, as);
+	}
+	return trim_left_unicode(s, cutset);
+}
+
+lib::str lib::strings::trim_right(str s, str cutset) {
+    if (s == "" || cutset == "") {
+		return s;
+	}
+	if (len(cutset) == 1 && cutset[0] < utf8::RuneSelf) {
+		return trim_right_byte(s, cutset[0]);
+	}
+    ASCIISet as = make_ascii_set(cutset);
+	if (as.ok) {
+		return trim_right_ascii(s, as);
+	}
+	return trim_right_unicode(s, cutset);
+}
+
+// uint8 ascii_space[256] = {
+//     ['\t'] = 1, 
+//     ['\n'] = 1, 
+//     ['\v'] = 1, 
+//     ['\f'] = 1, 
+//     ['\r'] = 1,
+//     [' '] = 1,
+// };
+
+static bool is_ascii_space(byte c) {
+    switch (c) {
+    case '\t':
+    case '\n':
+    case '\v':
+    case '\f':
+    case '\r':
+    case ' ':
+        return true;
+    }
+    return false;
+}
+
+lib::str lib::strings::trim_space(str s) {
+    // Fast path for ASCII: look for the first ASCII non-space byte
+	size start = 0;
+	for (; start < len(s); start++) {
+		byte c = s[start];
+		if (c >= utf8::RuneSelf) {
+			// If we run into a non-ASCII byte, fall back to the
+			// slower unicode-aware method on the remaining bytes
+			return trim_func(s+start, unicode::is_space);
+		}
+		if (!is_ascii_space(c)) {
+			break;
+		}
+	}
+
+	// Now look for the first ASCII non-space byte from the end
+	size stop = len(s);
+	for (; stop > start; stop--) {
+		byte c = s[stop-1];
+		if (c >= utf8::RuneSelf) {
+			// start has been already trimmed above, should trim end only
+			return trim_right_func(s[start,stop], unicode::is_space);
+		}
+		if (!is_ascii_space(c)) {
+			break;
+		}
+	}
+
+	// At this point s[start:stop] starts and ends with an ASCII
+	// non-space bytes, so we're done. Non-ASCII cases have already
+	// been handled above.
+	return s[start,stop];
+}
+
+lib::str lib::strings::trim_prefix(str s, str prefix) {
+    if (has_prefix(s, prefix)) {
+		return s+len(prefix);
+	}
+	return s;
+}
+
+lib::str lib::strings::trim_suffix(str s, str suffix) {
+    if (has_suffix(s, suffix)) {
+		return s[0,len(s)-len(suffix)];
+	}
+	return s;
+}
+
+lib::str lib::strings::trim_func(str s, std::function<bool(rune)> f) {
+  return trim_right_func(trim_left_func(s, f), f);
+}
+
+lib::str lib::strings::trim_left_func(str s, std::function<bool(rune)> f) {
+    size i = index_func(s, f, false);
+	if (i == -1) {
+		return "";
+	}
+	return s+i;
+}
+lib::str lib::strings::trim_right_func(str s, std::function<bool(rune)> f) {
+    size i = last_index_func(s, f, false);
+	if (i >= 0 && s[i] >= utf8::RuneSelf) {
+        int wid;
+		utf8::decode_rune(s+i, wid);
+		i += wid;
+	} else {
+		i++;
+	}
+	return s[0,i];
+}
+String strings::replace(str s, str old, str news, size n) {
+    if (old == news || n == 0) {
+		return s;
+	}
+
+	// Compute number of replacements.
+	if (size m = count(s, old); m == 0) {
+		return s; // avoid allocation
+	} else if (n < 0 || m < n) {
+		n = m;
+	}
+
+	// Apply replacements to buffer.
+	//var b Builder
+    String b;
+    b.ensure(len(s) + n*(len(news)-len(old)));
+	size start = 0;
+	if (len(old) > 0) {
+		for (size i = 0; i < n; i++) {
+			size j = start + index(s+start, old);
+            b.append(s[start,j], news);
+			start = j + len(old);
+		}
+	} else { // len(old) == 0
+		b.append(news);
+		for (size i =0; i < n - 1; i++) {
+            int wid;
+			utf8::decode_rune(s+start, wid);
+			size j = start + wid;
+			b.append(s[start,j], news);
+			start = j;
+		}
+	}
+	b.append(s+start);
+	return b;
+}
+
+String strings::replace_all(str s, str old, str news) {
+    return replace(s, old, news, -1);
+}

@@ -421,7 +421,7 @@ namespace lib {
             (*this) = other;
         }
 
-        explicit String(rune r);
+        // explicit String(rune r);
 
         explicit String(size cap) :
             buffer(cap),
@@ -443,12 +443,18 @@ namespace lib {
             buffer.resize(std::max(newcap, buffer.len*2));
         }
 
-        void append(str s) {
-            size newlen = length + s.len;
+        template <typename... Strs>
+        requires (std::same_as<Strs, str> && ...)
+        void append(str s, Strs... ss) {
+            size newlen = length + s.len + (ss.len + ... + 0);
             // LIB_CHECK(newlen >= length, exceptions::overflow);
 
             ensure(newlen);
-            memcpy(buffer.data + length, s.data, s.len);
+            byte *ptr = buffer.data + length;
+            memcpy(ptr, s.data, s.len);
+
+            ptr += s.len;
+            ((memcpy(ptr, ss.data, ss.len), ptr += ss.len), ...);
             length = newlen;
         }
 

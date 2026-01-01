@@ -29,6 +29,7 @@
 
 #define TEST_stdout 1
 #define TEST_stderr 1
+#define TEST_stdin 1
 
 #define IS_PARENS(arg) NOT(CHECK1(X, arg))
 #define IS_SELF(arg) CAT2(TEST_, arg)
@@ -69,6 +70,18 @@
     STRUCT_DECL(stderr)
 #endif
 
+#if !IS_PARENS(stdin)
+    #if !IS_SELF(stdin)
+        NS_DECL(stderr)
+        #undef stdin
+        STRUCT_DECL(stdin)
+    #endif
+#else
+    NS_DECL(stdin)
+    #undef stdin
+    STRUCT_DECL(stdin)
+#endif
+
 #undef SECOND
 #undef IS_PROBE
 #undef PROBE
@@ -100,4 +113,5 @@ namespace lib::os {
 
     extern os::StdStream stdout;
     extern os::StdStream stderr;
+    extern os::StdStream stdin;
 }
