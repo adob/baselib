@@ -1,15 +1,15 @@
 [submodule "deps/backward-cpp"]
 	path = deps/backward-cpp
-	url = git@github.com:adob/backward-cpp.git
+	url = https://github.com/backward-cpp.git
 [submodule "deps/libdebugme"]
 	path = deps/libdebugme
 	url = https://github.com/yugr/libdebugme.git
 [submodule "deps/fmt"]
 	path = deps/fmt
-	url = git@github.com:adob/fmt.git
+	url = https://github.com/adob/fmt.git
 [submodule "deps/atomic_queue"]
 	path = deps/atomic_queue
-	url = git@github.com:adob/atomic_queue.git
+	url = https://github.com/adob/atomic_queue.git
 [submodule "deps/boost"]
 	path = deps/boost
 	url = https://github.com/boostorg/boost.git
