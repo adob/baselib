@@ -45,7 +45,13 @@ add_library(${PROJECT_NAME} STATIC
 
 add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
 
-target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_26)
+target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_23)
+
+#set_target_properties(baselib PROPERTIES
+  #CXX_STANDARD 26
+  #CXX_STANDARD_REQUIRED YES
+  #CXX_EXTENSIONS NO
+#)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wconversion
