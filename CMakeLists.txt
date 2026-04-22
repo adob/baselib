@@ -8,6 +8,10 @@ get_filename_component(
 
 project(${CURRENT_DIRNAME} VERSION 0.0.0 LANGUAGES CXX)
 
+include(${CMAKE_CURRENT_LIST_DIR}/cmake/CPM.cmake)
+
+set(BASELIB_BOOST_VERSION "1.89.0" CACHE STRING "Boost version used by baselib CPM dependencies")
+
 file(GLOB SOURCES 
     ${CMAKE_CURRENT_LIST_DIR}/lib/*.cc
     ${CMAKE_CURRENT_LIST_DIR}/lib/errors/*.cc
@@ -66,52 +70,73 @@ target_include_directories(${PROJECT_NAME} PUBLIC
   $<INSTALL_INTERFACE:include>
 )
 
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/deps/boost/libs/config/include/)
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/deps/boost/libs/circular_buffer/include/)
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/deps/boost/libs/static_assert/include/)
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/deps/boost/libs/type_traits/include/)
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/deps/boost/libs/throw_exception/include/)
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/deps/boost/libs/assert/include/)
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/deps/boost/libs/core/include/)
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/deps/boost/libs/move/include/)
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/deps/boost/libs/concept_check/include/)
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/deps/boost/libs/preprocessor/include/)
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/deps/fmt/include/)
 
+# set(BASELIB_BOOST_LIBRARIES
+#   config
+#   circular_buffer
+#   static_assert
+#   type_traits
+#   throw_exception
+#   assert
+#   core
+#   move
+#   concept_check
+#   preprocessor
+#   math
+#   variant
+#   type_index
+#   container_hash
+#   describe
+#   mp11
+#   mpl
+#   detail
+#   utility
+#   integer
+#   serialization
+#   fusion
+#   function_types
+#   io
+#   smart_ptr
+#   asio
+#   align
+#   iostreams
+#   range
+#   iterator
+#   foreach
+#   bind
+#   optional
+#   variant2
+#   spirit
+#   predef
+#   array
+#   function
+#   filesystem
+#   system
+#   format
+#   property_tree
+#   any
+#   multi_index
+#   tuple
+#   atomic
+# )
 
-#target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../deps/eigen)
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/deps/boost/libs/math/include/)
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/deps/boost/libs/variant/include/)
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/deps/boost/libs/type_index/include/)
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/deps/boost/libs/container_hash/include/)
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/deps/boost/libs/describe/include/)
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/deps/boost/libs/mp11/include/)
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/deps/boost/libs/mpl/include/)
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/deps/boost/libs/detail/include/)
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/deps/boost/libs/utility/include/)
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/deps/boost/libs/integer/include/)
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/deps/boost/libs/serialization/include/)
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/deps/boost/libs/fusion/include/)
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/deps/boost/libs/function_types/include/)
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/deps/boost/libs/io/include/)
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/deps/boost/libs/smart_ptr/include/)
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/deps/boost/libs/asio/include/)
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/deps/boost/libs/align/include/)
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/deps/boost/libs/iostreams/include/)
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/deps/boost/libs/range/include/)
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/deps/boost/libs/iterator/include/)
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/deps/boost/libs/foreach/include/)
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/deps/boost/libs/bind/include/)
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/deps/boost/libs/optional/include/)
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/deps/boost/libs/variant2/include/)
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/deps/boost/libs/spirit/include/)
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/deps/boost/libs/predef/include/)
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/deps/boost/libs/array/include/)
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/deps/boost/libs/function/include/)
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/deps/boost/libs/filesystem/include/)
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/deps/boost/libs/system/include/)
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/deps/boost/libs/format/include/)
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/deps/boost/libs/property_tree/include/)
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/deps/boost/libs/any/include/)
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/deps/boost/libs/multi_index/include/)
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/deps/boost/libs/tuple/include/)
+# function(baselib_add_boost_library boost_lib)
+#   CPMAddPackage(
+#     NAME boost_${boost_lib}
+#     GITHUB_REPOSITORY boostorg/${boost_lib}
+#     GIT_TAG boost-${BASELIB_BOOST_VERSION}
+#     DOWNLOAD_ONLY YES
+#   )
+
+#   set(boost_source_dir "${boost_${boost_lib}_SOURCE_DIR}")
+#   if(NOT boost_source_dir)
+#     message(FATAL_ERROR "CPM failed to fetch boostorg/${boost_lib}")
+#   endif()
+
+#   target_include_directories(${PROJECT_NAME} PRIVATE ${boost_source_dir}/include)
+# endfunction()
+
+# foreach(boost_lib IN LISTS BASELIB_BOOST_LIBRARIES)
+#   baselib_add_boost_library(${boost_lib})
+# endforeach()
