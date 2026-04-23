@@ -6,7 +6,7 @@ get_filename_component(
   NAME
 )
 
-project(${CURRENT_DIRNAME} VERSION 0.0.0 LANGUAGES CXX)
+project(baselib VERSION 0.0.0 LANGUAGES CXX)
 
 include(cmake/CPM.cmake)
 
