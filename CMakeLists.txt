@@ -8,12 +8,42 @@ get_filename_component(
 
 project(${CURRENT_DIRNAME} VERSION 0.0.0 LANGUAGES CXX)
 
-include(${CMAKE_CURRENT_LIST_DIR}/cmake/CPM.cmake)
+include(cmake/CPM.cmake)
 
-set(BASELIB_BOOST_VERSION "1.89.0" CACHE STRING "Boost version used by baselib CPM dependencies")
+set(BASELIB_BOOST_VERSION "1.87.0" CACHE STRING "Boost version used by baselib CPM dependencies")
+set(BASELIB_BOOST_COMPONENTS "atomic;circular_buffer" CACHE STRING "Boost components required by baselib")
+
+
+#set(CPM_USE_LOCAL_PACKAGES ON)
+
+CPMFindPackage(
+  NAME Boost
+  VERSION ${BASELIB_BOOST_VERSION} # Versions less than 1.85.0 may need patches for installation targets.
+  URL https://github.com/boostorg/boost/releases/download/boost-${BASELIB_BOOST_VERSION}/boost-${BASELIB_BOOST_VERSION}-cmake.tar.xz
+  URL_HASH SHA256=7da75f171837577a52bbf217e17f8ea576c7c246e4594d617bfde7fafd408be5
+  FIND_PACKAGE_ARGUMENTS "CONFIG;COMPONENTS;${BASELIB_BOOST_COMPONENTS}"
+  OPTIONS "BOOST_ENABLE_CMAKE ON" "BOOST_SKIP_INSTALL_RULES ON" # Set `OFF` for installation
+          "BUILD_SHARED_LIBS OFF"
+)
+
+CPMFindPackage(
+  NAME fmt
+  VERSION 11.1.4
+  GITHUB_REPOSITORY fmtlib/fmt
+  GIT_TAG 11.1.4
+)
+
+# CPMFindPackage(
+#   NAME cpptrace
+#   VERSION 0.8.2
+#   GITHUB_REPOSITORY jeremy-rifkin/cpptrace
+#   GIT_TAG v0.8.2
+# )
+
 
 file(GLOB SOURCES 
     ${CMAKE_CURRENT_LIST_DIR}/lib/*.cc
+    #${CMAKE_CURRENT_LIST_DIR}/lib/debug/*.cc
     ${CMAKE_CURRENT_LIST_DIR}/lib/errors/*.cc
     ${CMAKE_CURRENT_LIST_DIR}/lib/filepath/*.cc
     ${CMAKE_CURRENT_LIST_DIR}/lib/fmt/*.cc
@@ -30,7 +60,7 @@ file(GLOB SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/lib/utf8/*.cc
     ${CMAKE_CURRENT_LIST_DIR}/lib/varint/*.cc
 
-    ${CMAKE_CURRENT_LIST_DIR}/deps/fmt/src/format.cc
+    #${CMAKE_CURRENT_LIST_DIR}/deps/fmt/src/format.cc
 )
 
 foreach(src_file IN LISTS SOURCES)
@@ -70,73 +100,13 @@ target_include_directories(${PROJECT_NAME} PUBLIC
   $<INSTALL_INTERFACE:include>
 )
 
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/deps/fmt/include/)
+set(BASELIB_BOOST_TARGETS Boost::headers)
+foreach(boost_component IN LISTS BASELIB_BOOST_COMPONENTS)
+  if(TARGET "Boost::${boost_component}")
+    list(APPEND BASELIB_BOOST_TARGETS "Boost::${boost_component}")
+  endif()
+endforeach()
 
-# set(BASELIB_BOOST_LIBRARIES
-#   config
-#   circular_buffer
-#   static_assert
-#   type_traits
-#   throw_exception
-#   assert
-#   core
-#   move
-#   concept_check
-#   preprocessor
-#   math
-#   variant
-#   type_index
-#   container_hash
-#   describe
-#   mp11
-#   mpl
-#   detail
-#   utility
-#   integer
-#   serialization
-#   fusion
-#   function_types
-#   io
-#   smart_ptr
-#   asio
-#   align
-#   iostreams
-#   range
-#   iterator
-#   foreach
-#   bind
-#   optional
-#   variant2
-#   spirit
-#   predef
-#   array
-#   function
-#   filesystem
-#   system
-#   format
-#   property_tree
-#   any
-#   multi_index
-#   tuple
-#   atomic
-# )
-
-# function(baselib_add_boost_library boost_lib)
-#   CPMAddPackage(
-#     NAME boost_${boost_lib}
-#     GITHUB_REPOSITORY boostorg/${boost_lib}
-#     GIT_TAG boost-${BASELIB_BOOST_VERSION}
-#     DOWNLOAD_ONLY YES
-#   )
-
-#   set(boost_source_dir "${boost_${boost_lib}_SOURCE_DIR}")
-#   if(NOT boost_source_dir)
-#     message(FATAL_ERROR "CPM failed to fetch boostorg/${boost_lib}")
-#   endif()
-
-#   target_include_directories(${PROJECT_NAME} PRIVATE ${boost_source_dir}/include)
-# endfunction()
-
-# foreach(boost_lib IN LISTS BASELIB_BOOST_LIBRARIES)
-#   baselib_add_boost_library(${boost_lib})
-# endforeach()
+target_link_libraries(${PROJECT_NAME} PUBLIC ${BASELIB_BOOST_TARGETS})
+target_link_libraries(${PROJECT_NAME} PUBLIC fmt::fmt)
+#target_link_libraries(${PROJECT_NAME} PUBLIC cpptrace::cpptrace)

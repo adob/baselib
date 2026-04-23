@@ -1,7 +1,7 @@
 #include "ftoa.h"
 
-#include "deps/fmt/include/fmt/base.h"
-#include "deps/fmt/include/fmt/format.h"
+#include <fmt/base.h>
+#include <fmt/format.h>
 #include "lib/io/io.h"
 #include "lib/strconv/itoa.h"
 #include "lib/strconv/quote.h"
@@ -362,10 +362,27 @@ static void ftoa(io::Writer &out, std::variant<float32,float64> val, char fmt, i
 	// 	specs.set_sign(::fmt::sign::plus);
 	// }
 
+	
+	 
+	::fmt::locale_ref loc = {};
 	if (val.index() == 0) {
-    	::fmt::detail::write_float<char>(out_it, std::get<float32>(val), specs, {});
+		float32 v = std::get<float32>(val);
+    	int exp = format_float(::fmt::detail::convert_float(v), prec, specs,
+                         std::is_same<float32, float>(), buffer);
+		::fmt::sign s = ::fmt::detail::signbit(v) ? ::fmt::sign::minus : specs.sign();
+		const int exp_upper = ::fmt::detail::exp_upper<float32>();
+
+		auto f = ::fmt::detail::big_decimal_fp{buffer.data(), static_cast<int>(buffer.size()), exp};
+		::fmt::detail::write_float<char>(out_it, f, specs, s, exp_upper, loc);
 	} else {
-		::fmt::detail::write_float<char>(out_it, std::get<float64>(val), specs, {});
+		float64 v = std::get<float64>(val);
+    	int exp = format_float(::fmt::detail::convert_float(v), prec, specs,
+                         std::is_same<float64, float>(), buffer);
+		::fmt::sign s = ::fmt::detail::signbit(v) ? ::fmt::sign::minus : specs.sign();
+		const int exp_upper = ::fmt::detail::exp_upper<float64>();
+
+		auto f = ::fmt::detail::big_decimal_fp{buffer.data(), static_cast<int>(buffer.size()), exp};
+		::fmt::detail::write_float<char>(out_it, f, specs, s, exp_upper, loc);
 	}
 }
 

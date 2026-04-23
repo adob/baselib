@@ -3,6 +3,7 @@
 #include <sstream>
 #include <tuple>
 #include <utility>
+#include <variant>
 #include <stdio.h>
 
 #include "lib/io/io.h"
