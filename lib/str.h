@@ -48,7 +48,7 @@ namespace lib {
 
         str(std::string const& s) : data(s.data()), len(s.size()) {}
         str(std::string_view s) : data(s.data()), len(s.size()) {}
-        explicit constexpr str(std::span<uint8> s) : data((const char *) s.data()), len(s.size()) {}
+        explicit constexpr str(std::span<const uint8> s) : data((const char *) s.data()), len(s.size()) {}
         //str(std::string&&) = delete;
 
         inline str(String const& s);
