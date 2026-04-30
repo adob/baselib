@@ -3,9 +3,7 @@
 #include "lib/io/io.h"
 #include "lib/sync/mutex.h"
 
-namespace serial {
-    using namespace lib;
-
+namespace lib::serial {
     struct Conn : io::StaticBuffered<512, 512> {
         sync::Mutex write_mtx;
     } ;
