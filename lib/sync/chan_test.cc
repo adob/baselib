@@ -241,6 +241,44 @@ void test_chan(testing::T &t) {
     }
 }
 
+void test_chan_void_buffered_capacity(testing::T &t) {
+	Chan<void> c(1);
+	std::atomic<bool> sent = false;
+
+	c.send();
+
+	go g = [&] {
+		c.send();
+		sent = true;
+	};
+
+	time::sleep(time::millisecond);
+	if (sent) {
+		t.errorf("send to full buffered Chan<void> did not block");
+		return;
+	}
+
+	if (int r = poll(Recv(c)); r != 0) {
+		t.errorf("poll(Recv(c)) from buffered Chan<void> = %d, expected 0", r);
+		return;
+	}
+
+	time::sleep(time::millisecond);
+	if (!sent) {
+		t.errorf("send to buffered Chan<void> did not complete after recv");
+		return;
+	}
+
+	if (int r = poll(Recv(c)); r != 0) {
+		t.errorf("second poll(Recv(c)) from buffered Chan<void> = %d, expected 0", r);
+	}
+
+	c.send();
+	if (!c.recv()) {
+		t.errorf("Chan<void>::recv() failed after buffered send");
+	}
+}
+
 void nonblock_recv_race_case(testing::T &t, int choice) {
     Chan<int> c(1);
     c.send(1);

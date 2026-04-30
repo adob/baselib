@@ -6,7 +6,6 @@
 #include "lib/base.h"
 #include "lib/sync/atomic.h"
 #include "mutex.h"
-#include "cond.h"
 #include "lock.h"
 
 namespace lib::sync {
@@ -22,10 +21,6 @@ namespace lib::sync {
     constexpr bool DebugChecks = false;
 
     namespace internal {
-        // template <typename T>
-        // struct Queue {
-
-        // } ;
 
         template <typename T>
         struct IntrusiveList {
@@ -35,7 +30,6 @@ namespace lib::sync {
             } ;
 
             void push(T *e) {
-                // printf("PUSH this(%p) %p\n", this, e);
                 e->next = this->head;
                 e->prev = nil;
 
@@ -44,18 +38,15 @@ namespace lib::sync {
                 }
 
                 this->head = e;
-                // dump();
             }
 
             T *pop() {
-                // printf("POP this(%p)\n", this);
                 T *e = this->head;
                 this->head = e->next;
 
                 if (e->next) {
                     e->next->prev = nil; 
                 }
-                // dump();
                 return e;
             }
 
@@ -119,7 +110,6 @@ namespace lib::sync {
                 }
 
                 printf("]\n");
-                //funlockfile(stdout);
             }
 
             bool contains(T *e) {
@@ -142,9 +132,6 @@ namespace lib::sync {
         } ;
 
         struct Selector : IntrusiveList<Selector>::Element {
-            // sync::Mutex *mtx = nil;
-            // sync::Cond  *cond = nil;
-
             void    *value = nil;
             bool    *ok = nil;
             bool    move = false;
@@ -169,13 +156,10 @@ namespace lib::sync {
         
             enum State : byte {
                 Open,
-                //CanRecv,
                 Closed
             } state = Open;
             
-            Mutex    lock;
-            //Cond     r_cond;
-            //Cond     send_cond;
+            mutable Mutex lock;
 
             ChanBase(int capacity);
 
@@ -204,12 +188,6 @@ namespace lib::sync {
             bool try_recv(this ChanBase &c, void *out, bool *ok, bool try_locks, bool *lock_fail);
             bool try_send(this ChanBase &c, void *out, bool move, bool try_locks, bool *lock_fail);
 
-            // bool can_recv(this ChanBase &c, Selector **selout, bool try_locks, bool *lock_fail, sync::Lock sendlock, sync::Lock &);
-            // bool can_send(this ChanBase &c, Selector **selout, bool try_locks, bool *lock_fail, sync::Lock recvlock, sync::Lock &);
-
-            // void recv_now(this ChanBase &c, void *out, bool *ok, Selector *sel, sync::Lock sendlock, sync::Lock &chanlock);
-            // void send_now(this ChanBase &c, void *out, bool move, Selector *sel, sync::Lock sendlock, sync::Lock &chanlock);
-
             bool subscribe_recv(this ChanBase &c, internal::Selector &receiver, Lock&);
             bool subscribe_send(this ChanBase &c, internal::Selector &sender, Lock&);
 
@@ -222,8 +200,6 @@ namespace lib::sync {
             friend Send;
         };
     }
-    
-    //using namespace internal;
 
     // https://github.com/golang/go/blob/master/src/runtime/chan.go
     // https://medium.com/womenintechnology/exploring-the-internals-of-channels-in-go-f01ac6e884dc
@@ -252,7 +228,6 @@ namespace lib::sync {
 
         protected:
         void buffer_push(void *elem, bool move) override {
-            // printf("buffer push\n");
             this->unread++;
             if (move) {
                 this->buffer.push_front(std::move(*((T*) elem)));
@@ -262,7 +237,6 @@ namespace lib::sync {
         }
 
         void buffer_pop(void *out) override {
-            // printf("buffer pop\n");
             this->unread--;
             if (out) {
                 *((T*) out) = std::move(this->buffer[this->unread]);
@@ -299,10 +273,14 @@ namespace lib::sync {
             return *ok;
         }
 
-        protected:
-        void buffer_push(void*, bool) override {}
+      protected:
+        void buffer_push(void*, bool) override {
+            this->unread++;
+        }
 
-        void buffer_pop(void *) override {}
+        void buffer_pop(void *) override {
+             this->unread--;
+        }
 
         void set(void *, void *, bool) override {}
     } ;
@@ -370,7 +348,6 @@ namespace lib::sync {
         void init(internal::ChanBase *chan, void *data) {
             this->chan = chan;
             this->data = data;
-            // this->mtx = &chan.lock;
         }
 
         bool poll(bool try_locks, bool *lock_fail) const override;

@@ -1,7 +1,6 @@
 #ifndef __ZEPHYR__
 #include "chan.h"
 
-#include "lib/print.h"
 #include <atomic>
 #include <pthread.h>
 
@@ -326,7 +325,7 @@ bool ChanBase::is_full(this ChanBase const& c) {
 }
 
 int ChanBase::length() const {
-    Lock lock(const_cast<Mutex&>(this->lock));
+    Lock lock(this->lock);
     return this->unread;
 }
 
@@ -399,8 +398,6 @@ bool Recv::poll(bool try_locks, bool *lock_fail) const {
 
     return c.try_recv(this->data, this->ok, try_locks, lock_fail);
 }
-
-
 
 bool Send::poll(bool try_locks, bool *lock_fail) const {
     ChanBase & c = *this->chan;
