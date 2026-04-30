@@ -78,6 +78,10 @@ uint32 cheaprandn(uint32 n) {
 ChanBase::ChanBase(int capacity) : capacity(capacity) {}
 
 bool ChanBase::send_nonblocking(this ChanBase &c, void *elem, bool move, sync::Lock &lock) {
+    if (c.closed()) {
+        panic("send on closed channel");
+    }
+
     try_again:
 
     // block until there is a no receiver
@@ -264,19 +268,22 @@ void ChanBase::close(this ChanBase &c) {
     for (Selector *sender = c.senders.head; sender != nil; sender = next) {
         next = sender->next;
 
+        sender->done = true;
+
         bool expected = false;
         bool ok = sender->active->compare_exchange_strong(expected, true);
         if (!ok) {
             continue;
         }
         sender->panic = true;
-        sender->done = true;
         sender->completer->store(sender);
         sender->completed->notify();
     }
 
     for (Selector *receiver = c.receivers.head; receiver != nil; receiver = next) {
         next = receiver->next;
+
+        receiver->done = true;
         
         bool expected = false;
         bool ok = receiver->active->compare_exchange_strong(expected, true);
@@ -291,7 +298,6 @@ void ChanBase::close(this ChanBase &c) {
             *receiver->ok = false;
         }
 
-        receiver->done = true;
         receiver->completer->store(receiver);
         receiver->completed->notify();
     }

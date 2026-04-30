@@ -19,7 +19,7 @@ namespace lib::sync {
     struct Recv;
     struct Send;
 
-    constexpr bool DebugChecks = true;
+    constexpr bool DebugChecks = false;
 
     namespace internal {
         // template <typename T>

@@ -897,6 +897,80 @@ void test_select_duplicate_channel(testing::T &) {
 	c.send(8); // wake up B.  This operation used to fail because c.recvq was corrupted (it tries to wake up an already running G instead of B)
 }
 
+void test_select_close_marks_lost_race_selector_done(testing::T &) {
+	for (int i = 0; i < 10000; i++) {
+		Chan<int> c;
+		Chan<int> d;
+		Chan<int> ready;
+		Chan<int> done;
+
+		go g = [&] {
+			ready.send(0);
+			int selected = select(
+				Recv(c),
+				Recv(d)
+			);
+			done.send(selected);
+		};
+
+		ready.recv();
+		time::sleep(time::microsecond);
+
+		d.send(1);
+		c.close();
+
+		int selected = done.recv();
+		if (selected != 1) {
+			panic("wrong select case");
+		}
+	}
+}
+
+void test_poll_send_on_closed_channel_panics(testing::T &t) {
+	Chan<int> c(1);
+
+	c.close();
+
+	try {
+		poll(Send(c, 42));
+		t.errorf("poll(Send(closed channel)) did not panic");
+	} catch (lib::exceptions::Panic const&) {
+		// ok
+	}
+}
+
+void test_select_does_not_satisfy_itself_on_same_channel(testing::T &t) {
+	Chan<int> c;
+	Chan<int> done(1);
+
+	go g = [&] {
+		int v = 0;
+		int selected = select(
+			Send(c, 42),
+			Recv(c, &v)
+		);
+		done.send(selected);
+	};
+
+	time::sleep(time::millisecond);
+
+	int selected = -1;
+	if (poll(Recv(done, &selected)) != -1) {
+		t.errorf("select(Send(c), Recv(c)) completed without an external operation; selected case %d", selected);
+		return;
+	}
+
+	int v = c.recv();
+	if (v != 42) {
+		t.errorf("external recv got %d, expected 42", v);
+	}
+
+	selected = done.recv();
+	if (selected != 0) {
+		t.errorf("select(Send(c), Recv(c)) selected case %d after external recv, expected 0", selected);
+	}
+}
+
 void benchmark_make_chan(testing::B &b) {
     struct Struct0 {} ;
     struct Struct32 { int64 a, b, c, d; };
@@ -1330,65 +1404,3 @@ void benchmark_select_nonblock(testing::B &b) {
 // 		}
 // 	})
 // }
-
-int xmain(int, char **) {
-    debug::init();
-    testing::T t;
-
-    Chan<int> myc1;
-	Chan<int> myc2;
-    Chan<int> myc3;
-    Chan<int> done;
-
-    sync::Gang g1, g2;
-    
-    for (int i = 0; i < 32; i++) {
-        g1.go([&]{
-            g2.go([&]{
-                for (;;) {
-                    int i = select(
-                        Send(myc1, 0),
-                        Send(myc2, 0),
-                        Send(myc3, 0),
-                        Recv(done)
-                    );
-                    // LOG("1 selected %v\n", i);
-                    if (i == 3) {
-                        break;
-                    }
-                }
-            });
-                
-            
-            for (int i = 0 ; i < 20000; i++) {
-                select(
-                    Recv(myc1),
-                    Recv(myc2),
-                    Recv(myc3)
-                );
-                // LOG("2 selected\n");
-            }
-        });
-    }
-    g1.join();
-    done.close();
-    g2.join();
-    return 0;
-
-    testing::benchmark(benchmark_select_sync_contended);
-    return 0;
-
-    test_chan(t);
-    return 0;
-
-    for (;;) {
-        test_chan(t);
-        test_select_stress(t);
-        break;
-        print "repeat";
-    }
-    
-    //test_select_stress(t);
-    //test_select_duplicate_channel(t);
-    return 0;
-}
