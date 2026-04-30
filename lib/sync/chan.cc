@@ -159,10 +159,9 @@ void ChanBase::send_i(this ChanBase &c, void *elem, bool move) {
 }
 
 bool ChanBase::recv_nonblocking(this ChanBase &c, void *out, bool *ok_ptr, Lock &lock, std::atomic<bool> *skip_active) {
-    // printf("recv_nonblocking\n");
     if (!c.is_empty()) {
         c.buffer_pop(out);
-        // printf("recv_nonblocking buffer_pop\n");
+
         if (ok_ptr) {
             *ok_ptr = true;
         }
@@ -200,7 +199,6 @@ bool ChanBase::recv_nonblocking(this ChanBase &c, void *out, bool *ok_ptr, Lock 
 
     try_again2:
     // block if there any no senders
-    // print "recv_i senders.empty %v" % c.senders.empty();
     Selector *sender = c.senders.pop_if([&](Selector *sender) {
         return sender->active != skip_active;
     });
@@ -212,7 +210,6 @@ bool ChanBase::recv_nonblocking(this ChanBase &c, void *out, bool *ok_ptr, Lock 
 
     bool expected = false;
     bool ok = sender->active->compare_exchange_strong(expected, true);
-    // printf("recv_nonblocking popped %d\n", ok);
     if (!ok) {
         goto try_again2;
     }
@@ -256,7 +253,6 @@ void ChanBase::recv_blocking(this ChanBase &c, void *out, bool *ok, Lock &lock) 
 }
 
 void ChanBase::recv_i(this ChanBase &c, void *out, bool *ok) {
-    // printf("recv_i\n");
     Lock lock(c.lock);
 
     c.recv_blocking(out, ok, lock);
@@ -442,9 +438,7 @@ void Send::unsubscribe(sync::internal::Selector &receiver, Lock &lock) const {
     c.unsubscribe_send(receiver, lock);
 }
 
-int internal::select_i(arr<OpData> ops, arr<OpData*> ops_ptrs, arr<OpData*> lockfail_ptrs, bool block, bool debug) {
-    debug = false;
-
+int internal::select_i(arr<OpData> ops, arr<OpData*> ops_ptrs, arr<OpData*> lockfail_ptrs, bool block) {
     // fill ops_ptrs array
     int avail_ops = 0;
     int lockfail_cnt = 0;
@@ -465,6 +459,8 @@ int internal::select_i(arr<OpData> ops, arr<OpData*> ops_ptrs, arr<OpData*> lock
         OpData *selected_op = ops_ptrs[selected_idx];
         
         bool lockfail = false;
+        // poll() may panic, for example Send on a closed channel. At this point
+        // no selectors have been queued, so select_i has nothing to clean up.
         bool ok = selected_op->op.poll(true, &lockfail);
         if (ok) {
             return int(selected_op - ops.data);
@@ -474,13 +470,13 @@ int internal::select_i(arr<OpData> ops, arr<OpData*> ops_ptrs, arr<OpData*> lock
             lockfail_ptrs[lockfail_cnt++] = selected_op;
         }
 
-        //ops_ptrs[selected_idx] = ops_ptrs[i-1];
         std::swap(ops_ptrs[selected_idx], ops_ptrs[i-1]);
     }
 
     for (int i = 0; i < lockfail_cnt; i++) {
         OpData *selected_op = lockfail_ptrs[i];
 
+        // This second poll() can also panic before any selector has been queued.
         bool ok = selected_op->op.poll(false, nil);
         if (ok) {
             return int(selected_op - ops.data);
@@ -490,16 +486,59 @@ int internal::select_i(arr<OpData> ops, arr<OpData*> ops_ptrs, arr<OpData*> lock
     if (!block) {
         return -1;
     }
-    // print "ops_ptrs", ops_ptrs;
     // sort opts_ptr by lock order
     std::sort(ops_ptrs.begin(), ops_ptrs.begin()+avail_ops, [](OpData *d1, OpData *d2) {
         return uintptr(d1->op.chan) < uintptr(d2->op.chan);
     });
-    // print "ops_ptrs", ops_ptrs;
     
     std::atomic<bool> active = false;
     Waiter completed;
     atomic<Selector*> completer = nil;
+
+    struct SubscriptionCleanup {
+        arr<OpData*> ops_ptrs;
+        int subscribed = 0;
+        bool armed = true;
+
+        Lock *held_lock_for(int idx) {
+            OpData &op = *ops_ptrs[idx];
+            if (op.chanlock.locked) {
+                return &op.chanlock;
+            }
+
+            for (int j = idx - 1; j >= 0; j--) {
+                OpData &prev = *ops_ptrs[j];
+                if (prev.op.chan == op.op.chan && prev.chanlock.locked) {
+                    return &prev.chanlock;
+                }
+            }
+
+            return nil;
+        }
+
+        void disarm() {
+            armed = false;
+        }
+
+        ~SubscriptionCleanup() {
+            if (!armed) {
+                return;
+            }
+
+            // Runs while unwinding from a panic in subscribe(). These selectors
+            // point into select_i's stack frame, so leaving them queued would
+            // create stale pointers in the channel.
+            for (int j = subscribed - 1; j >= 0; j--) {
+                OpData &op = *ops_ptrs[j];
+                Lock *lock = held_lock_for(j);
+                if (lock == nil) {
+                    continue;
+                }
+                // unsubscribe() is expected not to panic during panic cleanup.
+                op.op.unsubscribe(op.selector, *lock);
+            }
+        }
+    } cleanup{ops_ptrs};
 
     int i = 0;
     // lock in lock order and subscribe
@@ -515,16 +554,24 @@ int internal::select_i(arr<OpData> ops, arr<OpData*> ops_ptrs, arr<OpData*> lock
             op.chanlock.lock(op.op.chan->lock);
         }
 
-        // printf("loop i %d; %p\n", i, &op.selector);
+        // subscribe() can panic after earlier cases have queued stack-backed
+        // selectors. SubscriptionCleanup is armed here so those earlier cases
+        // are unsubscribed during stack unwinding.
         if (op.op.subscribe(op.selector, op.chanlock)) {
+            cleanup.disarm();
             for (int j = i-1; j >= 0; j--) {
                 OpData &op = *ops_ptrs[j];
-                // printf("UNSUBSCRIBE j %d; %p\n", j, &op.selector);
+                // unsubscribe() is expected not to panic; if it does, select_i
+                // cannot safely preserve the queued-selector invariant.
                 op.op.unsubscribe(op.selector, op.chanlock);
             }
             return int(&op - ops.data);
         }
+
+        cleanup.subscribed = i + 1;
     }
+
+    cleanup.disarm();
 
     // unlock
     for (int j = i-1; j >= 0; j--) {
@@ -546,6 +593,7 @@ int internal::select_i(arr<OpData> ops, arr<OpData*> ops_ptrs, arr<OpData*> lock
             continue;
         }
         Lock lock(op.op.chan->lock);
+        // Normal post-wakeup cleanup. unsubscribe() is expected not to panic.
         op.op.unsubscribe(op.selector, lock);
 
         if constexpr (DebugChecks) {
@@ -561,14 +609,12 @@ int internal::select_i(arr<OpData> ops, arr<OpData*> ops_ptrs, arr<OpData*> lock
     return selected->id;
 }
 void lib::sync::internal::Waiter::notify() {
-    // printf("NOTIFY %p\n", this);
     state.store(1, std::memory_order::release);
     state.notify_one();
     state.store(2);
 }
 
 void lib::sync::internal::Waiter::wait() {
-    // printf("WAITING START %p\n", this);
     for (;;) {
         int s = state.load(std::memory_order::acquire);
         if (s == 0) {
@@ -576,7 +622,6 @@ void lib::sync::internal::Waiter::wait() {
             continue;
         }
         if (s == 2) {
-            // printf("WAITING DONE %p\n", this);
             return;
         }
         // spin wait

@@ -394,7 +394,7 @@ namespace lib::sync {
             OpData(SelectOp const& op) : op(op) {}
         } ;
 
-        int select_i(arr<OpData> ops, arr<OpData*> ops_ptrs, arr<OpData*> lockfail_ptrs, bool blocking, bool debug=false);
+        int select_i(arr<OpData> ops, arr<OpData*> ops_ptrs, arr<OpData*> lockfail_ptrs, bool blocking);
     }
 
     template <typename... Args>
@@ -405,15 +405,6 @@ namespace lib::sync {
 
         return internal::select_i(arr(ops_data.data(), ops_data.size()), arr(ops_ptrs.data(), ops_ptrs.size()), arr(ops_ptrs2.data(), ops_ptrs2.size()), true);
 
-    }
-
-    template <typename... Args>
-    int select_debug(Args&&... ops) {
-        std::array<internal::OpData, sizeof...(Args)> ops_data = {ops...};
-        std::array<internal::OpData*, sizeof...(Args)> ops_ptrs = {};
-        std::array<internal::OpData*, sizeof...(Args)> ops_ptrs2 = {};
-
-        return internal::select_i(arr(ops_data.data(), ops_data.size()), arr(ops_ptrs.data(), ops_ptrs.size()), arr(ops_ptrs2.data(), ops_ptrs2.size()), true, true);
     }
 
     template <typename... Args>

@@ -1020,6 +1020,57 @@ void test_select_same_channel_send_recv_does_not_double_unlock(testing::T &t) {
 	}
 }
 
+struct PanicSubscribeOp : SelectOp {
+	PanicSubscribeOp(internal::ChanBase *chan) {
+		this->chan = chan;
+		this->data = nil;
+	}
+
+	bool poll(bool, bool*) const override {
+		return false;
+	}
+
+	bool subscribe(sync::internal::Selector&, Lock&) const override {
+		panic("subscribe panic");
+		return false;
+	}
+
+	void unsubscribe(sync::internal::Selector&, Lock&) const override {}
+};
+
+void test_select_unsubscribes_on_panic(testing::T &t) {
+	Chan<int> c1;
+	Chan<int> c2;
+	Chan<int> *recv_chan = &c1;
+	Chan<int> *panic_chan = &c2;
+
+	if (uintptr(static_cast<internal::ChanBase*>(&c2)) < uintptr(static_cast<internal::ChanBase*>(&c1))) {
+		recv_chan = &c2;
+		panic_chan = &c1;
+	}
+
+	PanicSubscribeOp panic_op(panic_chan);
+
+	try {
+		select(
+			Recv(recv_chan),
+			panic_op
+		);
+		t.errorf("select with panicking subscribe did not panic");
+	} catch (lib::exceptions::Panic const&) {
+		// ok
+	}
+
+	if (!recv_chan->receivers.empty()) {
+		t.errorf("select panic left a queued receiver behind");
+	}
+
+	int selected = poll(Send(recv_chan, 7));
+	if (selected != -1) {
+		t.errorf("poll(Send(c)) = %d after select panic, expected -1; select likely leaked a queued receiver", selected);
+	}
+}
+
 void benchmark_make_chan(testing::B &b) {
     struct Struct0 {} ;
     struct Struct32 { int64 a, b, c, d; };
