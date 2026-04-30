@@ -325,6 +325,11 @@ namespace lib {
         }
 
         bool is(Error const &other);
+        
+        template <typename T>
+        bool is() const requires std::derived_from<T, Error> {
+            return this->has_error && this->type == type_id<T>;
+        }
 
         SavedError to_error() const;
 
