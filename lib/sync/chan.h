@@ -19,15 +19,14 @@ namespace lib::sync {
     struct Recv;
     struct Send;
 
-    enum class SelectStatus {
-        NotReady,
-        Ready,
-        Panic,
-    };
-
     constexpr bool DebugChecks = false;
 
     namespace internal {
+        // template <typename T>
+        // struct Queue {
+
+        // } ;
+
         template <typename T>
         struct IntrusiveList {
             struct Element {
@@ -36,6 +35,7 @@ namespace lib::sync {
             } ;
 
             void push(T *e) {
+                // printf("PUSH this(%p) %p\n", this, e);
                 e->next = this->head;
                 e->prev = nil;
 
@@ -44,15 +44,18 @@ namespace lib::sync {
                 }
 
                 this->head = e;
+                // dump();
             }
 
             T *pop() {
+                // printf("POP this(%p)\n", this);
                 T *e = this->head;
                 this->head = e->next;
 
                 if (e->next) {
                     e->next->prev = nil; 
                 }
+                // dump();
                 return e;
             }
 
@@ -71,6 +74,7 @@ namespace lib::sync {
             }
 
             void remove(T *e) {
+                // printf("REMOVE this(%p) %p\n", this, e);
                 if constexpr (DebugChecks) {
                     bool found = false;
                     for (T *elem = this->head; elem != nil; elem = elem->next) {
@@ -80,6 +84,7 @@ namespace lib::sync {
                         }
                     }
                     if (!found) {
+                        printf("PANIC!!! %p\n", this);
                         dump();
 
                         panic("element not found");
@@ -103,6 +108,7 @@ namespace lib::sync {
             T *head = nil;
 
             void dump() {
+                //flockfile(stdout);
                 if (!this->head) {
                     printf("empty list this(%p)\n", this);
                     return;
@@ -113,6 +119,7 @@ namespace lib::sync {
                 }
 
                 printf("]\n");
+                //funlockfile(stdout);
             }
 
             bool contains(T *e) {
@@ -130,10 +137,14 @@ namespace lib::sync {
             std::atomic<int> state = 0;
 
             void notify();
+
             void wait();
         } ;
 
         struct Selector : IntrusiveList<Selector>::Element {
+            // sync::Mutex *mtx = nil;
+            // sync::Cond  *cond = nil;
+
             void    *value = nil;
             bool    *ok = nil;
             bool    move = false;
@@ -158,10 +169,13 @@ namespace lib::sync {
         
             enum State : byte {
                 Open,
+                //CanRecv,
                 Closed
             } state = Open;
             
             Mutex    lock;
+            //Cond     r_cond;
+            //Cond     send_cond;
 
             ChanBase(int capacity);
 
@@ -179,17 +193,25 @@ namespace lib::sync {
             virtual void set(void *dest, void *val, bool move) = 0;
             virtual void buffer_pop(void *out) = 0;
 
-            SelectStatus send_nonblocking(this ChanBase &c, void *elem, bool move, Lock&, std::atomic<bool> *skip_active = nil);
-            void send_blocking(this ChanBase &c, void *elem, bool move);
+            void send_i(this ChanBase &c, void *elem, bool move);
+            bool send_nonblocking(this ChanBase &c, void *elem, bool move, Lock&, std::atomic<bool> *skip_active = nil);
+            void send_blocking(this ChanBase &c, void *elem, bool move, Lock&);
 
             void recv_i(this ChanBase &c, void *out, bool *closed);
             bool recv_nonblocking(this ChanBase &c, void *out, bool *closed, Lock&, std::atomic<bool> *skip_active = nil);
-            void recv_blocking(this ChanBase &c, void *out, bool *closed);
+            void recv_blocking(this ChanBase &c, void *out, bool *closed, Lock&);
 
             bool try_recv(this ChanBase &c, void *out, bool *ok, bool try_locks, bool *lock_fail);
+            bool try_send(this ChanBase &c, void *out, bool move, bool try_locks, bool *lock_fail);
+
+            // bool can_recv(this ChanBase &c, Selector **selout, bool try_locks, bool *lock_fail, sync::Lock sendlock, sync::Lock &);
+            // bool can_send(this ChanBase &c, Selector **selout, bool try_locks, bool *lock_fail, sync::Lock recvlock, sync::Lock &);
+
+            // void recv_now(this ChanBase &c, void *out, bool *ok, Selector *sel, sync::Lock sendlock, sync::Lock &chanlock);
+            // void send_now(this ChanBase &c, void *out, bool move, Selector *sel, sync::Lock sendlock, sync::Lock &chanlock);
 
             bool subscribe_recv(this ChanBase &c, internal::Selector &receiver, Lock&);
-            SelectStatus subscribe_send(this ChanBase &c, internal::Selector &sender, Lock&);
+            bool subscribe_send(this ChanBase &c, internal::Selector &sender, Lock&);
 
             void unsubscribe_recv(this ChanBase &c, internal::Selector &receiver, Lock&);
             void unsubscribe_send(this ChanBase &c, internal::Selector &sender, Lock&);
@@ -201,6 +223,8 @@ namespace lib::sync {
         };
     }
     
+    //using namespace internal;
+
     // https://github.com/golang/go/blob/master/src/runtime/chan.go
     // https://medium.com/womenintechnology/exploring-the-internals-of-channels-in-go-f01ac6e884dc
     // https://github.com/tylertreat/chan/blob/master/src/chan.h
@@ -213,16 +237,16 @@ namespace lib::sync {
 
 
         void send(this Chan &c, T &&elem) {
-            c.send_blocking(&elem, true);
+            c.send_i(&elem, true);
         }
 
         void send(this Chan &c, T const& elem) {
-            c.send_blocking((void*) &elem, false);
+            c.send_i((void*) &elem, false);
         }
 
         T recv(this Chan &c, bool *ok = nil) {
             T t = {};
-            c.recv_blocking(&t, ok);
+            c.recv_i(&t, ok);
             return t;
         }
 
@@ -261,7 +285,7 @@ namespace lib::sync {
         Chan(int capacity = 0) : ChanBase(capacity) {}
 
         void send(this Chan &c) {
-            c.send_blocking(0, false);
+            c.send_i(0, false);
         }
 
         bool recv(this Chan &c, bool *ok = nil) {
@@ -287,9 +311,9 @@ namespace lib::sync {
         internal::ChanBase *chan;
         void *data;
         
-        virtual SelectStatus poll(bool try_locks, bool *lock_fail) const = 0;
+        virtual bool poll(bool try_locks, bool *lock_fail) const = 0;
 
-        virtual SelectStatus subscribe(sync::internal::Selector &receiver, Lock&) const = 0;
+        virtual bool subscribe(sync::internal::Selector &receiver, Lock&) const = 0;
         virtual void unsubscribe(sync::internal::Selector &receiver, Lock&) const = 0;
     } ;  
 
@@ -314,9 +338,9 @@ namespace lib::sync {
             this->ok = ok;
         }
 
-        SelectStatus poll(bool try_locks, bool *lock_fail) const override;
+        bool poll(bool try_locks, bool *lock_fail) const override;
 
-        SelectStatus subscribe(sync::internal::Selector &receiver, Lock&) const override;
+        bool subscribe(sync::internal::Selector &receiver, Lock&) const override;
         void unsubscribe(sync::internal::Selector &receiver, Lock&) const override;
     } ;
     
@@ -349,9 +373,9 @@ namespace lib::sync {
             // this->mtx = &chan.lock;
         }
 
-        SelectStatus poll(bool try_locks, bool *lock_fail) const override;
+        bool poll(bool try_locks, bool *lock_fail) const override;
 
-        SelectStatus subscribe(sync::internal::Selector &receiver, Lock&) const override;
+        bool subscribe(sync::internal::Selector &receiver, Lock&) const override;
         void unsubscribe(sync::internal::Selector &receive, Lock&) const override;
     } ;
 

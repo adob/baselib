@@ -1026,12 +1026,13 @@ struct PanicSubscribeOp : SelectOp {
 		this->data = nil;
 	}
 
-	SelectStatus poll(bool, bool*) const override {
-		return SelectStatus::NotReady;
+	bool poll(bool, bool*) const override {
+		return false;
 	}
 
-	SelectStatus subscribe(sync::internal::Selector&, Lock&) const override {
-		return SelectStatus::Panic;
+	bool subscribe(sync::internal::Selector&, Lock&) const override {
+		panic("subscribe panic");
+		return false;
 	}
 
 	void unsubscribe(sync::internal::Selector&, Lock&) const override {}

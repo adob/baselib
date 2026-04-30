@@ -77,9 +77,9 @@ uint32 cheaprandn(uint32 n) {
 
 ChanBase::ChanBase(int capacity) : capacity(capacity) {}
 
-SelectStatus ChanBase::send_nonblocking(this ChanBase &c, void *elem, bool move, sync::Lock &lock, std::atomic<bool> *skip_active) {
+bool ChanBase::send_nonblocking(this ChanBase &c, void *elem, bool move, sync::Lock &lock, std::atomic<bool> *skip_active) {
     if (c.closed()) {
-        return SelectStatus::Panic;
+        panic("send on closed channel");
     }
 
     try_again:
@@ -93,10 +93,10 @@ SelectStatus ChanBase::send_nonblocking(this ChanBase &c, void *elem, bool move,
 
         if (!c.is_full()) {
             c.buffer_push(elem, move);
-            return SelectStatus::Ready;
+            return true;
         }
         
-        return SelectStatus::NotReady;
+        return false;
     }
 
     receiver->done = true;
@@ -117,17 +117,12 @@ SelectStatus ChanBase::send_nonblocking(this ChanBase &c, void *elem, bool move,
     receiver->completer->store(receiver);
     receiver->completed->notify();
     lock.unlock();
-    return SelectStatus::Ready;
+    return true;
 }
 
-void ChanBase::send_blocking(this ChanBase &c, void *elem, bool move) {
-    Lock lock(c.lock);
-
-    SelectStatus status = c.send_nonblocking(elem, move, lock);
-    if (status == SelectStatus::Panic) {
-        panic("send on closed channel");
-    }
-    if (status == SelectStatus::Ready) {
+void ChanBase::send_blocking(this ChanBase &c, void *elem, bool move, sync::Lock &lock) {
+    bool ok = c.send_nonblocking(elem, move, lock);
+    if (ok) {
         return;
     }
 
@@ -153,6 +148,15 @@ void ChanBase::send_blocking(this ChanBase &c, void *elem, bool move) {
     }
 }
 
+void ChanBase::send_i(this ChanBase &c, void *elem, bool move) {
+    Lock lock(c.lock);
+
+    if (c.closed()) {
+        panic("send on closed channel");
+    }
+
+    c.send_blocking(elem, move, lock);
+}
 
 bool ChanBase::recv_nonblocking(this ChanBase &c, void *out, bool *ok_ptr, Lock &lock, std::atomic<bool> *skip_active) {
     if (!c.is_empty()) {
@@ -225,9 +229,7 @@ bool ChanBase::recv_nonblocking(this ChanBase &c, void *out, bool *ok_ptr, Lock 
     return true;
 }
 
-void ChanBase::recv_blocking(this ChanBase &c, void *out, bool *ok) {
-    Lock lock(c.lock);
-
+void ChanBase::recv_blocking(this ChanBase &c, void *out, bool *ok, Lock &lock) {
     if (c.recv_nonblocking(out, ok, lock)) {
         return;
     }
@@ -248,6 +250,12 @@ void ChanBase::recv_blocking(this ChanBase &c, void *out, bool *ok) {
 
     lock.unlock();
     completed.wait();
+}
+
+void ChanBase::recv_i(this ChanBase &c, void *out, bool *ok) {
+    Lock lock(c.lock);
+
+    c.recv_blocking(out, ok, lock);
 }
 
 void ChanBase::close(this ChanBase &c) {
@@ -336,6 +344,21 @@ bool ChanBase::try_recv(this ChanBase &c, void *out, bool *ok, bool try_locks, b
     return c.recv_nonblocking(out, ok, lock);
 }
 
+bool ChanBase::try_send(this ChanBase &c, void *out, bool move, bool try_locks, bool *lock_fail) {
+    Lock lock;
+    if (try_locks) {
+        if (!lock.try_lock(c.lock)) {
+            *lock_fail = true;
+            return false;
+        }
+    } else {
+        lock.lock(c.lock);
+    }
+
+    return c.send_nonblocking(out, move, lock);
+}
+
+
 bool ChanBase::subscribe_recv(this ChanBase &c, internal::Selector &receiver, Lock &lock) {
     if (c.recv_nonblocking(receiver.value, receiver.ok, lock, receiver.active)) {
         return true;
@@ -345,14 +368,13 @@ bool ChanBase::subscribe_recv(this ChanBase &c, internal::Selector &receiver, Lo
     return false;
 }
 
-SelectStatus ChanBase::subscribe_send(this ChanBase &c, internal::Selector &sender, Lock &lock) {
-    SelectStatus status = c.send_nonblocking(sender.value, sender.move, lock, sender.active);
-    if (status != SelectStatus::NotReady) {
-        return status;
+bool ChanBase::subscribe_send(this ChanBase &c, internal::Selector &sender, Lock &lock) {
+    if (c.send_nonblocking(sender.value, sender.move, lock, sender.active)) {
+        return true;
     }
 
     c.senders.push(&sender);
-    return SelectStatus::NotReady;
+    return false;
 }
 
 void ChanBase::unsubscribe_recv(this ChanBase &c, internal::Selector &receiver, Lock&) {
@@ -372,50 +394,35 @@ void ChanBase::unsubscribe_send(this ChanBase &c, internal::Selector &sender, Lo
 }
 
 
-SelectStatus Recv::poll(bool try_locks, bool *lock_fail) const {
+bool Recv::poll(bool try_locks, bool *lock_fail) const {
     ChanBase & c = *this->chan;
 
-    if (c.try_recv(this->data, this->ok, try_locks, lock_fail)) {
-        return SelectStatus::Ready;
-    }
-    return SelectStatus::NotReady;
+    return c.try_recv(this->data, this->ok, try_locks, lock_fail);
 }
 
 
-SelectStatus Send::poll(bool try_locks, bool *lock_fail) const {
+
+bool Send::poll(bool try_locks, bool *lock_fail) const {
     ChanBase & c = *this->chan;
 
-    Lock lock;
-    if (try_locks) {
-        if (!lock.try_lock(c.lock)) {
-            *lock_fail = true;
-            return SelectStatus::NotReady;
-        }
-    } else {
-        lock.lock(c.lock);
-    }
-
-    return c.send_nonblocking(this->data, this->move, lock);
+    return c.try_send(this->data, this->move, try_locks, lock_fail);
 }
 
-SelectStatus Recv::subscribe(sync::internal::Selector &receiver, Lock &lock) const {
+bool Recv::subscribe(sync::internal::Selector &receiver, Lock &lock) const {
     ChanBase &c = *this->chan;
 
     receiver.value = this->data;
     receiver.ok = this->ok;
     
-    if (c.subscribe_recv(receiver, lock)) {
-        return SelectStatus::Ready;
-    }
-    return SelectStatus::NotReady;
+    return c.subscribe_recv(receiver, lock);
 }
 
-SelectStatus Send::subscribe(sync::internal::Selector &sender, Lock &lock) const {
+bool Send::subscribe(sync::internal::Selector &sender, Lock &lock) const {
     ChanBase &c = *this->chan;
 
     sender.value = this->data;
     sender.move = this->move;
-
+    
     return c.subscribe_send(sender, lock);
 }
 
@@ -452,11 +459,10 @@ int internal::select_i(arr<OpData> ops, arr<OpData*> ops_ptrs, arr<OpData*> lock
         OpData *selected_op = ops_ptrs[selected_idx];
         
         bool lockfail = false;
-        SelectStatus status = selected_op->op.poll(true, &lockfail);
-        if (status == SelectStatus::Panic) {
-            panic("send on closed channel");
-        }
-        if (status == SelectStatus::Ready) {
+        // poll() may panic, for example Send on a closed channel. At this point
+        // no selectors have been queued, so select_i has nothing to clean up.
+        bool ok = selected_op->op.poll(true, &lockfail);
+        if (ok) {
             return int(selected_op - ops.data);
         }
 
@@ -470,11 +476,9 @@ int internal::select_i(arr<OpData> ops, arr<OpData*> ops_ptrs, arr<OpData*> lock
     for (int i = 0; i < lockfail_cnt; i++) {
         OpData *selected_op = lockfail_ptrs[i];
 
-        SelectStatus status = selected_op->op.poll(false, nil);
-        if (status == SelectStatus::Panic) {
-            panic("send on closed channel");
-        }
-        if (status == SelectStatus::Ready) {
+        // This second poll() can also panic before any selector has been queued.
+        bool ok = selected_op->op.poll(false, nil);
+        if (ok) {
             return int(selected_op - ops.data);
         }
     }    
@@ -491,32 +495,50 @@ int internal::select_i(arr<OpData> ops, arr<OpData*> ops_ptrs, arr<OpData*> lock
     Waiter completed;
     atomic<Selector*> completer = nil;
 
-    auto held_lock_for = [&](int idx) -> Lock* {
-        OpData &op = *ops_ptrs[idx];
-        if (op.chanlock.locked) {
-            return &op.chanlock;
+    struct SubscriptionCleanup {
+        arr<OpData*> ops_ptrs;
+        int subscribed = 0;
+        bool armed = true;
+
+        Lock *held_lock_for(int idx) {
+            OpData &op = *ops_ptrs[idx];
+            if (op.chanlock.locked) {
+                return &op.chanlock;
+            }
+
+            for (int j = idx - 1; j >= 0; j--) {
+                OpData &prev = *ops_ptrs[j];
+                if (prev.op.chan == op.op.chan && prev.chanlock.locked) {
+                    return &prev.chanlock;
+                }
+            }
+
+            return nil;
         }
 
-        for (int j = idx - 1; j >= 0; j--) {
-            OpData &prev = *ops_ptrs[j];
-            if (prev.op.chan == op.op.chan && prev.chanlock.locked) {
-                return &prev.chanlock;
+        void disarm() {
+            armed = false;
+        }
+
+        ~SubscriptionCleanup() {
+            if (!armed) {
+                return;
+            }
+
+            // Runs while unwinding from a panic in subscribe(). These selectors
+            // point into select_i's stack frame, so leaving them queued would
+            // create stale pointers in the channel.
+            for (int j = subscribed - 1; j >= 0; j--) {
+                OpData &op = *ops_ptrs[j];
+                Lock *lock = held_lock_for(j);
+                if (lock == nil) {
+                    continue;
+                }
+                // unsubscribe() is expected not to panic during panic cleanup.
+                op.op.unsubscribe(op.selector, *lock);
             }
         }
-
-        return nil;
-    };
-
-    auto unsubscribe_previous = [&](int last) {
-        for (int j = last; j >= 0; j--) {
-            OpData &op = *ops_ptrs[j];
-            Lock *lock = held_lock_for(j);
-            if (lock == nil) {
-                continue;
-            }
-            op.op.unsubscribe(op.selector, *lock);
-        }
-    };
+    } cleanup{ops_ptrs};
 
     int i = 0;
     // lock in lock order and subscribe
@@ -532,16 +554,24 @@ int internal::select_i(arr<OpData> ops, arr<OpData*> ops_ptrs, arr<OpData*> lock
             op.chanlock.lock(op.op.chan->lock);
         }
 
-        SelectStatus status = op.op.subscribe(op.selector, op.chanlock);
-        if (status == SelectStatus::Panic) {
-            unsubscribe_previous(i - 1);
-            panic("send on closed channel");
-        }
-        if (status == SelectStatus::Ready) {
-            unsubscribe_previous(i - 1);
+        // subscribe() can panic after earlier cases have queued stack-backed
+        // selectors. SubscriptionCleanup is armed here so those earlier cases
+        // are unsubscribed during stack unwinding.
+        if (op.op.subscribe(op.selector, op.chanlock)) {
+            cleanup.disarm();
+            for (int j = i-1; j >= 0; j--) {
+                OpData &op = *ops_ptrs[j];
+                // unsubscribe() is expected not to panic; if it does, select_i
+                // cannot safely preserve the queued-selector invariant.
+                op.op.unsubscribe(op.selector, op.chanlock);
+            }
             return int(&op - ops.data);
         }
+
+        cleanup.subscribed = i + 1;
     }
+
+    cleanup.disarm();
 
     // unlock
     for (int j = i-1; j >= 0; j--) {
