@@ -77,15 +77,19 @@ uint32 cheaprandn(uint32 n) {
 
 ChanBase::ChanBase(int capacity) : capacity(capacity) {}
 
-bool ChanBase::send_nonblocking(this ChanBase &c, void *elem, bool move, sync::Lock &lock) {
+bool ChanBase::send_nonblocking(this ChanBase &c, void *elem, bool move, sync::Lock &lock, std::atomic<bool> *skip_active) {
     if (c.closed()) {
         panic("send on closed channel");
     }
 
     try_again:
 
+    Selector *receiver = c.receivers.pop_if([&](Selector *receiver) {
+        return receiver->active != skip_active;
+    });
+
     // block until there is a no receiver
-    if (c.receivers.empty()) {
+    if (receiver == nil) {
 
         if (!c.is_full()) {
             c.buffer_push(elem, move);
@@ -95,7 +99,6 @@ bool ChanBase::send_nonblocking(this ChanBase &c, void *elem, bool move, sync::L
         return false;
     }
 
-    Selector *receiver = c.receivers.pop();
     receiver->done = true;
 
     bool expected = false;
@@ -155,7 +158,7 @@ void ChanBase::send_i(this ChanBase &c, void *elem, bool move) {
     c.send_blocking(elem, move, lock);
 }
 
-bool ChanBase::recv_nonblocking(this ChanBase &c, void *out, bool *ok_ptr, Lock &lock) {
+bool ChanBase::recv_nonblocking(this ChanBase &c, void *out, bool *ok_ptr, Lock &lock, std::atomic<bool> *skip_active) {
     // printf("recv_nonblocking\n");
     if (!c.is_empty()) {
         c.buffer_pop(out);
@@ -166,8 +169,10 @@ bool ChanBase::recv_nonblocking(this ChanBase &c, void *out, bool *ok_ptr, Lock 
 
         // signal senders if present
         try_again1:
-        if (!c.senders.empty()) {
-            Selector *sender = c.senders.pop();
+        Selector *sender = c.senders.pop_if([&](Selector *sender) {
+            return sender->active != skip_active;
+        });
+        if (sender != nil) {
             sender->done = true;
 
             bool expected = false;
@@ -196,11 +201,13 @@ bool ChanBase::recv_nonblocking(this ChanBase &c, void *out, bool *ok_ptr, Lock 
     try_again2:
     // block if there any no senders
     // print "recv_i senders.empty %v" % c.senders.empty();
-    if (c.senders.empty()) {
+    Selector *sender = c.senders.pop_if([&](Selector *sender) {
+        return sender->active != skip_active;
+    });
+    if (sender == nil) {
         return false;
     }
 
-    Selector *sender = c.senders.pop();
     sender->done = true;
 
     bool expected = false;
@@ -356,7 +363,7 @@ bool ChanBase::try_send(this ChanBase &c, void *out, bool move, bool try_locks, 
 
 
 bool ChanBase::subscribe_recv(this ChanBase &c, internal::Selector &receiver, Lock &lock) {
-    if (c.recv_nonblocking(receiver.value, receiver.ok, lock)) {
+    if (c.recv_nonblocking(receiver.value, receiver.ok, lock, receiver.active)) {
         return true;
     }
 
@@ -365,7 +372,7 @@ bool ChanBase::subscribe_recv(this ChanBase &c, internal::Selector &receiver, Lo
 }
 
 bool ChanBase::subscribe_send(this ChanBase &c, internal::Selector &sender, Lock &lock) {
-    if (c.send_nonblocking(sender.value, sender.move, lock)) {
+    if (c.send_nonblocking(sender.value, sender.move, lock, sender.active)) {
         return true;
     }
 

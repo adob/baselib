@@ -59,6 +59,20 @@ namespace lib::sync {
                 return e;
             }
 
+            template <typename Predicate>
+            T *pop_if(Predicate pred) {
+                for (T *e = this->head; e != nil; e = e->next) {
+                    if (!pred(e)) {
+                        continue;
+                    }
+
+                    remove(e);
+                    return e;
+                }
+
+                return nil;
+            }
+
             void remove(T *e) {
                 // printf("REMOVE this(%p) %p\n", this, e);
                 if constexpr (DebugChecks) {
@@ -180,11 +194,11 @@ namespace lib::sync {
             virtual void buffer_pop(void *out) = 0;
 
             void send_i(this ChanBase &c, void *elem, bool move);
-            bool send_nonblocking(this ChanBase &c, void *elem, bool move, Lock&);
+            bool send_nonblocking(this ChanBase &c, void *elem, bool move, Lock&, std::atomic<bool> *skip_active = nil);
             void send_blocking(this ChanBase &c, void *elem, bool move, Lock&);
 
             void recv_i(this ChanBase &c, void *out, bool *closed);
-            bool recv_nonblocking(this ChanBase &c, void *out, bool *closed, Lock&);
+            bool recv_nonblocking(this ChanBase &c, void *out, bool *closed, Lock&, std::atomic<bool> *skip_active = nil);
             void recv_blocking(this ChanBase &c, void *out, bool *closed, Lock&);
 
             bool try_recv(this ChanBase &c, void *out, bool *ok, bool try_locks, bool *lock_fail);

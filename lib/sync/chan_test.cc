@@ -971,6 +971,55 @@ void test_select_does_not_satisfy_itself_on_same_channel(testing::T &t) {
 	}
 }
 
+void test_select_same_channel_send_recv_does_not_double_unlock(testing::T &t) {
+	for (int order = 0; order < 2; order++) {
+		Chan<int> c;
+		Chan<int> done(1);
+
+		go g = [&] {
+			int v = 0;
+			int selected;
+			if (order == 0) {
+				selected = select(
+					Send(c, 42),
+					Recv(c, &v)
+				);
+			} else {
+				selected = select(
+					Recv(c, &v),
+					Send(c, 42)
+				);
+			}
+			done.send(selected);
+		};
+
+		time::sleep(time::millisecond);
+
+		int selected = -1;
+		if (poll(Recv(done, &selected)) != -1) {
+			t.errorf("order %d: select completed without an external operation; selected case %d", order, selected);
+			continue;
+		}
+
+		if (order == 0) {
+			int v = c.recv();
+			if (v != 42) {
+				t.errorf("order %d: external recv got %d, expected 42", order, v);
+			}
+			selected = done.recv();
+			if (selected != 0) {
+				t.errorf("order %d: selected case %d after external recv, expected 0", order, selected);
+			}
+		} else {
+			c.send(42);
+			selected = done.recv();
+			if (selected != 0) {
+				t.errorf("order %d: selected case %d after external send, expected 0", order, selected);
+			}
+		}
+	}
+}
+
 void benchmark_make_chan(testing::B &b) {
     struct Struct0 {} ;
     struct Struct32 { int64 a, b, c, d; };
