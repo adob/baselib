@@ -330,6 +330,7 @@ bool ChanBase::is_full(this ChanBase const& c) {
 }
 
 int ChanBase::length() const {
+    Lock lock(const_cast<Mutex&>(this->lock));
     return this->unread;
 }
 
