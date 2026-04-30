@@ -25,9 +25,9 @@ CPMFindPackage(
 
 CPMFindPackage(
   NAME fmt
-  VERSION 11.1.4
+  VERSION 12.0.0
   GITHUB_REPOSITORY fmtlib/fmt
-  GIT_TAG 11.1.4
+  GIT_TAG 12.0.0
 )
 
 # CPMFindPackage(
