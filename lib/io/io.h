@@ -80,9 +80,6 @@ namespace lib::io {
         size write_repeated(str data, size cnt, error err);
         size write_repeated(char c, size cnt, error err);
 
-        
-        
-
         size write_available();
         size flush(error err);
 
