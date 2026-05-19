@@ -76,24 +76,7 @@ add_library(${PROJECT_NAME} STATIC
 
 add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
 
-add_library(${PROJECT_NAME}_test_main STATIC
-    ${CMAKE_CURRENT_LIST_DIR}/lib/flag/flag.cc
-    ${CMAKE_CURRENT_LIST_DIR}/lib/runtime/debug.cc
-    ${CMAKE_CURRENT_LIST_DIR}/lib/runtime/mstats.cc
-    ${CMAKE_CURRENT_LIST_DIR}/lib/testing/benchmark.cc
-    ${CMAKE_CURRENT_LIST_DIR}/lib/testing/debug_stub.cc
-    ${CMAKE_CURRENT_LIST_DIR}/lib/testing/example.cc
-    ${CMAKE_CURRENT_LIST_DIR}/lib/testing/func.cc
-    ${CMAKE_CURRENT_LIST_DIR}/lib/testing/fuzz.cc
-    ${CMAKE_CURRENT_LIST_DIR}/lib/testing/matcher.cc
-    ${CMAKE_CURRENT_LIST_DIR}/lib/testing/testing.cc
-    ${CMAKE_CURRENT_LIST_DIR}/lib/testing/testmain.cc
-)
-
-add_library(${PROJECT_NAME}::test_main ALIAS ${PROJECT_NAME}_test_main)
-
 target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_23)
-target_compile_features(${PROJECT_NAME}_test_main PUBLIC cxx_std_23)
 
 #set_target_properties(baselib PROPERTIES
   #CXX_STANDARD 26
@@ -125,10 +108,32 @@ target_link_libraries(${PROJECT_NAME} PUBLIC ${BASELIB_BOOST_TARGETS})
 target_link_libraries(${PROJECT_NAME} PUBLIC fmt::fmt)
 #target_link_libraries(${PROJECT_NAME} PUBLIC cpptrace::cpptrace)
 
-find_library(BASELIB_ELF_LIBRARY elf REQUIRED)
+find_library(BASELIB_ELF_LIBRARY elf)
 
-target_link_libraries(${PROJECT_NAME}_test_main PUBLIC
-  ${PROJECT_NAME}::${PROJECT_NAME}
-  ${BASELIB_ELF_LIBRARY}
-  ${CMAKE_DL_LIBS}
-)
+if(BASELIB_ELF_LIBRARY)
+  add_library(${PROJECT_NAME}_test_main STATIC
+      ${CMAKE_CURRENT_LIST_DIR}/lib/flag/flag.cc
+      ${CMAKE_CURRENT_LIST_DIR}/lib/runtime/debug.cc
+      ${CMAKE_CURRENT_LIST_DIR}/lib/runtime/mstats.cc
+      ${CMAKE_CURRENT_LIST_DIR}/lib/testing/benchmark.cc
+      ${CMAKE_CURRENT_LIST_DIR}/lib/testing/debug_stub.cc
+      ${CMAKE_CURRENT_LIST_DIR}/lib/testing/example.cc
+      ${CMAKE_CURRENT_LIST_DIR}/lib/testing/func.cc
+      ${CMAKE_CURRENT_LIST_DIR}/lib/testing/fuzz.cc
+      ${CMAKE_CURRENT_LIST_DIR}/lib/testing/matcher.cc
+      ${CMAKE_CURRENT_LIST_DIR}/lib/testing/testing.cc
+      ${CMAKE_CURRENT_LIST_DIR}/lib/testing/testmain.cc
+  )
+
+  add_library(${PROJECT_NAME}::test_main ALIAS ${PROJECT_NAME}_test_main)
+
+  target_compile_features(${PROJECT_NAME}_test_main PUBLIC cxx_std_23)
+
+  target_link_libraries(${PROJECT_NAME}_test_main PUBLIC
+    ${PROJECT_NAME}::${PROJECT_NAME}
+    ${BASELIB_ELF_LIBRARY}
+    ${CMAKE_DL_LIBS}
+  )
+else()
+  message(STATUS "libelf not found; skipping ${PROJECT_NAME}::test_main")
+endif()
