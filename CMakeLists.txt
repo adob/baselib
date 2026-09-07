@@ -85,10 +85,18 @@ foreach(src_file IN LISTS SOURCES)
     list(REMOVE_ITEM SOURCES ${src_file})
   endif()
 
+  if(src_file MATCHES ".*_zephyr\\.cc$" AND NOT DEFINED ZEPHYR_BASE)
+    list(REMOVE_ITEM SOURCES ${src_file})
+  endif()
+
   if(src_file MATCHES "(^|[^A-Za-z0-9_])example([^A-Za-z0-9_]|$)")
     list(REMOVE_ITEM SOURCES ${src_file})
   endif()
 endforeach()
+
+if(DEFINED ZEPHYR_BASE AND CONFIG_POSIX_API AND NOT UNIX)
+  list(APPEND SOURCES ${CMAKE_CURRENT_LIST_DIR}/lib/os/stdio_posix.cc)
+endif()
 
 add_library(${PROJECT_NAME} STATIC
     ${SOURCES}
