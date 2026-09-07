@@ -8,10 +8,6 @@ get_filename_component(
 
 project(baselib VERSION 0.0.0 LANGUAGES CXX)
 
-if(PROJECT_IS_TOP_LEVEL)
-  include(CTest)
-endif()
-
 include(cmake/CPM.cmake)
 
 set(BASELIB_BOOST_VERSION "1.87.0" CACHE STRING "Boost version used by baselib CPM dependencies")
@@ -132,7 +128,7 @@ target_link_libraries(${PROJECT_NAME} PUBLIC ${BASELIB_BOOST_TARGETS})
 target_link_libraries(${PROJECT_NAME} PUBLIC fmt::fmt-header-only)
 #target_link_libraries(${PROJECT_NAME} PUBLIC cpptrace::cpptrace)
 
-if(BUILD_TESTING AND (WIN32 OR UNIX))
+if(WIN32 OR UNIX)
   if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     find_library(BASELIB_ELF_LIBRARY NAMES elf)
   endif()
