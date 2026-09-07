@@ -131,7 +131,7 @@ foreach(boost_component IN LISTS BASELIB_BOOST_COMPONENTS)
 endforeach()
 
 target_link_libraries(${PROJECT_NAME} PUBLIC ${BASELIB_BOOST_TARGETS})
-target_link_libraries(${PROJECT_NAME} PUBLIC fmt::fmt)
+target_link_libraries(${PROJECT_NAME} PUBLIC fmt::fmt-header-only)
 #target_link_libraries(${PROJECT_NAME} PUBLIC cpptrace::cpptrace)
 
 if(BUILD_TESTING AND (WIN32 OR UNIX))
