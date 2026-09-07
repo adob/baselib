@@ -6,6 +6,7 @@
 #include <variant>
 #include <stdio.h>
 
+#include "lib/fallback.h"
 #include "lib/io/io.h"
 #include "lib/errors/errors.h"
 #include "lib/os/stdio.h"
@@ -621,4 +622,3 @@ namespace lib {
 
 
 //#include "fmt.inlines.h"
-

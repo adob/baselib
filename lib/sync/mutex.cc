@@ -104,7 +104,7 @@ void Mutex::unlock() {
 #elif __ZEPHYR__
     int ret = k_mutex_unlock(&this->mutex);
     if (ret) {
-        panic(os::Errno(ret));
+        panic(os::Errno(-ret));
     }
 #else   
     if (int code = pthread_mutex_unlock(&mutex)) {

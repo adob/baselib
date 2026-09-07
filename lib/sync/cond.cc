@@ -1,5 +1,5 @@
 #include "cond.h"
-#include "lib/os.h"
+#include "lib/os/error.h"
 
 using namespace lib;
 using namespace sync;

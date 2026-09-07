@@ -1,9 +1,11 @@
 #pragma once
 
+#include <cstring>
 #include <functional>
 #include <vector>
 
 #include "../utf8.h"
+#include "lib/fallback.h"
 #include "lib/io/io.h"
 #include "lib/math/math.h"
 #include "lib/types.h"
@@ -17,7 +19,7 @@ namespace lib::strings {
     size index(str haystack, str needle);
 
     inline size index_byte(str s, char c) {
-        const char *p = (const char *)memchr(s.data, c, s.len);
+        const char *p = (const char *) memchr(s.data, c, s.len);
         if (p) {
             return p - s.data;
         } else {
@@ -26,12 +28,8 @@ namespace lib::strings {
     }
 
     inline size last_index_byte(str s, char c) {
-        const char *p = (const char *)memrchr(s.data, c, s.len);
-        if (p) {
-            return p - s.data;
-        } else {
-            return -1;
-        }
+        const char *p = (const char *)::memrchr(s.data, c, s.len);
+        return p ? p - s.data : -1;
     }
 
     // index returns the index of the first instance of needle in haystack, or -1 if needle is not present in haystack.
@@ -76,12 +74,7 @@ namespace lib::strings {
     size index_rune(str s, rune r);
 
     inline size rindex(str s, char c) { 
-        const char *p = (const char *) memrchr(s.data, c, s.len);
-        if (p) {
-            return p - s.data;
-        } else {
-            return -1;
-        }
+        return last_index_byte(s, c);
     }
 
     String to_lower_ascii(str s);

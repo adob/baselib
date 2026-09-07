@@ -1,3 +1,7 @@
+#if !defined(_GNU_SOURCE) && !defined(_POSIX_C_SOURCE)
+#define _POSIX_C_SOURCE 200809L
+#endif
+
 #include <cerrno>
 #include <string.h>
 #include <errno.h>
@@ -9,13 +13,21 @@ using namespace lib;
 
 namespace lib::os {
 
+    [[maybe_unused]] static const char *strerror_result(int result, char *buffer) {
+        return result == 0 ? buffer : "unknown error";
+    }
+
+    [[maybe_unused]] static const char *strerror_result(char *result, char *) {
+        return result;
+    }
+
     static void write_errno(io::Writer &out, int code, error err) {
         char buf[256];
         if (code < 0) {
             code = -code;
         }
 
-        char *s = strerror_r(code, buf, sizeof(buf));
+        const char *s = strerror_result(strerror_r(code, buf, sizeof(buf)), buf);
         out.write(str::from_c_str(s), err);
     }
 

@@ -4,6 +4,7 @@
 
 #include <cmath>
 #include <limits>
+#include <numbers>
 
 namespace lib::math {
 
@@ -13,11 +14,11 @@ namespace lib::math {
         return std::abs(a - b);
     }
     
-    constexpr float64 rad2deg(float64 r) { return r * 180.0 / M_PI; }
-    constexpr float32 rad2deg(float32 r) { return r * float32(180.0 / M_PI); }
+    constexpr float64 rad2deg(float64 r) { return r * 180.0 / std::numbers::pi; }
+    constexpr float32 rad2deg(float32 r) { return r * float32(180.0 / std::numbers::pi); }
     
-    constexpr float64 deg2rad(float64 d) { return d * (M_PI / 180.0); }
-    constexpr float32 deg2rad(float32 d) { return d * float32(M_PI / 180.0); }
+    constexpr float64 deg2rad(float64 d) { return d * (std::numbers::pi / 180.0); }
+    constexpr float32 deg2rad(float32 d) { return d * float32(std::numbers::pi / 180.0); }
     
     
 

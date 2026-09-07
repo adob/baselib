@@ -8,22 +8,28 @@ get_filename_component(
 
 project(baselib VERSION 0.0.0 LANGUAGES CXX)
 
-include(cmake/CPM.cmake)
+if(PROJECT_IS_TOP_LEVEL)
+  include(CTest)
+endif()
+
+if(NOT COMMAND CPMAddPackage)
+  include(cmake/CPM.cmake)
+endif()
 
 set(BASELIB_BOOST_VERSION "1.87.0" CACHE STRING "Boost version used by baselib CPM dependencies")
-set(BASELIB_BOOST_COMPONENTS "atomic;circular_buffer" CACHE STRING "Boost components required by baselib")
+set(BASELIB_BOOST_COMPONENTS "circular_buffer" CACHE STRING "Boost components required by baselib")
 
-CPMFindPackage(
+CPMAddPackage(
   NAME Boost
   VERSION ${BASELIB_BOOST_VERSION} # Versions less than 1.85.0 may need patches for installation targets.
   URL https://github.com/boostorg/boost/releases/download/boost-${BASELIB_BOOST_VERSION}/boost-${BASELIB_BOOST_VERSION}-cmake.tar.xz
   URL_HASH SHA256=7da75f171837577a52bbf217e17f8ea576c7c246e4594d617bfde7fafd408be5
-  FIND_PACKAGE_ARGUMENTS "CONFIG;COMPONENTS;${BASELIB_BOOST_COMPONENTS}"
   OPTIONS "BOOST_ENABLE_CMAKE ON" "BOOST_SKIP_INSTALL_RULES ON" # Set `OFF` for installation
           "BUILD_SHARED_LIBS OFF"
+          "BOOST_INCLUDE_LIBRARIES ${BASELIB_BOOST_COMPONENTS}"
 )
 
-CPMFindPackage(
+CPMAddPackage(
   NAME fmt
   VERSION 12.0.0
   GITHUB_REPOSITORY fmtlib/fmt
@@ -60,8 +66,28 @@ file(GLOB SOURCES
     #${CMAKE_CURRENT_LIST_DIR}/deps/fmt/src/format.cc
 )
 
+set(BASELIB_POSIX_SOURCES
+  ${CMAKE_CURRENT_LIST_DIR}/lib/os/file.cc
+  ${CMAKE_CURRENT_LIST_DIR}/lib/os/pipe.cc
+  ${CMAKE_CURRENT_LIST_DIR}/lib/os/stat.cc
+  ${CMAKE_CURRENT_LIST_DIR}/lib/time/time.cc
+)
+
+if(NOT UNIX)
+  list(REMOVE_ITEM SOURCES ${BASELIB_POSIX_SOURCES})
+endif()
+
 foreach(src_file IN LISTS SOURCES)
   if(src_file MATCHES ".*_(test|experimental|benchmark|arduino)\\.cc$")
+    list(REMOVE_ITEM SOURCES ${src_file})
+  endif()
+
+  if(src_file MATCHES ".*_linux\\.cc$" AND
+     NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    list(REMOVE_ITEM SOURCES ${src_file})
+  endif()
+
+  if(src_file MATCHES ".*_posix\\.cc$" AND NOT UNIX)
     list(REMOVE_ITEM SOURCES ${src_file})
   endif()
 
@@ -108,10 +134,13 @@ target_link_libraries(${PROJECT_NAME} PUBLIC ${BASELIB_BOOST_TARGETS})
 target_link_libraries(${PROJECT_NAME} PUBLIC fmt::fmt)
 #target_link_libraries(${PROJECT_NAME} PUBLIC cpptrace::cpptrace)
 
-find_library(BASELIB_ELF_LIBRARY elf)
+if(BUILD_TESTING AND (WIN32 OR UNIX))
+  if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    find_library(BASELIB_ELF_LIBRARY NAMES elf)
+  endif()
 
-if(BASELIB_ELF_LIBRARY)
-  add_library(${PROJECT_NAME}_test_main STATIC
+  if(NOT CMAKE_SYSTEM_NAME STREQUAL "Linux" OR BASELIB_ELF_LIBRARY)
+    add_library(${PROJECT_NAME}_test_main STATIC
       ${CMAKE_CURRENT_LIST_DIR}/lib/flag/flag.cc
       ${CMAKE_CURRENT_LIST_DIR}/lib/runtime/debug.cc
       ${CMAKE_CURRENT_LIST_DIR}/lib/runtime/mstats.cc
@@ -123,17 +152,21 @@ if(BASELIB_ELF_LIBRARY)
       ${CMAKE_CURRENT_LIST_DIR}/lib/testing/matcher.cc
       ${CMAKE_CURRENT_LIST_DIR}/lib/testing/testing.cc
       ${CMAKE_CURRENT_LIST_DIR}/lib/testing/testmain.cc
-  )
+    )
 
-  add_library(${PROJECT_NAME}::test_main ALIAS ${PROJECT_NAME}_test_main)
+    add_library(${PROJECT_NAME}::test_main ALIAS ${PROJECT_NAME}_test_main)
+    target_compile_features(${PROJECT_NAME}_test_main PUBLIC cxx_std_23)
+    target_link_libraries(${PROJECT_NAME}_test_main PUBLIC
+      ${PROJECT_NAME}::${PROJECT_NAME}
+    )
 
-  target_compile_features(${PROJECT_NAME}_test_main PUBLIC cxx_std_23)
-
-  target_link_libraries(${PROJECT_NAME}_test_main PUBLIC
-    ${PROJECT_NAME}::${PROJECT_NAME}
-    ${BASELIB_ELF_LIBRARY}
-    ${CMAKE_DL_LIBS}
-  )
-else()
-  message(STATUS "libelf not found; skipping ${PROJECT_NAME}::test_main")
+    if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+      target_link_libraries(${PROJECT_NAME}_test_main PUBLIC
+        ${BASELIB_ELF_LIBRARY}
+        ${CMAKE_DL_LIBS}
+      )
+    endif()
+  else()
+    message(STATUS "libelf not found; skipping ${PROJECT_NAME}::test_main")
+  endif()
 endif()

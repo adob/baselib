@@ -56,6 +56,7 @@ void lib::sync::RWMutex::lock() {
 bool lib::sync::RWMutex::try_lock() {
 #ifdef __ZEPHYR__
     panic("unimplemented");
+    return false;
 #else
     int r = pthread_rwlock_trywrlock(&this->rwlock);
     if (r == 0) {

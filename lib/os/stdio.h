@@ -105,7 +105,7 @@ namespace lib::os {
         FILE *file;
         int fd;
   
-        constexpr StdStream(FILE* file, int fd) : file(file), fd(fd) {}
+        constexpr StdStream(FILE *file, int fd) : file(file), fd(fd) {}
   
         io::ReadResult direct_read(buf bytes, error err) override;
         size           direct_write(str data, error err) override;
