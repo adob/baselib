@@ -12,9 +12,7 @@ if(PROJECT_IS_TOP_LEVEL)
   include(CTest)
 endif()
 
-if(NOT COMMAND CPMAddPackage)
-  include(cmake/CPM.cmake)
-endif()
+include(cmake/CPM.cmake)
 
 set(BASELIB_BOOST_VERSION "1.87.0" CACHE STRING "Boost version used by baselib CPM dependencies")
 set(BASELIB_BOOST_COMPONENTS "circular_buffer" CACHE STRING "Boost components required by baselib")
