@@ -4,6 +4,7 @@
 #include <libelf.h>
 #include <gelf.h>
 #include <cxxabi.h>
+#include <dlfcn.h>
 #include <unistd.h>
 
 using namespace lib;
@@ -29,6 +30,26 @@ std::vector<FuncData> detail::get_all_funcs(error) {
         fprintf(stderr, "elf_begin failed: %s\n", elf_errmsg(-1));
         close(fd);
         exit(EXIT_FAILURE);
+    }
+
+    GElf_Ehdr ehdr;
+    if (gelf_getehdr(e, &ehdr) != &ehdr) {
+        fprintf(stderr, "gelf_getehdr failed: %s\n", elf_errmsg(-1));
+        elf_end(e);
+        close(fd);
+        exit(EXIT_FAILURE);
+    }
+
+    uintptr_t load_bias = 0;
+    if (ehdr.e_type == ET_DYN) {
+        Dl_info info;
+        if (dladdr((void *)&detail::get_all_funcs, &info) == 0) {
+            fprintf(stderr, "dladdr failed\n");
+            elf_end(e);
+            close(fd);
+            exit(EXIT_FAILURE);
+        }
+        load_bias = (uintptr_t)info.dli_fbase;
     }
 
     size_t shstrndx;
@@ -66,9 +87,18 @@ std::vector<FuncData> detail::get_all_funcs(error) {
             continue;
         }
 
+        if (sym.st_shndx == SHN_UNDEF) {
+            continue;
+        }
+
+        uintptr_t address = sym.st_value;
+        if (ehdr.e_type == ET_DYN && sym.st_shndx != SHN_ABS) {
+            address += load_bias;
+        }
+
         const char *name = elf_strptr(e, shdr.sh_link, sym.st_name);
         funcs.push_back(
-            FuncData{.name = String(name), .ptr = (void *)sym.st_value});
+            FuncData{.name = String(name), .ptr = (void *)address});
         }
     }
     }
