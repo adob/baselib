@@ -243,9 +243,7 @@ namespace lib::runtime {
         
     } ;
 
-    // read_mem_stats populates m with memory allocator statistics.
-    //
-    // The returned memory allocator statistics are up to date as of the
-    // call to ReadMemStats.
+    // Populate non-null m with allocation counters. Tracking is not implemented
+    // yet: both fields are reset to zero, indicating unavailable statistics.
     void read_mem_stats(MemStats *m);
-} 
+}
