@@ -257,9 +257,6 @@ void Fmt::fmt_integer(T n, bool is_signed, int base, char verb, str digits, bool
     Fmt &f = *this;
 
     char buf[256];
-    
-    char sep = comma ? ',' : apos ? '\'' : 0;
-    int nsep = (base == 16 || base == 2) ? 5 : 4;
 
     //bool negative = is_signed && n >= T(-1);
     bool negative = is_signed && ((std::make_signed_t<T>) n) < 0;
@@ -328,41 +325,6 @@ void Fmt::fmt_integer(T n, bool is_signed, int base, char verb, str digits, bool
     buf[i] = digits[n];
 
     size ncount = sizeof(buf) - i;
-    // size ncount = sizeof(buf) - i;
-
-    // while (i > 0 && prec > sizeof(buf)-i) {
-    //     i--;
-    //     buf[i] = '0';
-    // }
-
-    // size ncount = sizeof(buf) - i;
-    // if (n == 0) {
-    //     buf[--i] = '0';
-    //     ncount++;
-    // } else {
-    //     if (base == 10) {
-    //         while (n >= 10) {
-    //             i--;
-    //             T next = n / 10;
-    //             buf[i] = byte('0' + n - next*10);
-    //             n = next;
-    //             ncount++;
-    //         }
-    //         i--;
-    //         ncount++;
-    //         buf[i] = digits[n];
-    //     } else {
-    //         do {
-    //             ncount++;
-    //             if (sep && (ncount % nsep) == 0) {
-    //                 buf[--i] = sep;
-    //                 ncount++;
-    //             }
-    //             buf[--i] = digits[n % base];
-    //             n /= base;
-    //         } while (n > 0);
-    //     }
-    // }
 
     size pad_prec = prec > ncount ? prec - ncount : 0;
     // pad_prec = 0;
