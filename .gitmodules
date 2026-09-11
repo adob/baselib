@@ -3,7 +3,7 @@
 	url = https://github.com/adob/backward-cpp.git
 [submodule "deps/libdebugme"]
 	path = deps/libdebugme
-	url = https://github.com/yugr/libdebugme.git
+	url = https://github.com/adob/libdebugme.git
 [submodule "deps/fmt"]
 	path = deps/fmt
 	url = https://github.com/adob/fmt.git
