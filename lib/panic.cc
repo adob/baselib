@@ -1,68 +1,18 @@
-// #ifdef __cpp_exceptions
-// #define BACKWARD_HAS_UNWIND 1
-// #define BACKWARD_HAS_DW 1
+export module lib.panic;
+export import lib.str;
 
-// #define BACKWARD_HAS_BFD 0
-// #define BACKWARD_HAS_DWARF 0
-// #define BACKWARD_HAS_BACKTRACE 0
-// #define BACKWARD_HAS_BACKTRACE_SYMBOL 0
-// #define BACKWARD_HAS_LIBUNWIND 0
-// #include "../deps/backward-cpp/backward.hpp"
-// #endif
+// Preserve compatibility with declarations in the remaining headers.
+export extern "C++" {
+#include "panic_impl.h"
+namespace lib {
+    struct Error;
+    namespace io {
+        struct WriterTo;
+    }
 
-#include "lib/error.h"
-#include "lib/fmt/fmt.h"
-#include "panic.h"
-#include "lib/io/io.h"
-import lib.str;
-#include "lib/panic.h"
-#include "exceptions.h"
-
-
-using namespace lib;
-
-void lib::panic() {
-    #ifdef __cpp_exceptions
-        fmt::fprintf(stderr, "call to panic\n");
-        throw exceptions::Panic();
-    #else
-        printf("PANIC\n");
-        abort();
-    #endif
+    [[noreturn]] void panic();
+    void panic(str msg);
+    void panic(io::WriterTo const&);
+    void panic(Error const& e);
 }
-
-void lib::panic(Error const& e) {
-#ifdef __cpp_exceptions
-    io::Buffer b;
-    e.fmt(b, error::ignore);
-    exceptions::Panic ex(b.to_string());
-    
-    throw ex;
-#else
-    //panic(b.str());
-    fmt::fprintf(stderr, "panic: %v\n", e);
-    abort();
-#endif
-}
-
-void lib::panic(str msg) {
-    (void) msg;
-
-#ifdef __cpp_exceptions
-    exceptions::Panic ex(msg);
-    //ex.stacktrace->skip_n_firsts(1);
-
-    throw ex;
-#else
-    fmt::fprintf(stderr, "call to panic with msg %q\n", msg);
-    abort();
-#endif
-}
-
-
-void lib::panic(io::WriterTo const& writable) {
-    io::Buffer b;
-    writable.write_to(b, error::ignore);
-
-    panic(b.str());
 }

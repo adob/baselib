@@ -1,4 +1,4 @@
-#include "lib/array.h"
+import lib.array;
 #include "tables.h"
 
 using namespace lib;

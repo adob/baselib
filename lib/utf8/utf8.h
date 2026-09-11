@@ -1,9 +1,9 @@
 #pragma once
 
-#include "lib/array.h"
-#include "lib/error.h"
+import lib.array;
+import lib.error;
 import lib.str;
-#include "lib/io/io.h"
+import "lib/io/io.h";
 import lib.types;
 
 /// namespace utf8 implements functions and constants to support text encoded in UTF-8. 

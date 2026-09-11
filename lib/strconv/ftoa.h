@@ -1,7 +1,7 @@
 #pragma once
-#include "lib/error.h"
+import lib.error;
 import lib.types;
-#include "lib/io/io.h"
+import "lib/io/io.h";
 
 namespace lib::strconv {
     enum Flag {

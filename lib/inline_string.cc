@@ -1,13 +1,16 @@
-#pragma once
-
+module;
 #include "lib/assert.h"
-#include <algorithm>
-import <cstddef>;
-#include <cstring>
-#include <string>
-import lib.str;
-import lib.types;
 
+export module lib.inline_string;
+import <algorithm>;
+import <cstddef>;
+import <cstring>;
+import <string>;
+export import lib.str;
+export import lib.types;
+
+// Preserve compatibility with declarations in the remaining headers.
+export extern "C++" {
 namespace lib {
 
     template <size N>
@@ -155,7 +158,7 @@ namespace lib {
         InlineString<N>& operator = (str s) {
             length = std::min(N, len(s));
             memmove(bytes, s.data, length);
-            
+
             return *this;
         }
 
@@ -203,7 +206,6 @@ namespace lib {
         constexpr buf operator [] (size i, size j) {
             return slice(i, j);
         }
-        
 
         constexpr bool operator == (str s) const {
             if (this->length != s.len) {
@@ -247,4 +249,5 @@ namespace lib {
         }
     };
 
+}
 }

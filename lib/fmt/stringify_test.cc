@@ -1,6 +1,6 @@
 import lib.str;
 #include <compare>
-#include "fmt.h"
+import "fmt.h";
 #include "lib/testing/testing.h"
 
 #include <type_traits>

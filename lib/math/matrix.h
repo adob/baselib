@@ -1,8 +1,8 @@
 #pragma once
 
-#include "lib/error.h"
+import lib.error;
 import lib.types;
-#include "lib/fmt/fmt.h"
+import "lib/fmt/fmt.h";
 
 namespace lib::math {
     template <typename T, size N>

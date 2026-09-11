@@ -2,8 +2,8 @@
 import lib.str;
 import lib.types;
 #include <boost/core/pointer_traits.hpp>
-#include "lib/error.h"
-#include "lib/io/io.h"
+import lib.error;
+import "lib/io/io.h";
 #include "lib/sync/chan.h"
 #include "lib/sync/mutex.h"
 #include "lib/sync/once.h"

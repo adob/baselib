@@ -1,6 +1,6 @@
 #pragma once
 
-#include "lib/error.h"
+import lib.error;
 import lib.str;
 #include <exception>
 #include <vector>

@@ -1,11 +1,11 @@
-#include "lib/array.h"
+import lib.array;
 import lib.str;
 import lib.types;
 #include <algorithm>
 #include "util.h"
 
-#include "lib/error.h"
-#include "lib/io/io.h"
+import lib.error;
+import "lib/io/io.h";
 #include "lib/math/math.h"
 
 using namespace lib;

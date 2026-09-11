@@ -1,8 +1,8 @@
 #pragma once
 
-#include "lib/array.h"
+import lib.array;
 import lib.types;
-#include "lib/error.h"
+import lib.error;
 import lib.str;
 namespace lib::strconv {
 

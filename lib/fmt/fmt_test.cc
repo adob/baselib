@@ -1,12 +1,12 @@
-#include "lib/array.h"
-#include "lib/panic.h"
+import lib.array;
+import lib.panic;
 import lib.types;
 #include <functional>
 #include <sys/types.h>
 #include <vector>
 #include <variant>
 
-#include "fmt.h"
+import "fmt.h";
 #include "lib/math/bits.h"
 import lib.str;
 #include "lib/strings/strings.h"

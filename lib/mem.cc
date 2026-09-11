@@ -1,44 +1,24 @@
-import lib.str;
-import lib.types;
-#include "mem.h"
+export module lib.mem;
+export import lib.types;
 
-import <stdlib.h>;
+// Preserve compatibility with declarations in the remaining headers.
+export extern "C++" {
+#include "mem_impl.h"
 
-#include "exceptions.h"
-
-using namespace lib;
-using namespace lib::mem;
-
-byte *mem::alloc(size size) {
-    void *p = ::malloc(size);
-    if (!p) {
-        exceptions::out_of_memory();
-    }
-    return (byte*) p;
+namespace lib::exceptions {
+    void out_of_memory();
 }
 
-byte *mem::realloc(byte *p, size newsize) {
-    p = (byte*) ::realloc(p, newsize);
-    if (!p) {
-        exceptions::out_of_memory();
-    }
-    return (byte*) p;
+namespace lib {
+    struct str;
 }
 
-void mem::touch(str s) {
+namespace lib::mem {
+    byte* alloc(size);
+    byte* realloc(byte *data, size newsize);
 
-    volatile char *ptr = (volatile char *)s.data; // forces a read
-    const char *end = s.data + s.len;
-    
-    while (ptr != end) {
-        volatile char x = *ptr;
-        (void) x;
-        ptr++;
-    }
+    // touch touches memory for TSan (Thread Sanitizer) purposes
+    void touch(str s);
+    void touch(void *p);
 }
-
-void mem::touch(void *p) {
-    volatile byte *ptr = (volatile byte *) p;
-    volatile byte x = *ptr;
-    (void) x;
 }

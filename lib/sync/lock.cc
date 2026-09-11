@@ -1,4 +1,4 @@
-#include "lib/panic.h"
+import lib.panic;
 #include "lib/sync/mutex.h"
 #include "lib/sync/rwmutex.h"
 #include "lock.h"

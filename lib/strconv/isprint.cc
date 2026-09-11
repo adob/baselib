@@ -1,4 +1,4 @@
-#include "lib/array.h"
+import lib.array;
 import lib.types;
 #include "./isprint.h"
 

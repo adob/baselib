@@ -1,5 +1,5 @@
-#include "lib/error.h"
-#include "lib/io/io.h"
+import lib.error;
+import "lib/io/io.h";
 import lib.str;
 #include "lib/sync/chan.h"
 #include "lib/sync/lock.h"

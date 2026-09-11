@@ -1,9 +1,9 @@
 #include "../testing.h"
-#include "../base.h"
-#include "./errors.h"
+import lib.base;
+import "./errors.h";
 #include "./join.h"
-#include "lib/error.h"
-#include "lib/exceptions.h"
+import lib.error;
+import lib.exceptions;
 #include "lib/print.h"
 #include <initializer_list>
 

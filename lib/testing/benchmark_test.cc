@@ -1,11 +1,11 @@
-#include "lib/fmt/fmt.h"
+import "lib/fmt/fmt.h";
 import lib.str;
 #include "lib/testing/testing.h"
 #include "lib/time/time.h"
 import lib.types;
 #include <atomic>
 #include "benchmark.h"
-#include "lib/io/io.h"
+import "lib/io/io.h";
 #include "lib/runtime/debug.h"
 
 using namespace lib;

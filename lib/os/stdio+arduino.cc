@@ -3,7 +3,7 @@
 // #include <Arduino.h>
 #ifdef ARDUINO
 
-#include "stdio.h"
+import "stdio.h";
 #include "lib/io/util.h"
 #include <unistd.h>
 

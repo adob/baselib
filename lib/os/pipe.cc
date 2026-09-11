@@ -1,4 +1,4 @@
-#include "lib/error.h"
+import lib.error;
 #include "lib/os/file.h"
 import lib.str;
 #include <fcntl.h>              /* Obtain O_* constant definitions */

@@ -2,16 +2,16 @@
 #define _POSIX_C_SOURCE 200809L
 #endif
 
-#include "lib/error.h"
-#include "lib/errors/errors.h"
+import lib.error;
+import "lib/errors/errors.h";
 #include "lib/fs/fs.h"
 import lib.str;
-#include "lib/type_id.h"
+import lib.type_id;
 import <cstring>;
 #include <errno.h>
 
 #include "error.h"
-#include "lib/io/io.h"
+import "lib/io/io.h";
 using namespace lib;
 
 namespace lib::os {

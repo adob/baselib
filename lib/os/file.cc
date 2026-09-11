@@ -1,4 +1,4 @@
-#include "lib/panic.h"
+import lib.panic;
 #include "lib/time/time.h"
 import lib.types;
 #include <utility>
@@ -7,11 +7,11 @@ import lib.types;
 
 #include "file.h"
 #include "error.h"
-#include "lib/error.h"
-#include "lib/fmt/fmt.h"
+import lib.error;
+import "lib/fmt/fmt.h";
 #include "lib/fs/fs.h"
 #include "lib/filepath/path.h"
-#include "lib/io/io.h"
+import "lib/io/io.h";
 #include "lib/io/util.h"
 #include "lib/os/file+posix.h"
 #include "lib/os/types.h"

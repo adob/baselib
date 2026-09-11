@@ -1,5 +1,5 @@
-#include "lib/array.h"
-#include "lib/panic.h"
+import lib.array;
+import lib.panic;
 #include "lib/sync/atomic.h"
 #include "lib/sync/lock.h"
 import lib.types;

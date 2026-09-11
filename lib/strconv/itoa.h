@@ -1,10 +1,10 @@
 #pragma once
 
-#include "lib/error.h"
+import lib.error;
 import lib.types;
-#include <cstdio>
+import <cstdio>;
 #include <limits.h>
-#include "lib/io/io.h"
+import "lib/io/io.h";
 #include <type_traits>
 
 namespace lib::strconv {

@@ -1,6 +1,6 @@
 import lib.types;
 #include <algorithm>
-#include <cstring>
+import <cstring>;
 import <cstring>;
 #include <utility>
 #include "2way.h"

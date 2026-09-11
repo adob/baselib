@@ -1,7 +1,7 @@
-#include "lib/array.h"
-#include "lib/fmt/fmt.h"
-#include "lib/io/io.h"
-#include "lib/panic.h"
+import lib.array;
+import "lib/fmt/fmt.h";
+import "lib/io/io.h";
+import lib.panic;
 import lib.str;
 #include "lib/sync/lock.h"
 #include "lib/sync/mutex.h"
@@ -13,7 +13,7 @@ import lib.types;
 #include <utility>
 #include <vector>
 #include "matcher.h"
-#include "lib/error.h"
+import lib.error;
 #include "lib/strconv/atoi.h"
 #include "lib/strconv/quote.h"
 #include "lib/strings/strings.h"

@@ -2,8 +2,8 @@ import lib.str;
 import lib.types;
 #include <functional>
 #include "atoi.h"
-#include "lib/error.h"
-#include "lib/fmt/fmt.h"
+import lib.error;
+import "lib/fmt/fmt.h";
 #include "lib/testing/testing.h"
 
 using namespace lib;

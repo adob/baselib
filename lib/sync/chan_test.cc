@@ -1,10 +1,10 @@
-#include "lib/array.h"
-#include "lib/exceptions.h"
-#include "lib/fmt/fmt.h"
-#include "lib/panic.h"
+import lib.array;
+import lib.exceptions;
+import "lib/fmt/fmt.h";
+import lib.panic;
 #include "lib/sync/lock.h"
 #include "lib/sync/mutex.h"
-#include "lib/utils.h"
+import lib.utils;
 #include <atomic>
 #include <boost/core/pointer_traits.hpp>
 #include <boost/move/utility_core.hpp>

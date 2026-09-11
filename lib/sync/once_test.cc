@@ -1,4 +1,4 @@
-#include "lib/fmt/fmt.h"
+import "lib/fmt/fmt.h";
 #include "lib/testing/testing.h"
 #include <boost/core/pointer_traits.hpp>
 #include <boost/move/utility_core.hpp>

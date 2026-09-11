@@ -1,5 +1,5 @@
-#include "lib/array.h"
-#include "lib/fmt/fmt.h"
+import lib.array;
+import "lib/fmt/fmt.h";
 import lib.str;
 #include "lib/sync/chan.h"
 #include "lib/time/time.h"
@@ -9,8 +9,8 @@ import lib.types;
 #include <vector>
 #include "pipe.h"
 
-#include "lib/error.h"
-#include "lib/io/io.h"
+import lib.error;
+import "lib/io/io.h";
 #include "lib/io/util.h"
 #include "lib/sync/go.h"
 #include "lib/sync/gang.h"

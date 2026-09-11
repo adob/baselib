@@ -1,7 +1,7 @@
 #pragma once
-#include "lib/array.h"
-#include "lib/error.h"
-#include "lib/io/io.h"
+import lib.array;
+import lib.error;
+import "lib/io/io.h";
 import lib.types;
 import lib.str;
 namespace lib::utf8 {

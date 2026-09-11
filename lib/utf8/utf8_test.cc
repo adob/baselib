@@ -1,9 +1,9 @@
-#include "lib/array.h"
-#include "lib/error.h"
-#include "lib/fmt/fmt.h"
+import lib.array;
+import lib.error;
+import "lib/fmt/fmt.h";
 #include "lib/testing/testing.h"
 import lib.types;
-#include "lib/io/io.h"
+import "lib/io/io.h";
 import lib.str;
 #include "lib/utf8/decode.h"
 #include "lib/utf8/encode.h"

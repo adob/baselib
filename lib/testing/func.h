@@ -2,7 +2,7 @@
 
 #include <vector>
 
-#include "lib/error.h"
+import lib.error;
 import lib.str;
 namespace lib::testing {
     namespace detail {

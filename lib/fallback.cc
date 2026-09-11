@@ -1,7 +1,8 @@
-#pragma once
+export module lib.fallback;
+import <cstdio>;
 
-#include <cstdio>
-
+// Preserve compatibility with declarations in the remaining headers.
+export extern "C++" {
 namespace lib::fallback {
 
 template <typename = void>
@@ -33,3 +34,4 @@ inline int fileno(FILE *file) {
 
 using lib::fallback::memrchr;
 using lib::fallback::fileno;
+}

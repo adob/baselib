@@ -1,5 +1,5 @@
-#include "lib/array.h"
-#include "lib/error.h"
+import lib.array;
+import lib.error;
 import lib.str;
 #include <functional>
 #include <tuple>

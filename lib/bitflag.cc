@@ -1,4 +1,7 @@
-#pragma once
+export module lib.bitflag;
+
+// Preserve compatibility with declarations in the remaining headers.
+export extern "C++" {
 namespace  lib {
 
     template <typename T>
@@ -7,7 +10,7 @@ namespace  lib {
 
         constexpr bitflag() : value() {}
         constexpr bitflag(T value) : value(value) {}
-        
+
         template<typename Self>
         constexpr auto operator | (this Self f1, Self f2) {
             return Self{ f1.value | f2.value };
@@ -32,4 +35,5 @@ namespace  lib {
         }
     } ;
 
+}
 }

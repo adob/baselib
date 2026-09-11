@@ -1,8 +1,8 @@
 #pragma once
 
-#include "lib/array.h"
-#include "lib/error.h"
-#include "lib/fmt/fmt.h"
+import lib.array;
+import lib.error;
+import "lib/fmt/fmt.h";
 import lib.str;
 import lib.types;
 #include <boost/core/pointer_traits.hpp>
@@ -12,7 +12,7 @@ import lib.types;
 #include <vector>
 #include <functional>
 
-#include "lib/io/io.h"
+import "lib/io/io.h";
 #include "lib/runtime/symtab.h"
 #include "lib/sync/chan.h"
 #include "lib/sync/mutex.h"

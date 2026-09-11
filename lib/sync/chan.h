@@ -1,14 +1,14 @@
 #pragma once
 #include "lib/sync/atomic.h"
 
-#include "lib/array.h"
-#include "lib/panic.h"
+import lib.array;
+import lib.panic;
 #include "lib/sync/lock.h"
 #include "lib/sync/mutex.h"
 import lib.types;
 #include <array>
 #include <boost/circular_buffer_fwd.hpp>
-#include <cstdio>
+import <cstdio>;
 import <stdio.h>;
 #include <utility>
 #include <boost/circular_buffer.hpp>

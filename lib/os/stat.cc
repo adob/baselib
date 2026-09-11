@@ -1,4 +1,4 @@
-#include "lib/os/stdio.h"
+import "lib/os/stdio.h";
 #include "stat.h"
 
 

@@ -1,15 +1,15 @@
-#include "lib/array.h"
-#include "lib/error.h"
-#include "lib/fmt/fmt.h"
-#include "lib/os/stdio.h"
-#include "lib/panic.h"
+import lib.array;
+import lib.error;
+import "lib/fmt/fmt.h";
+import "lib/os/stdio.h";
+import lib.panic;
 import lib.str;
 #include "lib/sync/atomic.h"
 #include "lib/sync/lock.h"
 #include "lib/sync/rwmutex.h"
 #include "lib/testing/func.h"
 import lib.types;
-#include "lib/utils.h"
+import lib.utils;
 #include <algorithm>
 #include <cmath>
 #include <compare>
@@ -23,7 +23,7 @@ import <stdio.h>;
 #include <unordered_map>
 
 #include "lib/flag/flag.h"
-#include "lib/io/io.h"
+import "lib/io/io.h";
 #include "lib/math/math.h"
 #include "lib/runtime/debug.h"
 #include "lib/runtime/mstats.h"

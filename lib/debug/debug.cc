@@ -8,17 +8,17 @@
 // #define BACKWARD_HAS_LIBUNWIND 0
 // #include "../../deps/backward-cpp/backward.hpp"
 
-#include "lib/error.h"
-#include "lib/os/stdio.h"
+import lib.error;
+import "lib/os/stdio.h";
 import lib.str;
 import <cstddef>;
-#include <cstdio>
-#include <cstdlib>
+import <cstdio>;
+import <cstdlib>;
 import <stdio.h>;
 #include <string>
 #include <vector>
-#include "lib/fmt/fmt.h"
-#include "lib/io/io.h"
+import "lib/fmt/fmt.h";
+import "lib/io/io.h";
 #include "lib/sync/lock.h"
 #include "lib/sync/mutex.h"
 #include <cpptrace/basic.hpp>
@@ -42,9 +42,9 @@ extern "C" {
 
 #include "./debug.h"
 import lib.types;
-#include "lib/panic.h"
-#include "lib/exceptions.h"
-#include "lib/mem.h"
+import lib.panic;
+import lib.exceptions;
+import lib.mem;
 //#include "../print.h"
 
 using namespace lib;

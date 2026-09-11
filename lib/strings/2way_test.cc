@@ -1,5 +1,5 @@
-#include "lib/fmt/fmt.h"
-#include "lib/io/io.h"
+import "lib/fmt/fmt.h";
+import "lib/io/io.h";
 import lib.str;
 import lib.types;
 #include <algorithm>

@@ -1,7 +1,7 @@
 #pragma once
 
-#include "lib/bitflag.h"
-#include "lib/error.h"
+import lib.bitflag;
+import lib.error;
 import lib.str;
 import lib.types;
 #include "lib/time/time.h"

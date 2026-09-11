@@ -1,10 +1,10 @@
-#include "lib/array.h"
-#include "lib/error.h"
-#include "lib/io/io.h"
+import lib.array;
+import lib.error;
+import "lib/io/io.h";
 import lib.str;
 import lib.types;
 #include "atoi.h"
-#include "lib/fmt/fmt.h"
+import "lib/fmt/fmt.h";
 
 using namespace lib;
 using namespace lib::strconv;

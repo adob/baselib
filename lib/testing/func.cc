@@ -1,10 +1,10 @@
-#include "lib/error.h"
+import lib.error;
 import lib.str;
 import lib.types;
 import <cstddef>;
 #include <cstdint>
-#include <cstdio>
-#include <cstdlib>
+import <cstdio>;
+import <cstdlib>;
 #include <elf.h>
 #include <stdint.h>
 import <stdio.h>;

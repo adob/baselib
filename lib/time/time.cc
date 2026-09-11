@@ -1,10 +1,10 @@
-#include "lib/array.h"
-#include "lib/error.h"
-#include "lib/panic.h"
+import lib.array;
+import lib.error;
+import lib.panic;
 import lib.str;
 import lib.types;
 import <cerrno>;
-#include <cstdlib>
+import <cstdlib>;
 #include <errno.h>
 import <stdlib.h>;
 #include <sys/types.h>

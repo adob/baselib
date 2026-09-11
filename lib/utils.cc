@@ -1,6 +1,8 @@
-#pragma once
+export module lib.utils;
+import <algorithm>;
 
-#include <algorithm>
+// Preserve compatibility with declarations in the remaining headers.
+export extern "C++" {
 namespace lib {
     template <typename F>
     struct defer {
@@ -14,4 +16,5 @@ namespace lib {
 
     using std::min;
     using std::max;
+}
 }

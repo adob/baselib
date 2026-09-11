@@ -1,13 +1,13 @@
-#include "lib/array.h"
-#include "lib/fmt/fmt.h"
-#include "lib/io/io.h"
-#include "lib/panic.h"
+import lib.array;
+import "lib/fmt/fmt.h";
+import "lib/io/io.h";
+import lib.panic;
 import lib.str;
-#include "lib/type_id.h"
+import lib.type_id;
 import lib.types;
 import <stdio.h>;
-#include "errors.h"
-#include "lib/error.h"
+import "errors.h";
+import lib.error;
 
 using namespace lib;
 using namespace errors;

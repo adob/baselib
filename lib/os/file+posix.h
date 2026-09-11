@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../base.h"
+import lib.base;
 #include "lib/os/file.h"
 
 namespace lib::os {

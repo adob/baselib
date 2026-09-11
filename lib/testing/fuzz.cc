@@ -1,4 +1,4 @@
-#include "lib/array.h"
+import lib.array;
 import lib.str;
 #include "lib/testing/testing.h"
 #include "fuzz.h"

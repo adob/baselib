@@ -1,6 +1,6 @@
 import lib.str;
 #include <initializer_list>
-#include "fmt.h"
+import "fmt.h";
 #include "lib/strings/strings.h"
 #include "lib/testing/testing.h"
 

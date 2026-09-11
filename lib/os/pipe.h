@@ -1,6 +1,6 @@
 #pragma once
 
-#include "lib/error.h"
+import lib.error;
 #include "file.h"
 
 namespace lib::os {

@@ -1,5 +1,5 @@
 #pragma once
-#include "lib/error.h"
+import lib.error;
 import lib.str;
 import lib.types;
 

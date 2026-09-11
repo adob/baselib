@@ -1,9 +1,9 @@
 import lib.str;
 
-#include "lib/fmt/fmt.h"
+import "lib/fmt/fmt.h";
 import lib.types;
 #include <initializer_list>
-#include "lib/io/io.h"
+import "lib/io/io.h";
 #include "lib/testing/testing.h"
 
 #include <algorithm>

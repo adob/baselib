@@ -1,85 +1,90 @@
-#include "lib/error.h"
-#include "lib/mem.h"
-import lib.types;
-#include "./exceptions.h"
-import lib.str;
-#include "./panic.h"
-#include "lib/io/io.h"
-#include "fmt/fmt.h"
-//#include "fmt/fmt.h"
+export module lib.exceptions;
+export import lib.str;
+export import lib.types;
 
-using namespace lib;
-using namespace exceptions;
-
-void exceptions::out_of_memory() {
-    panic("out of memory");
-}
-
-void exceptions::bad_index(size got, size max) {
-    #if __cpp_exceptions
-        throw BadIndex(got, max);
-    #else
-        panic("bad index");
-    #endif
-}
-
-void exceptions::assertion() {
-    panic("assertion");
-}
-
-void exceptions::overflow() {
-    panic("overflow");
-}
-
+// Preserve compatibility with declarations in the remaining headers.
+export extern "C++" {
+#include "exceptions_impl.h"
 
 #ifdef __cpp_exceptions
-lib::Exception::Exception()
-    /* : stacktrace(new backward::StackTrace())*/ {
-    
-    // stacktrace->load_here(1024);
-    // stacktrace->skip_n_firsts(2);
-}
-
-lib::Exception::~Exception() {
-    // if (stacktrace) {
-    //     delete stacktrace;
-    //     stacktrace = nil;
-    // }
-}
-
-
-BadMemAccess::BadMemAccess(void *ptr) : ptr(ptr) {}
-
-void BadMemAccess::fmt(io::Reader &out, error err) const {
-    fmt::fprintf(out, err, "attempt to dereference invalid pointer at %#X", (uintptr) ptr);
-}
-
-NullMemAccess::NullMemAccess() {}
-
-void NullMemAccess::fmt(io::Reader &out, error err) const {
-    fmt::fprintf(out, err, "null dereference");
-}
-
-BadIndex::BadIndex(size got, size max) : got(got), max(max) {}
-
-void BadIndex::fmt(io::Reader &out, error err) const {
-    fmt::fprintf(out, err, "index out range [0:%d]: %d", max, got);
-}
-
-
-AssertionFailed::AssertionFailed(str s) : msg(s) {}
-void AssertionFailed::fmt(io::Reader &out, error err) const {
-    out.write(msg, err);
-}
-
-void OutOfMem::fmt(io::Reader &out, error err) const {
-    fmt::fprintf(out, err, "out of memory");
-}
-
-Panic::Panic(str s) : msg(s) {}
-void Panic::fmt(io::Reader &out, error err) const {
-    fmt::fprintf(out, err, "panic: %s", msg);
-}
-
-
+// #include "../deps/backward-cpp/backward.hpp"
+// namespace backward {
+//     class StackTrace;
+// }
 #endif
+
+namespace lib::io {
+    struct Reader;
+}
+
+namespace lib {
+    struct str;
+    struct error;
+
+// #ifdef __cpp_exceptions
+    struct Exception {
+        //backward::StackTrace *stacktrace = nil;
+
+        virtual void fmt(io::Reader &out, error err) const = 0;
+
+        Exception();
+        ~Exception();
+    };
+// #endif
+}
+
+namespace lib::exceptions {
+
+    void out_of_memory();
+    void bad_index(size got);
+    void bad_index(size got, size max);
+    void assertion();
+    void overflow();
+
+#ifdef __cpp_exceptions
+    struct BadIndex : Exception {
+        size got;
+        size max;
+
+        //BadIndex();
+        //BadIndex(size got);
+        BadIndex(size got, size max);
+
+        void fmt(io::Reader &out, error err) const override;
+    };
+
+    struct BadMemAccess : Exception {
+        void *ptr;
+
+        BadMemAccess(void *ptr);
+
+        void fmt(io::Reader &out, error err) const override;
+    };
+
+    struct NullMemAccess : Exception {
+        NullMemAccess();
+
+        void fmt(io::Reader &out, error err) const override;
+    };
+
+    struct AssertionFailed : Exception {
+        String msg;
+        AssertionFailed(str);
+
+        void fmt(io::Reader &out, error err) const override;
+    };
+
+    struct OutOfMem : Exception {
+        void fmt(io::Reader &out, error err) const override;
+    };
+
+    struct Panic : Exception {
+        String msg;
+        Panic() {}
+        Panic(str);
+
+        void fmt(io::Reader &out, error err) const override;
+    };
+#endif
+}
+}

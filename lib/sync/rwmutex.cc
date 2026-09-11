@@ -1,4 +1,4 @@
-#include "lib/panic.h"
+import lib.panic;
 import <cerrno>;
 #include <errno.h>
 #include "rwmutex.h"

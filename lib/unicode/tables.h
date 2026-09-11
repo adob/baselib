@@ -1,5 +1,5 @@
 #pragma once
-#include "lib/array.h"
+import lib.array;
 import lib.types;
 
 namespace lib::unicode {

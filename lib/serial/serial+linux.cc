@@ -1,5 +1,5 @@
 #include "serial+linux.h"
-#include "lib/error.h"
+import lib.error;
 #include "lib/os/error.h"
 #include "lib/print.h"
 

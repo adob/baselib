@@ -1,9 +1,9 @@
 module;
 
-#include "lib/exceptions.h"
+import lib.exceptions;
 
-#include "lib/io/io.h"
-#include "lib/fmt/fmt.h"
+import "lib/io/io.h";
+import "lib/fmt/fmt.h";
 
 export module lib.math:matrix;
 

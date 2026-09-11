@@ -3,8 +3,8 @@ import lib.str;
 import lib.types;
 #include <algorithm>
 #include <array>
-#include "lib/error.h"
-#include "lib/array.h"
+import lib.error;
+import lib.array;
 
 namespace lib::io {
     struct Writer;

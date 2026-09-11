@@ -3,8 +3,8 @@ import lib.types;
 #include <cstdint>
 #include <stdint.h>
 #include "varint.h"
-#include "lib/error.h"
-#include "lib/io/io.h"
+import lib.error;
+import "lib/io/io.h";
 #include "lib/io/util.h"
 
 using namespace lib;

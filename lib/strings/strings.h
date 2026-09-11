@@ -1,16 +1,16 @@
 #pragma once
 
-#include "lib/error.h"
+import lib.error;
 import lib.str;
 #include "lib/utf8/utf8.h"
 #include <array>
 import <cstring>;
 #include <string>
-#include <cstring>
+import <cstring>;
 #include <functional>
 #include <vector>
 
-#include "lib/io/io.h"
+import "lib/io/io.h";
 #include "lib/math/math.h"
 import lib.types;
 #include "lib/utf8/decode.h"

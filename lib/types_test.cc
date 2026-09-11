@@ -1,4 +1,4 @@
-#include "lib/fmt/fmt.h"
+import "lib/fmt/fmt.h";
 #include <compare>
 #include <cstdint>
 #include <stdint.h>

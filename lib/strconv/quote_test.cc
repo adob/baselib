@@ -1,5 +1,5 @@
-#include "lib/array.h"
-#include "lib/fmt/fmt.h"
+import lib.array;
+import "lib/fmt/fmt.h";
 import lib.str;
 #include "quote.h"
 #include "lib/testing/testing.h"

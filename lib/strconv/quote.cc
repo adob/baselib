@@ -1,11 +1,11 @@
-#include "lib/array.h"
-#include "lib/error.h"
+import lib.array;
+import lib.error;
 import lib.str;
 import lib.types;
-#include <cstdlib>
+import <cstdlib>;
 #include "quote.h"
 
-#include "lib/io/io.h"
+import "lib/io/io.h";
 #include "lib/utf8/decode.h"
 #include "lib/utf8/encode.h"
 #include "lib/utf8/utf8.h"

@@ -1,8 +1,8 @@
 #pragma once
 #include "lib/fs/fs.h"
-#include "lib/error.h"
+import lib.error;
 import lib.str;
-#include "lib/type_id.h"
+import lib.type_id;
 
 namespace lib::os {
 

@@ -1,6 +1,6 @@
 // StdStream
 
-#include "stdio.h"
+import "stdio.h";
 #include "lib/io/util.h"
 #include <unistd.h>
 

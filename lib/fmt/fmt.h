@@ -1,10 +1,10 @@
 #pragma once
 
-#include "lib/error.h"
+import lib.error;
 import lib.str;
 import lib.types;
 #include <concepts>
-#include <cstdlib>
+import <cstdlib>;
 #include <iterator>
 import <stdlib.h>;
 #include <type_traits>
@@ -14,9 +14,9 @@ import <stdlib.h>;
 #include <variant>
 import <stdio.h>;
 
-#include "lib/io/io.h"
-#include "lib/errors/errors.h"
-#include "lib/os/stdio.h"
+import "lib/io/io.h";
+import "lib/errors/errors.h";
+import "lib/os/stdio.h";
 
 #ifdef __GXX_RTTI
 #include <typeinfo>

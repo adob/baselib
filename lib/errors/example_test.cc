@@ -1,6 +1,6 @@
-#include "../base.h"
+import lib.base;
 #include "../time.h"
-#include "lib/fmt/fmt.h"
+import "lib/fmt/fmt.h";
 
 using namespace lib;
 

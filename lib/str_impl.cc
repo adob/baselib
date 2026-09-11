@@ -1,11 +1,11 @@
-#include "lib/error.h"
-#include "lib/exceptions.h"
+import lib.error;
+import lib.exceptions;
 import lib.types;
-#include <cstdlib>
-#include <cstring>
+import <cstdlib>;
+import <cstring>;
 #include <string>
 import lib.str;
-#include "lib/io/io.h"
+import "lib/io/io.h";
 
 using namespace lib;
 

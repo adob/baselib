@@ -1,9 +1,9 @@
-#include "lib/fmt/fmt.h"
+import "lib/fmt/fmt.h";
 import lib.str;
 import lib.types;
 #include "itoa.h"
 
-#include "lib/exceptions.h"
+import lib.exceptions;
 #include "lib/testing/testing.h"
 
 using namespace lib;

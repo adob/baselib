@@ -1,4 +1,4 @@
-#include "lib/error.h"
+import lib.error;
 import lib.str;
 import lib.types;
 #include <bit>
@@ -8,7 +8,7 @@ import lib.types;
 
 #include <fmt/base.h>
 #include <fmt/format.h>
-#include "lib/io/io.h"
+import "lib/io/io.h";
 #include "lib/strconv/itoa.h"
 #include "lib/strconv/quote.h"
 

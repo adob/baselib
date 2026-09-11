@@ -1,8 +1,8 @@
 #pragma once
 import lib.str;
-#include "lib/type_id.h"
+import lib.type_id;
 import lib.types;
-#include "../error.h"
+import lib.error;
 
 namespace lib::errors {
     BasicError create(str msg);

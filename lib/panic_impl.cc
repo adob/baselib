@@ -1,0 +1,66 @@
+// #ifdef __cpp_exceptions
+// #define BACKWARD_HAS_UNWIND 1
+// #define BACKWARD_HAS_DW 1
+
+// #define BACKWARD_HAS_BFD 0
+// #define BACKWARD_HAS_DWARF 0
+// #define BACKWARD_HAS_BACKTRACE 0
+// #define BACKWARD_HAS_BACKTRACE_SYMBOL 0
+// #define BACKWARD_HAS_LIBUNWIND 0
+// #include "../deps/backward-cpp/backward.hpp"
+// #endif
+
+import lib.error;
+import "lib/fmt/fmt.h";
+import lib.panic;
+import "lib/io/io.h";
+import lib.str;
+import lib.panic;
+import lib.exceptions;
+
+using namespace lib;
+
+void lib::panic() {
+    #ifdef __cpp_exceptions
+        fmt::fprintf(stderr, "call to panic\n");
+        throw exceptions::Panic();
+    #else
+        printf("PANIC\n");
+        abort();
+    #endif
+}
+
+void lib::panic(Error const& e) {
+#ifdef __cpp_exceptions
+    io::Buffer b;
+    e.fmt(b, error::ignore);
+    exceptions::Panic ex(b.to_string());
+
+    throw ex;
+#else
+    //panic(b.str());
+    fmt::fprintf(stderr, "panic: %v\n", e);
+    abort();
+#endif
+}
+
+void lib::panic(str msg) {
+    (void) msg;
+
+#ifdef __cpp_exceptions
+    exceptions::Panic ex(msg);
+    //ex.stacktrace->skip_n_firsts(1);
+
+    throw ex;
+#else
+    fmt::fprintf(stderr, "call to panic with msg %q\n", msg);
+    abort();
+#endif
+}
+
+void lib::panic(io::WriterTo const& writable) {
+    io::Buffer b;
+    writable.write_to(b, error::ignore);
+
+    panic(b.str());
+}

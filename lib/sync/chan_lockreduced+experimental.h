@@ -5,9 +5,9 @@
 #include <atomic>
 #include <pthread.h>
 
-#include "lib/base.h"
+import lib.base;
 #include "atomic.h"
-#include "lib/io/io.h"
+import "lib/io/io.h";
 import lib.str;
 #include "mutex.h"
 #include "cond.h"

@@ -1,3 +1,10 @@
-#include "exception.h"
+export module lib.exception;
 
-using namespace lib;
+// Preserve compatibility with declarations in the remaining headers.
+export extern "C++" {
+#include "exception_impl.h"
+
+namespace lib {
+
+}
+}

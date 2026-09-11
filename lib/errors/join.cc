@@ -1,6 +1,6 @@
-#include "lib/array.h"
-#include "lib/error.h"
-#include "lib/io/io.h"
+import lib.array;
+import lib.error;
+import "lib/io/io.h";
 #include "join.h"
 
 using namespace lib;

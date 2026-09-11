@@ -1,9 +1,9 @@
 #pragma once
-#include "lib/panic.h"
+import lib.panic;
 #include <utility>
 #include <thread>
 
-#include "lib/exceptions.h"
+import lib.exceptions;
 
 namespace lib::sync {
 

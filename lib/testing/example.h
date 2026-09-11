@@ -1,7 +1,7 @@
 #pragma once
 
-#include "lib/array.h"
-#include "lib/error.h"
+import lib.array;
+import lib.error;
 #include <variant>
 #include <functional>
 #include <tuple>

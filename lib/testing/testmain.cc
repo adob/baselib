@@ -1,4 +1,4 @@
-#include "lib/error.h"
+import lib.error;
 #include <functional>
 #include <vector>
 

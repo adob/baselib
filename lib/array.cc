@@ -1,12 +1,15 @@
-#pragma once
-
+module;
 #include "lib/assert.h"
-import lib.str;
-import <cstring>;
-import lib.types;
-#include "concepts.h"
-#include "exceptions.h"
 
+export module lib.array;
+export import lib.str;
+import <cstring>;
+export import lib.types;
+export import lib.concepts;
+export import lib.exceptions;
+
+// Preserve compatibility with declarations in the remaining headers.
+export extern "C++" {
 namespace lib {
 
     template <typename T, size N>
@@ -148,7 +151,6 @@ namespace lib {
     constexpr size len(Array<T, N> const&) {
         return N;
     }
-
 
     template <typename T>
     struct arr {
@@ -312,7 +314,6 @@ namespace lib {
     //     const T  *data;
     //     size     len;
 
-
     //     constexpr view() : data(nullptr), len(0) {}
     //     constexpr view(const T *t, size len) : data(t), len(len) {}
 
@@ -354,7 +355,6 @@ namespace lib {
     //         return slice(offset);
     //     }
 
-
     //     constexpr const T* begin() const {
     //         return data;
     //     }
@@ -389,4 +389,5 @@ namespace lib {
     constexpr size len(const T (&arr)[N]) {
         return N;
     }
+}
 }

@@ -1,4 +1,4 @@
-#include "lib/error.h"
+import lib.error;
 import lib.str;
 #include "lib/strings/strings.h"
 #include "lib/testing/testing.h"

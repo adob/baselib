@@ -1,12 +1,12 @@
-#include "lib/error.h"
-#include "lib/io/io.h"
-#include "lib/panic.h"
+import lib.error;
+import "lib/io/io.h";
+import lib.panic;
 import lib.str;
 import lib.types;
 #include "lib/unicode/graphic.h"
 #include "lib/utf8/utf8.h"
 #include <array>
-#include <cstring>
+import <cstring>;
 #include <functional>
 #include "strings.h"
 #include "2way.h"
