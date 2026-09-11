@@ -2,7 +2,6 @@
 #include <concepts>
 #include <stdint.h>
 #include <stddef.h>
-#include <type_traits>
 
 namespace lib {
 
@@ -34,7 +33,7 @@ namespace lib {
     using intmax = intmax_t;
     using uintmax = uintmax_t;
 
-    const decltype(nullptr) nil = nullptr;
+    inline constexpr decltype(nullptr) nil = nullptr;
 
     struct noncopyable {
         noncopyable() = default;
@@ -103,21 +102,6 @@ namespace lib {
             auto [self_val] = self;
             return Self {self_val * other};
         }
-
-        // template <typename Self, typename Integral>
-        // requires std::derived_from<Self, numeric> && (std::integral<Integral> || std::floating_point<Integral>)
-        // constexpr friend Self operator*(Self self, Integral other) {
-        //     auto [self_val] = self;
-        //     return Self {static_cast<decltype(self_val)>(self_val * other)};
-        // }
-
-        // // 2 * T
-        // template <typename Self, typename Integral>
-        // requires std::derived_from<Self, numeric> && (std::integral<Integral> || std::floating_point<Integral>)
-        // constexpr friend Self operator*(Integral other, Self self) {
-        //     auto [self_val] = self;
-        //     return Self {static_cast<decltype(self_val)>(self_val * other)};
-        // }
 
         constexpr explicit operator bool(this auto self) {
             auto [self_val] = self;
