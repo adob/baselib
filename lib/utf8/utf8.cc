@@ -2,6 +2,7 @@
 #include "codes.h"
 #include "lib/io/io.h"
 #include "lib/math.h"
+#include <type_traits>
 
 using namespace lib;
 using namespace utf8;
@@ -455,9 +456,27 @@ size RuneCountingForwarder::count() {
     return state.eof();
 }
 
+namespace {
+// Check r's lower bound only when its type can represent negative values.
+template <typename Rune>
+constexpr bool is_nonnegative(Rune r) {
+    if constexpr (std::is_signed_v<Rune>) {
+        return r >= 0;
+    } else {
+        return true;
+    }
+}
+
+static_assert(!is_nonnegative(-1));
+static_assert(is_nonnegative(0));
+static_assert(is_nonnegative(1));
+static_assert(is_nonnegative(0u));
+static_assert(is_nonnegative(~0u));
+}
+
 bool utf8::valid_rune(rune r) {
-    if (0 <= r && r < SurrogateMin) {
-		return true;
+    if (r < SurrogateMin) {
+		return is_nonnegative(r);
     }
 	if (SurrogateMax < r && r <= MaxRune) {
 		return true;
