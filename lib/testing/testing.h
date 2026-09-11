@@ -1,5 +1,15 @@
 #pragma once
 
+#include "lib/array.h"
+#include "lib/error.h"
+#include "lib/fmt/fmt.h"
+#include "lib/str.h"
+import lib.types;
+#include <boost/core/pointer_traits.hpp>
+#include <boost/move/utility_core.hpp>
+#include <tuple>
+#include <variant>
+#include <vector>
 #include <functional>
 
 #include "lib/io/io.h"

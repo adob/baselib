@@ -1,6 +1,6 @@
 #pragma once
-
-#include "lib/types.h"
+#include "lib/error.h"
+import lib.types;
 #include "lib/io/io.h"
 
 namespace lib::strconv {

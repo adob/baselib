@@ -1,3 +1,5 @@
+#include "lib/str.h"
+import lib.types;
 #include "path.h"
 #include "lib/strings/strings.h"
 

@@ -1,3 +1,6 @@
+#include "lib/fmt/fmt.h"
+import lib.types;
+#include <initializer_list>
 #include "str.h"
 #include "lib/io/io.h"
 #include "lib/testing/testing.h"

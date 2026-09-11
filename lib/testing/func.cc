@@ -1,3 +1,16 @@
+#include "lib/error.h"
+#include "lib/str.h"
+import lib.types;
+#include <cstddef>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <elf.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string>
+#include <vector>
 #include "func.h" 
 
 #include <fcntl.h>

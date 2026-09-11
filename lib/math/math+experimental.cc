@@ -1,6 +1,5 @@
 module;
 
-#include "lib/types.h"
 
 #include <algorithm>
 #include <cmath>
@@ -8,6 +7,8 @@ module;
 #include <numbers>
 
 export module lib.math;
+
+import lib.types;
 
 export import :bits;
 export import :matrix;

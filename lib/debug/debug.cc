@@ -8,20 +8,26 @@
 // #define BACKWARD_HAS_LIBUNWIND 0
 // #include "../../deps/backward-cpp/backward.hpp"
 
+#include "lib/error.h"
+#include "lib/os/stdio.h"
+#include "lib/str.h"
+#include <cstddef>
+#include <cstdio>
+#include <cstdlib>
+#include <stdio.h>
+#include <string>
+#include <vector>
 #include "lib/fmt/fmt.h"
 #include "lib/io/io.h"
 #include "lib/sync/lock.h"
 #include "lib/sync/mutex.h"
 #include <cpptrace/basic.hpp>
 #include <cpptrace/forward.hpp>
-#include <execinfo.h>
 #include <exception>
-#include <iostream>
 #include <unistd.h>
 #include <signal.h>
 #include <typeinfo>
 #include <cxxabi.h>
-#include <cpptrace/cpptrace.hpp>
 #include <cpptrace/formatting.hpp>
 
 // namespace cpptrace::detail {
@@ -35,11 +41,9 @@ extern "C" {
 }
 
 #include "./debug.h"
-
-#include "lib/types.h"
+import lib.types;
 #include "lib/panic.h"
 #include "lib/exceptions.h"
-#include "lib/fmt.h"
 #include "lib/mem.h"
 //#include "../print.h"
 

@@ -1,3 +1,5 @@
+#include "lib/str.h"
+import lib.types;
 #include "mem.h"
 
 #include <stdlib.h>

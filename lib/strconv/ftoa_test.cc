@@ -1,7 +1,9 @@
+#include "lib/fmt/fmt.h"
+#include "lib/str.h"
 #include "ftoa.h"
 #include "lib/math/bits.h"
 #include "lib/testing/testing.h"
-#include "lib/types.h"
+import lib.types;
 
 using namespace lib;
 using namespace lib::strconv;

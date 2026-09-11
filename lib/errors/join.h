@@ -1,7 +1,7 @@
 #pragma once
 
+#include "lib/array.h"
 #include "../error.h"
-#include "../io/io.h"
 
 namespace lib::errors {
     struct JoinError : ErrorBase<JoinError> {

@@ -1,3 +1,4 @@
+#include <functional>
 #include "flag.h"
 
 using namespace lib;

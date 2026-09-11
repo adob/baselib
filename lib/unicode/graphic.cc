@@ -1,3 +1,4 @@
+import lib.types;
 #include "graphic.h"
 #include "unicode.h"
 #include "tables.h"

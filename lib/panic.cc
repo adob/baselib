@@ -10,17 +10,17 @@
 // #include "../deps/backward-cpp/backward.hpp"
 // #endif
 
+#include "lib/error.h"
+#include "lib/fmt/fmt.h"
 #include "panic.h"
 #include "lib/io/io.h"
 #include "lib/str.h"
 
-#include "fmt.h"
 
 
 #include "lib/panic.h"
 #include "exceptions.h"
 
-#include <stdio.h>
 
 using namespace lib;
 

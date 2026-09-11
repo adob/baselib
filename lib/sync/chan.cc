@@ -1,3 +1,12 @@
+#include "lib/array.h"
+#include "lib/panic.h"
+#include "lib/sync/atomic.h"
+#include "lib/sync/lock.h"
+import lib.types;
+#include <algorithm>
+#include <cstdint>
+#include <stdint.h>
+#include <utility>
 #ifndef __ZEPHYR__
 #include "chan.h"
 

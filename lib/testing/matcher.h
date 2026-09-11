@@ -1,7 +1,14 @@
 #pragma once
 
+#include "lib/array.h"
+#include "lib/error.h"
+#include "lib/str.h"
+import lib.types;
+#include <functional>
+#include <memory>
+#include <tuple>
+#include <variant>
 #include "lib/sync/mutex.h"
-#include "lib/testing/testing.h"
 #include <unordered_map>
 
 namespace lib::testing::detail {

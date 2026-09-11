@@ -1,9 +1,8 @@
 #pragma once
 
-#include <string>
 
 #include "./str.h"
-#include "./types.h"
+import lib.types;
 
 #ifdef __cpp_exceptions
 // #include "../deps/backward-cpp/backward.hpp"

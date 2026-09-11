@@ -1,5 +1,9 @@
 #pragma once
 
+#include "lib/str.h"
+import lib.types;
+#include <algorithm>
+#include <array>
 #include "lib/error.h"
 #include "lib/array.h"
 

@@ -1,3 +1,5 @@
+#include "lib/array.h"
+import lib.types;
 #include "./isprint.h"
 
 namespace lib::strconv {

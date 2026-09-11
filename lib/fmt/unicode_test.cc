@@ -1,3 +1,5 @@
+#include "lib/str.h"
+#include <initializer_list>
 #include "fmt.h"
 #include "lib/strings/strings.h"
 #include "lib/testing/testing.h"

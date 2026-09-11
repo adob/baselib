@@ -1,3 +1,12 @@
+#include "lib/array.h"
+#include "lib/fmt/fmt.h"
+#include "lib/str.h"
+#include "lib/sync/chan.h"
+#include "lib/time/time.h"
+import lib.types;
+#include <algorithm>
+#include <functional>
+#include <vector>
 #include "pipe.h"
 
 #include "lib/error.h"

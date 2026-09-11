@@ -1,12 +1,19 @@
 #pragma once
 
+#include "lib/error.h"
+#include "lib/str.h"
+import lib.types;
+#include <concepts>
+#include <cstdlib>
+#include <iterator>
+#include <stdlib.h>
+#include <type_traits>
 #include <sstream>
 #include <tuple>
 #include <utility>
 #include <variant>
 #include <stdio.h>
 
-#include "lib/fallback.h"
 #include "lib/io/io.h"
 #include "lib/errors/errors.h"
 #include "lib/os/stdio.h"

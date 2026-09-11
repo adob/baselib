@@ -1,7 +1,12 @@
+#include "lib/array.h"
+#include "lib/error.h"
+#include "lib/math/math.h"
+#include "lib/str.h"
+import lib.types;
+#include <algorithm>
 #include "utf8.h"
 #include "codes.h"
 #include "lib/io/io.h"
-#include "lib/math.h"
 #include <type_traits>
 
 using namespace lib;

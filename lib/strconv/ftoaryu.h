@@ -1,7 +1,7 @@
 #pragma once
 
 #include "lib/strconv/ftoa.h"
-#include "lib/types.h"
+import lib.types;
 
 namespace lib::strconv {
     namespace detail {

@@ -1,3 +1,7 @@
+#include "lib/str.h"
+import lib.types;
+#include <cstdint>
+#include <stdint.h>
 #include "varint.h"
 #include "lib/error.h"
 #include "lib/io/io.h"

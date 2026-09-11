@@ -1,4 +1,4 @@
-#include "lib/types.h"
+import lib.types;
 
 namespace lib::runtime {
     struct MemStats {

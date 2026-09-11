@@ -1,9 +1,9 @@
 #pragma once
-
-#include "lib/types.h"
+#include "lib/array.h"
+#include "lib/error.h"
+#include "lib/io/io.h"
+import lib.types;
 #include "lib/str.h"
-#include "lib/buf.h"
-#include "lib/io.h"
     
 namespace lib::utf8 {
     /// encode(b, r) writes into b the UTF-8 encoding

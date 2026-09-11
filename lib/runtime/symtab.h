@@ -1,7 +1,7 @@
 #pragma once
 
 #include "lib/str.h"
-#include "lib/types.h"
+import lib.types;
 
 namespace lib::runtime {
     struct Frame {

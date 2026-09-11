@@ -1,7 +1,6 @@
 #pragma once
 
-#include "lib/sync/mutex.h"
-#include "lib/types.h"
+import lib.types;
 
 #ifdef __ZEPHYR__
 #include <zephyr/kernel.h>

@@ -1,5 +1,5 @@
 #pragma once
-#include "../base.h"
+import lib.types;
 
 namespace lib::unicode {
     const rune MaxRune = 0x0010FFFF;

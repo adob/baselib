@@ -1,7 +1,8 @@
 #pragma once
 
+#include "lib/error.h"
+import lib.types;
 #include "lib/io/io.h"
-#include "lib/str.h"
 #include <stdio.h>
 
 #ifdef ARDUIINO

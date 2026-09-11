@@ -1,5 +1,8 @@
 #pragma once
 
+#include "lib/str.h"
+import lib.types;
+#include <boost/core/pointer_traits.hpp>
 #include "lib/error.h"
 #include "lib/io/io.h"
 #include "lib/sync/chan.h"

@@ -1,10 +1,14 @@
+#include "lib/array.h"
+#include "lib/error.h"
+#include "lib/fmt/fmt.h"
+#include "lib/testing/testing.h"
+import lib.types;
 #include "lib/io/io.h"
 #include "lib/str.h"
 #include "lib/utf8/decode.h"
 #include "lib/utf8/encode.h"
 #include "utf8.h"
 
-#include "lib/testing.h"
 
 using namespace lib;
 using namespace utf8;

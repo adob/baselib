@@ -1,3 +1,9 @@
+#include "lib/error.h"
+#include "lib/io/io.h"
+#include "lib/str.h"
+#include "lib/sync/chan.h"
+#include "lib/sync/lock.h"
+import lib.types;
 #include "pipe.h"
 #include <memory>
 

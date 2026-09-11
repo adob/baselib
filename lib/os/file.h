@@ -1,11 +1,11 @@
 #pragma once
+#include "lib/error.h"
+#include "lib/io/io.h"
+#include "lib/os/types.h"
+#include "lib/str.h"
+import lib.types;
 
-#include "lib/base.h"
-#include "lib/io.h"
-#include "../fs/fs.h"
 
-#include "stat.h"
-#include "error.h"
 
 namespace lib::os {
 

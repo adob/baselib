@@ -1,8 +1,6 @@
 #pragma once
+#include "lib/array.h"
 
-#include "lib/str.h"
-#include "lib/testing/testing.h"
-#include <functional>
 namespace lib::testing {
     namespace detail {
         extern String *match_fuzz;

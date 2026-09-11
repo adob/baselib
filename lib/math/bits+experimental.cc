@@ -1,10 +1,11 @@
 module;
 
-#include "lib/types.h"
 
 #include <cmath>
 
 export module lib.math:bits;
+
+import lib.types;
 
 export namespace lib::math {
     constexpr float64 NaN = NAN;

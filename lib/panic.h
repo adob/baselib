@@ -1,9 +1,9 @@
 #pragma once
 
 #include "str.h"
-#include "error.h"
 
 namespace lib {
+    struct Error;
     namespace io {
         struct WriterTo;
     }

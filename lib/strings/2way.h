@@ -1,5 +1,7 @@
 #pragma once
 
+import lib.types;
+#include <utility>
 #include "lib/str.h"
 
 namespace lib::strings::detail {

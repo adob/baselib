@@ -1,6 +1,5 @@
 #pragma  once
-
-#include "lib/types.h"
+import lib.types;
 
 #include <cmath>
 

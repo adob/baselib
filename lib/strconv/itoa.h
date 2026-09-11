@@ -1,5 +1,9 @@
 #pragma once
 
+#include "lib/error.h"
+import lib.types;
+#include <cstdio>
+#include <limits.h>
 #include "lib/io/io.h"
 #include <type_traits>
 

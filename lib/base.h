@@ -1,5 +1,5 @@
 #pragma once
-#include "./types.h"
+import lib.types;
 #include "./type_id.h"
 #include "./mem.h"
 #include "./str.h"

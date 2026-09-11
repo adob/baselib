@@ -1,3 +1,9 @@
+#include "lib/array.h"
+#include "lib/error.h"
+#include "lib/io/io.h"
+#include "lib/str.h"
+import lib.types;
+#include <sys/types.h>
 #include "itoa.h"
 #include <bit>
 #include <type_traits>

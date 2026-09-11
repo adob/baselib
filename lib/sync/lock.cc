@@ -1,6 +1,8 @@
+#include "lib/panic.h"
+#include "lib/sync/mutex.h"
+#include "lib/sync/rwmutex.h"
 #include "lock.h"
 
-#include "lib/base.h"
 
 using namespace lib;
 using namespace sync;

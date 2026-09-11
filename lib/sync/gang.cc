@@ -1,5 +1,5 @@
+#include "lib/sync/go.h"
 #include "gang.h"
-#include "lib/print.h"
 
 using namespace lib;
 using namespace lib::sync;

@@ -1,7 +1,6 @@
 #pragma once
 
-#include "lib/base.h"
-#include "lib/io.h"
+#include "lib/error.h"
 #include "file.h"
 
 namespace lib::os {

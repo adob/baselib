@@ -1,5 +1,5 @@
 #pragma once
-#include "lib/types.h"
+import lib.types;
 #include "utf8.h"
 
 namespace lib::utf8::internal {

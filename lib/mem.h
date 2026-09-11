@@ -1,8 +1,6 @@
 #pragma once
 
-#include <stdlib.h>
-#include "types.h"
-#include "buf.h"
+import lib.types;
 
 namespace lib::exceptions {
     void out_of_memory();

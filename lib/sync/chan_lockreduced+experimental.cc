@@ -3,7 +3,7 @@
 #include "lib/print.h"
 #include "lib/sync/atomic.h"
 #include "lib/sync/lock.h"
-#include "lib/types.h"
+import lib.types;
 #include <atomic>
 #include <boost/atomic/atomic_ref.hpp>
 #include <boost/memory_order.hpp>

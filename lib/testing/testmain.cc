@@ -1,20 +1,12 @@
-#include <fcntl.h>
-#include <libelf.h>
-#include <gelf.h>
-#include <cxxabi.h>
-#include <unistd.h>
+#include "lib/error.h"
+#include <functional>
 #include <vector>
-#include <dlfcn.h>
 
 #include "lib/debug/debug.h"
-#include "lib/fmt/fmt.h"
 #include "lib/str.h"
 #include "lib/strings/strings.h"
 #include "testing.h"
 #include "func.h"
-#include "../strings.h"
-#include "../base.h"
-#include "../print.h"
 
 using namespace lib;
 using namespace testing;

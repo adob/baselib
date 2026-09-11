@@ -1,7 +1,9 @@
 #pragma once
 
-#include "lib/base.h"
 
+import lib.types;
+#include <algorithm>
+#include <stdlib.h>
 #include <cmath>
 #include <limits>
 #include <numbers>

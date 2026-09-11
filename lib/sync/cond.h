@@ -1,13 +1,13 @@
 #pragma once
+#include "lib/sync/mutex.h"
 
+import lib.types;
 #ifdef __ZEPHYR__
 #include <zephyr/kernel.h>
 #else
 #include <pthread.h>
 #endif
 
-#include "mutex.h"
-#include "lib/base.h"
 
 namespace lib::sync {
     struct Cond : noncopyable {

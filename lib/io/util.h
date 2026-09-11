@@ -1,6 +1,8 @@
 #pragma once
+#include "lib/error.h"
+#include "lib/str.h"
+import lib.types;
 
-#include "io.h"
 
 namespace lib::io {
     using namespace lib;

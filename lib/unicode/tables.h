@@ -1,5 +1,6 @@
 #pragma once
-#include "../base.h"
+#include "lib/array.h"
+import lib.types;
 
 namespace lib::unicode {
         

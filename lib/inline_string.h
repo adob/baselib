@@ -1,7 +1,12 @@
 #pragma once
 
+#include "lib/assert.h"
+#include <algorithm>
+#include <cstddef>
+#include <cstring>
+#include <string>
 #include "lib/str.h"
-#include "lib/types.h"
+import lib.types;
 
 namespace lib {
 

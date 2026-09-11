@@ -1,11 +1,17 @@
+#include "lib/error.h"
+#include "lib/io/io.h"
+#include "lib/panic.h"
+#include "lib/str.h"
+import lib.types;
+#include "lib/unicode/graphic.h"
+#include "lib/utf8/utf8.h"
+#include <array>
+#include <cstring>
+#include <functional>
 #include "strings.h"
 #include "2way.h"
-#include "../unicode.h"
 #include "lib/math/math.h"
-#include "lib/print.h"
-#include "lib/strings/2way.h"
 #include "lib/utf8/decode.h"
-#include <ctype.h>
 #include <vector>
 
 using namespace lib;

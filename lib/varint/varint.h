@@ -1,7 +1,8 @@
 #pragma once
+#include "lib/error.h"
+#include "lib/str.h"
+import lib.types;
 
-#include "lib/io/io.h"
-#include <type_traits>
 
 namespace lib::varint {
     struct ErrOverflow : ErrorBase<ErrOverflow, "varint overflow"> {};

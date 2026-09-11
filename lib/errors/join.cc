@@ -1,6 +1,7 @@
+#include "lib/array.h"
+#include "lib/error.h"
+#include "lib/io/io.h"
 #include "join.h"
-#include "../base.h"
-#include "../io.h"
 
 using namespace lib;
 using namespace errors;

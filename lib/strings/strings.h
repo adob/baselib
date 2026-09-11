@@ -1,14 +1,18 @@
 #pragma once
 
+#include "lib/error.h"
+#include "lib/str.h"
+#include "lib/utf8/utf8.h"
+#include <array>
+#include <string.h>
+#include <string>
 #include <cstring>
 #include <functional>
 #include <vector>
 
-#include "../utf8.h"
-#include "lib/fallback.h"
 #include "lib/io/io.h"
 #include "lib/math/math.h"
-#include "lib/types.h"
+import lib.types;
 #include "lib/utf8/decode.h"
 
 namespace lib::strings {

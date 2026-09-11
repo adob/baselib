@@ -1,3 +1,4 @@
+#include "lib/array.h"
 #include "tables.h"
 
 using namespace lib;

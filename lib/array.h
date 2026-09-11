@@ -1,12 +1,11 @@
 #pragma once
 
-#include "assert.h"
-#include "lib/types.h"
-#include "buf.h"
+#include "lib/str.h"
+#include <string.h>
+import lib.types;
 #include "concepts.h"
-#include "assert.h"
 #include "exceptions.h"
-#include <initializer_list>
+
 namespace lib {
 
     template <typename T, size N>

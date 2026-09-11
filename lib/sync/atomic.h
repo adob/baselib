@@ -1,8 +1,8 @@
+import lib.types;
+#include <type_traits>
 
 #pragma once
 
-#include "lib/sync/lock.h"
-#include "lib/sync/mutex.h"
 namespace lib::sync {
     enum MemoryOrder {
         Relaxed = __ATOMIC_RELAXED,

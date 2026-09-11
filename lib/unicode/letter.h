@@ -1,5 +1,5 @@
+import lib.types;
 #pragma  once
-#include "tables.h"
 
 namespace lib::unicode {
         

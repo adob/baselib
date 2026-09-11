@@ -1,9 +1,10 @@
-#pragma once
-#include <concepts>
-#include <stdint.h>
-#include <stddef.h>
+export module lib.types;
 
-namespace lib {
+import <concepts>;
+import <stdint.h>;
+import <stddef.h>;
+
+export namespace lib {
 
     using uint    = unsigned int;
     using ushort  = unsigned short;
@@ -125,11 +126,15 @@ namespace lib {
         }
 
 
+        // Deduce the wrapped value type from t in an unevaluated context.
         template <typename T>
-        using BackingType = decltype([](T *t) { 
+        static auto backing_value(T *t) {
             auto [val] = *t;
             return val;
-        }(0));
+        }
+
+        template <typename T>
+        using BackingType = decltype(backing_value((T*)nullptr));
 
         // conversion operator
         template <typename T>

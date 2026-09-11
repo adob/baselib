@@ -1,7 +1,8 @@
 #pragma once
+#include "lib/sync/mutex.h"
 
-#include "mutex.h"
 
+import lib.types;
 #if !defined(ESP_PLATFORM) && !defined(AZURE_RTOS)
 #include "rwmutex.h"
 #endif

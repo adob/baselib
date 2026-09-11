@@ -1,12 +1,19 @@
 #pragma once
+#include "lib/sync/atomic.h"
 
+#include "lib/array.h"
+#include "lib/panic.h"
+#include "lib/sync/lock.h"
+#include "lib/sync/mutex.h"
+import lib.types;
+#include <array>
+#include <boost/circular_buffer_fwd.hpp>
+#include <cstdio>
+#include <stdio.h>
+#include <utility>
 #include <boost/circular_buffer.hpp>
 #include <atomic>
 
-#include "lib/base.h"
-#include "lib/sync/atomic.h"
-#include "mutex.h"
-#include "lock.h"
 
 namespace lib::sync {
     using namespace lib;

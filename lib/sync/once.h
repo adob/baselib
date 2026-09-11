@@ -4,8 +4,7 @@
 
 #include "lib/sync/lock.h"
 #include "lib/sync/mutex.h"
-#include "lib/types.h"
-#include "lib/utils.h"
+import lib.types;
 
 namespace lib::sync {
 

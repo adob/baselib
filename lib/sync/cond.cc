@@ -1,3 +1,6 @@
+#include "lib/panic.h"
+#include "lib/sync/mutex.h"
+#include <pthread.h>
 #include "cond.h"
 #include "lib/os/error.h"
 

@@ -1,3 +1,8 @@
+#include "lib/array.h"
+#include "lib/error.h"
+#include "lib/str.h"
+import lib.types;
+#include <cstdlib>
 #include "quote.h"
 
 #include "lib/io/io.h"

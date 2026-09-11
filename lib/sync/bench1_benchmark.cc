@@ -1,6 +1,8 @@
+#include "lib/debug/debug.h"
+#include <boost/core/pointer_traits.hpp>
+#include <boost/move/utility_core.hpp>
 #include "chan.h"
 #include "gang.h"
-#include "lib/debug.h"
 
 using namespace lib;
 using namespace lib::sync;

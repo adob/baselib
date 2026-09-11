@@ -1,3 +1,6 @@
+#include "lib/error.h"
+#include "lib/mem.h"
+import lib.types;
 #include "./exceptions.h"
 #include "./str.h"
 #include "./panic.h"

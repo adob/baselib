@@ -1,8 +1,11 @@
+#include "lib/error.h"
+#include "lib/io/io.h"
+#include "lib/str.h"
+import lib.types;
 #include "utf8.h"
 #include "codes.h"
 #include "encode.h"
 
-#include "lib/panic.h"
 
 using namespace lib;
 using namespace lib::utf8;

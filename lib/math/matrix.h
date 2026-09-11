@@ -1,8 +1,7 @@
 #pragma once
 
-#include "lib/exceptions.h"
-#include "lib/types.h"
-#include "lib/io/io.h"
+#include "lib/error.h"
+import lib.types;
 #include "lib/fmt/fmt.h"
 
 namespace lib::math {

@@ -1,3 +1,4 @@
+#include "lib/sync/cond.h"
 #include "waitgroup.h"
 #include "lock.h"
 

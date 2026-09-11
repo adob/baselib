@@ -1,9 +1,9 @@
 #pragma once
 
-#include <ctime>
 
-#include "lib/base.h"
-#include "lib/types.h"
+#include "lib/str.h"
+#include <compare>
+import lib.types;
 
 #ifdef unix
 #undef unix

@@ -1,5 +1,8 @@
+#include "lib/panic.h"
+#include <cerrno>
+#include <errno.h>
+#include <pthread.h>
 #include "mutex.h"
-#include "lib/base.h"
 
 #ifdef ESP_PLATFORM
 #elif AZURE_RTOS

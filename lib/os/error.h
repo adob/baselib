@@ -1,8 +1,8 @@
 #pragma once
-#include <errno.h>
-#include "lib/base.h"
 #include "lib/fs/fs.h"
-#include "lib/io/io.h"
+#include "lib/error.h"
+#include "lib/str.h"
+#include "lib/type_id.h"
 
 namespace lib::os {
 

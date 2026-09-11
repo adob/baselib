@@ -4,7 +4,7 @@
 #include <zephyr/usb/class/usbd_cdc_acm.h>
 
 #include "lib/serial/serial_listener.h"
-#include "lib/types.h"
+import lib.types;
 
 namespace lib::serial {
 

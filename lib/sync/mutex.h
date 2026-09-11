@@ -1,6 +1,5 @@
 #pragma once
-
-#include "lib/types.h"
+import lib.types;
 
 #ifdef ESP_PLATFORM
 #include <freertos/FreeRTOS.h>

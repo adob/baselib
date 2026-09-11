@@ -1,5 +1,4 @@
-#include "../base.h"
-#include "testing.h"
+#include "lib/testing/testing.h"
 #include "../print.h"
 
 using namespace lib;

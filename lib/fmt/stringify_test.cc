@@ -1,3 +1,5 @@
+#include "lib/str.h"
+#include <compare>
 #include "fmt.h"
 #include "lib/testing/testing.h"
 

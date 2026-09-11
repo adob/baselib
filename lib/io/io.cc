@@ -1,15 +1,21 @@
+#include "lib/array.h"
+#include "lib/assert.h"
+#include "lib/panic.h"
+import lib.types;
+#include <algorithm>
+#include <cstdlib>
+#include <stdlib.h>
+#include <utility>
 #include <string.h>
 #include <stdio.h>
-#include <sys/types.h>
 
 #include "io.h"
+#include "lib/fmt/fmt.h" // Defines ErrorReporter::report used by inline error handling.
 #include "lib/mem.h"
 #include "lib/str.h"
 #include "util.h"
 
-#include "lib/base.h"
 #include "lib/exceptions.h"
-#include "lib/print.h"
 
 
 using namespace lib;

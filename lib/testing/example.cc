@@ -1,5 +1,9 @@
+#include "lib/array.h"
+#include "lib/error.h"
+#include "lib/str.h"
+#include <functional>
+#include <tuple>
 #include "example.h"
-#include "lib/testing/testing.h"
 
 using namespace lib;
 using namespace lib::testing;

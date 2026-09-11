@@ -1,6 +1,10 @@
+#include "lib/error.h"
+#include "lib/exceptions.h"
+import lib.types;
+#include <cstdlib>
+#include <cstring>
+#include <string>
 #include "str.h"
-#include "lib/utf8/encode.h"
-#include "lib/utf8/utf8.h"
 #include "lib/io/io.h"
 
 using namespace lib;

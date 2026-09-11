@@ -1,3 +1,6 @@
+#include "lib/str.h"
+import lib.types;
+#include <functional>
 #include "atoi.h"
 #include "lib/error.h"
 #include "lib/fmt/fmt.h"

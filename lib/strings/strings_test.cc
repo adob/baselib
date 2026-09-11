@@ -1,3 +1,7 @@
+#include "lib/array.h"
+#include "lib/fmt/fmt.h"
+import lib.types;
+#include <algorithm>
 #include "lib/io/io.h"
 #include "lib/math/math.h"
 #include "strings.h"

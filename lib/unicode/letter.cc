@@ -1,3 +1,6 @@
+#include "lib/array.h"
+import lib.types;
+#include "lib/unicode/tables.h"
 #include "letter.h"
 #include "unicode.h"
 

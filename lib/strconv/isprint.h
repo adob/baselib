@@ -1,4 +1,4 @@
-#include "lib/array.h"
+import lib.types;
 
 namespace lib::strconv {    
     extern const arr<uint16> IsPrint16;

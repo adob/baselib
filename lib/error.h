@@ -1,8 +1,8 @@
 #pragma once
 
+#include <concepts>
 #include <type_traits>
-
-#include "types.h"
+import lib.types;
 #include "str.h"
 #include "array.h"
 #include "type_id.h"

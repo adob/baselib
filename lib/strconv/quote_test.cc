@@ -1,3 +1,6 @@
+#include "lib/array.h"
+#include "lib/fmt/fmt.h"
+#include "lib/str.h"
 #include "quote.h"
 #include "lib/testing/testing.h"
 

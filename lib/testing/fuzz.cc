@@ -1,3 +1,6 @@
+#include "lib/array.h"
+#include "lib/str.h"
+#include "lib/testing/testing.h"
 #include "fuzz.h"
 #include "lib/flag/flag.h"
 

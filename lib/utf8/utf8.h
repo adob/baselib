@@ -1,8 +1,10 @@
 #pragma once
 
+#include "lib/array.h"
+#include "lib/error.h"
+#include "lib/str.h"
 #include "lib/io/io.h"
-#include "lib/types.h"
-#include "lib/io.h"
+import lib.types;
 
 /// namespace utf8 implements functions and constants to support text encoded in UTF-8. 
 /// It includes functions to translate between runes and UTF-8 byte sequences.

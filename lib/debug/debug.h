@@ -1,8 +1,9 @@
 #pragma once
 
+#include "lib/error.h"
+#include "lib/str.h"
 #include <exception>
 #include <vector>
-#include "lib/io/io.h"
 
 namespace lib::debug {
     void init();

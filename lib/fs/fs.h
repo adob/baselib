@@ -1,7 +1,9 @@
 #pragma once
 
-#include "../base.h"
-#include "lib/io/io.h"
+#include "lib/bitflag.h"
+#include "lib/error.h"
+#include "lib/str.h"
+import lib.types;
 #include "lib/time/time.h"
 
 

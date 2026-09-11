@@ -1,15 +1,9 @@
 #pragma once
-#include <exception>
-#include <functional>
-#include <future>
-#include <pthread.h>
+#include "lib/panic.h"
+#include <utility>
 #include <thread>
 
-#include "lib/debug.h"
-#include "lib/debug/debug.h"
 #include "lib/exceptions.h"
-#include "lib/os.h"
-#include "lib/os/error.h"
 
 namespace lib::sync {
 

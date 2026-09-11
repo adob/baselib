@@ -1,3 +1,23 @@
+#include "lib/array.h"
+#include "lib/error.h"
+#include "lib/fmt/fmt.h"
+#include "lib/os/stdio.h"
+#include "lib/panic.h"
+#include "lib/str.h"
+#include "lib/sync/atomic.h"
+#include "lib/sync/lock.h"
+#include "lib/sync/rwmutex.h"
+#include "lib/testing/func.h"
+import lib.types;
+#include "lib/utils.h"
+#include <algorithm>
+#include <cmath>
+#include <compare>
+#include <functional>
+#include <stdio.h>
+#include <tuple>
+#include <utility>
+#include <vector>
 #include "benchmark.h"
 
 #include <unordered_map>
@@ -10,11 +30,9 @@
 #include "lib/sync/go.h"
 #include "lib/sync/gang.h"
 #include "lib/sync/mutex.h"
-#include "lib/sync/waitgroup.h"
 #include "lib/testing/matcher.h"
 #include "lib/testing/testing.h"
 #include "lib/time/time.h"
-#include "lib/print.h"
 
 using namespace lib;
 using namespace lib::testing;

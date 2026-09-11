@@ -1,6 +1,6 @@
 #pragma once
+import lib.types;
 
-#include "../base.h"
     
 namespace lib::unicode {
     

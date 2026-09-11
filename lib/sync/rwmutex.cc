@@ -1,3 +1,6 @@
+#include "lib/panic.h"
+#include <cerrno>
+#include <errno.h>
 #include "rwmutex.h"
 #include "lib/os/error.h"
 #include <pthread.h>

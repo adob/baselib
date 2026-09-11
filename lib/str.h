@@ -1,12 +1,16 @@
 #pragma once
 
+#include <algorithm>
+#include <concepts>
+#include <cstdlib>
+#include <functional>
+#include <stdlib.h>
+#include <string_view>
 #include <string>
 #include <utility>
 #include <span>
 #include <cstring>
-
-#include "./types.h"
-#include "./mem.h"
+import lib.types;
 #include "./assert.h"
 
 namespace lib {

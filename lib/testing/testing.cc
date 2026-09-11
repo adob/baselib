@@ -1,3 +1,17 @@
+#include "lib/array.h"
+#include "lib/error.h"
+#include "lib/fmt/fmt.h"
+#include "lib/os/stdio.h"
+#include "lib/panic.h"
+#include "lib/sync/atomic.h"
+#include "lib/sync/chan.h"
+#include "lib/time/time.h"
+import lib.types;
+#include "lib/utils.h"
+#include <functional>
+#include <stdio.h>
+#include <tuple>
+#include <vector>
 #include "testing.h"
 #include "lib/io/io.h"
 #include "lib/sync/map.h"

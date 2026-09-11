@@ -2,7 +2,7 @@
 
 #include "lib/sync/lock.h"
 #include "lib/sync/rwmutex.h"
-#include "lib/types.h"
+import lib.types;
 #include <unordered_map>
 
 namespace lib::sync {

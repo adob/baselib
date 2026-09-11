@@ -1,3 +1,7 @@
+#include "lib/array.h"
+#include "lib/str.h"
+import lib.types;
+#include <algorithm>
 #include "util.h"
 
 #include "lib/error.h"

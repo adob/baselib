@@ -1,3 +1,4 @@
+#include "lib/sync/mutex.h"
 #include "go.h"
 #include "lock.h"
 #include <deque>
