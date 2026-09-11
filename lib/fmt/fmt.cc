@@ -444,35 +444,17 @@ template <typename T>
 void Fmt::fmt_unicode(T u) {
     Fmt &f = *this;
 
-	// With default precision set the maximum needed buf length is 18
-	// for formatting -1 with %#U ("U+FFFFFFFFFFFFFFFF") which fits
-	// into the already allocated intbuf with a capacity of 68 bytes.
 	int prec = 4;
 	if (f.prec_present && f.prec > 4) {
 		prec = f.prec;
-		// Compute space needed for "U+" , number, " '", character, "'".
-		// size width = 2 + prec + 2 + utf8::UTFMax + 1;
-		// if (width > len(buf)) {
-		// 	buf = make([]byte, width)
-		// }
 	}
 
-	// Format into buf, ending at buf[i]. Formatting numbers is easier right-to-left.
-    //char buf[256];
-    Array<byte, 256> buf;
+    // One byte of T needs at most two hex digits. Keep precision padding and
+    // the quoted rune separate so neither can move this buffer's index.
+    Array<byte, 2 * sizeof(T)> buf;
 	size i = len(buf);
-
-	// For %#U we want to add a space and a quoted character at the end of the buffer.
-	if (f.sharp && u <= utf8::MaxRune && strconv::is_print(rune(u))) {
-		i--;
-		buf[i] = '\'';
-		i -= utf8::rune_len(rune(u));
-		utf8::encode_rune(buf+i, rune(u));
-		i--;
-		buf[i] = '\'';
-		i--;
-		buf[i] = ' ';
-	}
+    bool quoted = f.sharp && u <= utf8::MaxRune && strconv::is_print(rune(u));
+    rune character = rune(u);
 	// Format the Unicode code point u as a hexadecimal number.
 	while (u >= 16) {
 		i--;
@@ -483,22 +465,27 @@ void Fmt::fmt_unicode(T u) {
 	i--;
 	buf[i] = udigits[u];
 	prec--;
-	// Add zeros in front of the number until requested precision is reached.
-	while (prec > 0) {
-		i--;
-		buf[i] = '0';
-		prec--;
-	}
-	// Add a leading "U+".
-	i--;
-	buf[i] = '+';
-	i--;
-	buf[i] = 'U';
-
-	bool old_zero = f.zero;
-	f.zero = false;
-	f.write_padded(buf+i);
-	f.zero = old_zero;
+    size zeroes = prec > 0 ? prec : 0;
+    // Field width counts runes: "U+" is two, and " '日'" is four, regardless
+    // of how many UTF-8 bytes the quoted character takes.
+    size width = 2 + zeroes + len(buf) - i + (quoted ? 4 : 0);
+    size padding = f.wid > width ? f.wid - width : 0;
+    if (!f.minus) {
+        f.out.write_repeated(' ', padding, f.err);
+    }
+    f.out.write("U+", f.err);
+    f.out.write_repeated('0', zeroes, f.err);
+    f.out.write(buf+i, f.err);
+    if (quoted) {
+        Array<byte, utf8::UTFMax> encoded;
+        size length = utf8::encode_rune(encoded, character);
+        f.out.write(" '", f.err);
+        f.out.write(encoded.slice(0, length), f.err);
+        f.out.write_byte('\'', f.err);
+    }
+    if (f.minus) {
+        f.out.write_repeated(' ', padding, f.err);
+    }
 }
 
 
