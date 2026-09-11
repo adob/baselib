@@ -1,4 +1,5 @@
 #include "str.h"
+#include "lib/io/io.h"
 #include "lib/testing/testing.h"
 
 #include <algorithm>
@@ -6,6 +7,24 @@
 #include <vector>
 
 using namespace lib;
+
+// Verify concatenation materializes an owning String in each initialization form; t reports failures.
+void test_string_concatenation_conversions(testing::T &t) {
+    str parent = "parent";
+    str child = "child";
+    String temporary = parent + "/" + child;
+    auto concatenation = parent + "/" + child;
+    String mutable_value = concatenation;
+    const auto constant = parent + "/" + child;
+    String const_value = constant;
+    String direct(constant);
+    String assigned;
+    assigned = constant;
+    if (temporary != "parent/child" || mutable_value != temporary ||
+        const_value != temporary || direct != temporary || assigned != temporary) {
+        t.errorf("concatenation must implicitly materialize an owning String");
+    }
+}
 
 // Report ownership-transfer or moved-from reuse failures through t.
 void test_string_move_construction(testing::T &t) {

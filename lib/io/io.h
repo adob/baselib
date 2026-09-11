@@ -259,13 +259,6 @@ namespace lib {
             return StringPlus<N+1>(*this, other);
         }
 
-        operator String() {
-            io::Buffer b;
-            this->write_to(b, error::ignore);
-            String materialized = b.to_string();
-            return materialized;
-        }
-
         operator str() {
             io::Buffer b;
             this->write_to(b, error::ignore);
