@@ -485,7 +485,7 @@ bool utf8::valid_rune(rune r) {
 }
 
 int utf8::rune_len(rune r) {
-    if (r < 0) {
+    if (!is_nonnegative(r)) {
 		return -1;
     }
 	if (r <= Rune1Max) {
