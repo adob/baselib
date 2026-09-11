@@ -5,9 +5,9 @@
 #include <stdio.h>
 
 #ifdef ARDUIINO
-#include "stdio_arduino.h"
+#include "stdio+arduino.h"
 #else
-#include "stdio_posix.h"
+#include "stdio+posix.h"
 #endif
 
 #define SECOND(a, b, ...) b

@@ -72,20 +72,21 @@ if(NOT UNIX)
 endif()
 
 foreach(src_file IN LISTS SOURCES)
-  if(src_file MATCHES ".*_(test|experimental|benchmark|arduino)\\.cc$")
+  if(src_file MATCHES ".*_(test|experimental|benchmark)(\\+[^.]+)?\\.cc$" OR
+     src_file MATCHES ".*\\+(arduino|experimental)\\.cc$")
     list(REMOVE_ITEM SOURCES ${src_file})
   endif()
 
-  if(src_file MATCHES ".*_linux\\.cc$" AND
+  if(src_file MATCHES ".*\\+linux\\.cc$" AND
      NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
     list(REMOVE_ITEM SOURCES ${src_file})
   endif()
 
-  if(src_file MATCHES ".*_posix\\.cc$" AND NOT UNIX)
+  if(src_file MATCHES ".*\\+posix\\.cc$" AND NOT UNIX)
     list(REMOVE_ITEM SOURCES ${src_file})
   endif()
 
-  if(src_file MATCHES ".*_zephyr\\.cc$" AND NOT DEFINED ZEPHYR_BASE)
+  if(src_file MATCHES ".*\\+zephyr\\.cc$" AND NOT DEFINED ZEPHYR_BASE)
     list(REMOVE_ITEM SOURCES ${src_file})
   endif()
 
@@ -95,7 +96,7 @@ foreach(src_file IN LISTS SOURCES)
 endforeach()
 
 if(DEFINED ZEPHYR_BASE AND CONFIG_POSIX_API AND NOT UNIX)
-  list(APPEND SOURCES ${CMAKE_CURRENT_LIST_DIR}/lib/os/stdio_posix.cc)
+  list(APPEND SOURCES ${CMAKE_CURRENT_LIST_DIR}/lib/os/stdio+posix.cc)
 endif()
 
 add_library(${PROJECT_NAME} STATIC

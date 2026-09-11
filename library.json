@@ -5,6 +5,6 @@
     "build": {
         "includeDir": "../",
         "srcDir": ".",
-        "srcFilter":  "+<lib/*.cc> +<lib/errors/*.cc> +<lib/fmt/*.cc> +<lib/io/*.cc> +<lib/os/error.cc> +<lib/os/stdio_posix.cc> +<lib/math/*.cc> +<lib/strconv/*.cc> +<lib/strings/*.cc> +<lib/sync/*.cc> +<lib/time/*.cc> +<lib/unicode/*.cc> +<lib/utf8/*.cc> +<lib/varint/*.cc> -<**/*_test.cc> -<**/*_unix.cc> -<**/*_experimental.cc>"
+        "srcFilter":  "+<lib/*.cc> +<lib/errors/*.cc> +<lib/fmt/*.cc> +<lib/io/*.cc> +<lib/os/error.cc> +<lib/os/stdio+posix.cc> +<lib/math/*.cc> +<lib/strconv/*.cc> +<lib/strings/*.cc> +<lib/sync/*.cc> +<lib/time/*.cc> +<lib/unicode/*.cc> +<lib/utf8/*.cc> +<lib/varint/*.cc> -<**/*_test.cc> -<**/*_unix.cc> -<**/*_experimental.cc> -<**/*+experimental.cc>"
     }
 }

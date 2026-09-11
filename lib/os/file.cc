@@ -15,7 +15,7 @@
 #include "lib/filepath/path.h"
 #include "lib/io/io.h"
 #include "lib/io/util.h"
-#include "lib/os/file_posix.h"
+#include "lib/os/file+posix.h"
 #include "lib/os/types.h"
 
 #include "lib/print.h"

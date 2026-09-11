@@ -1,4 +1,4 @@
-#include "lib/serial/usbio_zephyr.h"
+#include "lib/serial/usbio+zephyr.h"
 
 #include "lib/os/error.h"
 
