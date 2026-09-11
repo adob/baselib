@@ -36,9 +36,9 @@ static inline uint64_t wyrand(uint64_t *seed){
     return  (*seed*((*seed>>32)|(*seed<<32)))^((see1>>32)|(see1<<32));
   }
 
-static inline uint32_t rotl(const uint32_t x, int k) {
-	return (x << k) | (x >> (32 - k));
-}
+// static inline uint32_t rotl(const uint32_t x, int k) {
+// 	return (x << k) | (x >> (32 - k));
+// }
 
 static uint32 cheaprand() {
     if constexpr (sizeof(void*) >= 8) {

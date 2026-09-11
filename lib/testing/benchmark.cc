@@ -10,17 +10,17 @@ import lib.str;
 #include "lib/testing/func.h"
 import lib.types;
 import lib.utils;
-#include <algorithm>
-#include <cmath>
-#include <compare>
-#include <functional>
+import <algorithm>;
+import <cmath>;
+import <compare>;
+import <functional>;
 import <stdio.h>;
-#include <tuple>
-#include <utility>
-#include <vector>
+import <tuple>;
+import <utility>;
+import <vector>;
 #include "benchmark.h"
 
-#include <unordered_map>
+import <unordered_map>;
 
 #include "lib/flag/flag.h"
 import "lib/io/io.h";

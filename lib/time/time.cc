@@ -30,7 +30,7 @@ const int
     SecondsPerMinute   = 60,
 	SecondsPerHour     = 60 * SecondsPerMinute,
 	SecondsPerDay      = 24 * SecondsPerHour,
-	SecondsPerWeek     = 7 * SecondsPerDay,
+	// SecondsPerWeek     = 7 * SecondsPerDay,
 	DaysPer400Years    = 365*400 + 97,
 	DaysPer100Years    = 365*100 + 24,
 	DaysPer4Years      = 365*4 + 1;
@@ -41,7 +41,7 @@ const int
 const int64 AbsoluteZeroYear = -292277022399;
 
 
-const int64 WallToInternal = int64(1884*365 + 1884/4 - 1884/100 + 1884/400) * SecondsPerDay;
+// const int64 WallToInternal = int64(1884*365 + 1884/4 - 1884/100 + 1884/400) * SecondsPerDay;
 const int64 UnixToInternal = int64(1969*365 + 1969/4 - 1969/100 + 1969/400) * SecondsPerDay;
 
 // The year of the zero Time.
@@ -52,11 +52,11 @@ const int64 InternalYear = 1;
 const int64 AbsoluteToInternal = int64((AbsoluteZeroYear - InternalYear) * 365.2425 * SecondsPerDay);
 const int64 InternalToUnix = -UnixToInternal;
 
-const uint64 HasMonotonic = uint64(1) << 63;
-const int64  MaxWall      = WallToInternal + ((uint64(1)<<33) - 1); // year 2157
-const int64  MinWall      = UnixToInternal;               // year 1885
-const uint64 NsecMask     = (int64(1)<<30) - 1;
-const uint   NsecShift    = 30;
+// const uint64 HasMonotonic = uint64(1) << 63;
+// const int64  MaxWall      = WallToInternal + ((uint64(1)<<33) - 1); // year 2157
+// const int64  MinWall      = UnixToInternal;               // year 1885
+// const uint64 NsecMask     = (int64(1)<<30) - 1;
+// const uint   NsecShift    = 30;
 
 const arr<int32> DaysBefore = {{
 	0,

@@ -3,11 +3,12 @@ import lib.error;
 #include "lib/os/error.h"
 #include "lib/print.h"
 
-#include <fcntl.h>
-#include <unistd.h>
-#include <termios.h>
-#include <linux/serial.h>
-#include <sys/ioctl.h>
+import <errno.h>;
+import <fcntl.h>;
+import <unistd.h>;
+import <termios.h>;
+import <linux/serial.h>;
+import <sys/ioctl.h>;
 
 using namespace lib;
 using namespace serial;

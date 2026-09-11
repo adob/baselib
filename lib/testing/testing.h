@@ -5,12 +5,12 @@ import lib.error;
 import "lib/fmt/fmt.h";
 import lib.str;
 import lib.types;
-#include <boost/core/pointer_traits.hpp>
-#include <boost/move/utility_core.hpp>
-#include <tuple>
-#include <variant>
-#include <vector>
-#include <functional>
+import <boost/core/pointer_traits.hpp>;
+import <boost/move/utility_core.hpp>;
+import <tuple>;
+import <variant>;
+import <vector>;
+import <functional>;
 
 import "lib/io/io.h";
 #include "lib/runtime/symtab.h"

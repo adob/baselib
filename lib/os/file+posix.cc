@@ -1,6 +1,6 @@
 #include "file+posix.h"
 
-#include <sys/stat.h>
+import <sys/stat.h>;
 
 using namespace lib;
 using namespace os;

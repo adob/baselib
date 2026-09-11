@@ -2,8 +2,8 @@
 
 import lib.error;
 import lib.str;
-#include <exception>
-#include <vector>
+import <exception>;
+import <vector>;
 
 namespace lib::debug {
     void init();

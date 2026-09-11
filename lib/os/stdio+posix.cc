@@ -1,8 +1,10 @@
 // StdStream
 
 import "stdio.h";
+import "lib/io/io.h";
+import <stdio.h>;
 #include "lib/io/util.h"
-#include <unistd.h>
+import <unistd.h>;
 
 using namespace lib;
 using namespace os;

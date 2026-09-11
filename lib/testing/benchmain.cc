@@ -3,7 +3,7 @@ import lib.str;
 #include "lib/strings/strings.h"
 #include "lib/testing/testing.h"
 import lib.types;
-#include <vector>
+import <vector>;
 #include "lib/debug/debug.h"
 #include "benchmark.h"
 #include "func.h"

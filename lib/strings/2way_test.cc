@@ -85,7 +85,9 @@ struct LastIndexTest {
     str haystack;
     str needle;
     size index;
-} last_index_tests[] = {
+};
+
+static const LastIndexTest last_index_tests[] = {
     {"xofofo", "ofofo", 1},
     {"xoofoofoofox", "oofoofoo", 1},
     {"xoofoofooxofoofoofox", "oofoofoo", 1},
@@ -116,7 +118,7 @@ void test_two_way_search(testing::T &t) {
     }
 }
 
-void test_index_random(testing::T &t) {
+void test_two_way_search_random(testing::T &t) {
 	const str chars = "abcdefghijklmnopqrstuvwxyz0123456789";
 
 	std::random_device rd;  // Non-deterministic seed source

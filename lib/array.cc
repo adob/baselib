@@ -4,6 +4,8 @@ module;
 export module lib.array;
 export import lib.str;
 import <cstring>;
+import <initializer_list>;
+import <concepts>;
 export import lib.types;
 export import lib.concepts;
 export import lib.exceptions;
@@ -159,6 +161,17 @@ namespace lib {
 
         constexpr arr() : data(nullptr), len(0) {}
         constexpr arr(T *t, usize len) : data(t), len(len) {}
+
+        // Borrow list's elements; the backing array must outlive this view.
+        template <typename U> requires std::convertible_to<const U*, T*>
+        constexpr arr(const std::initializer_list<U> &list)
+            : data(list.begin()), len(list.size()) {}
+
+        // Reject temporary lists, including const rvalues, whose storage may soon expire.
+        template <typename U> requires std::convertible_to<const U*, T*>
+        arr(std::initializer_list<U> &&) = delete;
+        template <typename U> requires std::convertible_to<const U*, T*>
+        arr(const std::initializer_list<U> &&) = delete;
 
         template <size N>
         constexpr arr(T (&arr)[N])  : data(arr), len(N) { }

@@ -233,9 +233,12 @@ namespace lib {
         constexpr error(ErrorReporter &&reporter) : reporter(&reporter) {}
         constexpr error(ErrorReporter &reporter) : reporter(&reporter) {}
 
+        // Class traits avoid Clang losing imported variable-template initializers
+        // when checking this constraint through a header unit.
         template <typename T>
         constexpr error(T const &fn, ErrorReporterTmp<T> &&tmp = {})
-            requires (std::is_invocable_v<T, Error&> && !std::is_base_of_v<error, T> && !std::is_base_of_v<ErrorReporter, T>)
+            requires (std::is_invocable<T, Error&>::value && !std::is_base_of<error, T>::value
+                      && !std::is_base_of<ErrorReporter, T>::value)
             : reporter(&tmp)
         {
             tmp.handler = &fn;

@@ -1,6 +1,7 @@
 #pragma once
 import lib.str;
-#include <compare>
+import <compare>;
+import <time.h>;
 import lib.types;
 
 #ifdef unix
@@ -98,7 +99,7 @@ namespace lib::time {
     // It is valid to pass nsec outside the range [0, 999999999].
     // Not all sec values have a corresponding time value. One such
     // value is 1<<63-1 (the largest int64 value).
-    time    unix(const struct timespec &walltime);
+    time    unix(const ::timespec &walltime);
     time    unix(int64 sec, int32 nsec);
     time    unix(int64 sec, int64 nsec);
 

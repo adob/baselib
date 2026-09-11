@@ -1,5 +1,5 @@
 import lib.base;
-#include "../time.h"
+#include "lib/time/time.h"
 import "lib/fmt/fmt.h";
 
 using namespace lib;
@@ -8,8 +8,9 @@ struct MyError : ErrorBase<MyError> {
     time::time when;
     String     what;
 
-    virtual void describe(io::Reader &out) const override {
-        fmt::fprintf(out, "%v: %v", this->when, this->what);
+    // Format this error to out, forwarding write failures through err.
+    void fmt(io::Writer &out, error err) const override {
+        fmt::fprintf(out, err, "%v: %v", this->when, this->what);
     }
 } ;
 
@@ -19,4 +20,3 @@ static MyError oops() {
     e.what = "the file system has gone away";
     return e;
 }
-

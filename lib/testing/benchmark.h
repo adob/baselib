@@ -6,11 +6,11 @@ import lib.error;
 import "lib/io/io.h";
 import lib.str;
 import lib.types;
-#include <vector>
+import <vector>;
 #include "lib/testing/testing.h"
 #include "lib/time/time.h"
-#include <functional>
-#include <unordered_map>
+import <functional>;
+import <unordered_map>;
 namespace lib::testing {
     struct B;
 

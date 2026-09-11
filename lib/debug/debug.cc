@@ -15,20 +15,20 @@ import <cstddef>;
 import <cstdio>;
 import <cstdlib>;
 import <stdio.h>;
-#include <string>
-#include <vector>
+import <string>;
+import <vector>;
 import "lib/fmt/fmt.h";
 import "lib/io/io.h";
 #include "lib/sync/lock.h"
 #include "lib/sync/mutex.h"
-#include <cpptrace/basic.hpp>
-#include <cpptrace/forward.hpp>
-#include <exception>
-#include <unistd.h>
-#include <signal.h>
-#include <typeinfo>
-#include <cxxabi.h>
-#include <cpptrace/formatting.hpp>
+import <cpptrace/basic.hpp>;
+import <cpptrace/forward.hpp>;
+import <exception>;
+import <unistd.h>;
+import <signal.h>;
+import <typeinfo>;
+import <cxxabi.h>;
+import <cpptrace/formatting.hpp>;
 
 // namespace cpptrace::detail {
 //     std::vector<stacktrace_frame> resolve_frames(const std::vector<object_frame>& frames);

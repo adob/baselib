@@ -3,7 +3,9 @@ import lib.panic;
 import lib.types;
 #include <utility>
 #include <errno.h>
-#include <sys/stat.h>
+import <sys/stat.h>;
+import <unistd.h>;
+import <fcntl.h>;
 
 #include "file.h"
 #include "error.h"

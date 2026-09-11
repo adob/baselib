@@ -1,7 +1,5 @@
-import lib.panic;
-#include "lib/sync/mutex.h"
-import <pthread.h>;
 #include "cond.h"
+import lib.panic;
 #include "lib/os/error.h"
 
 using namespace lib;
