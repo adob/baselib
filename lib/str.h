@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <utility>
 #include <span>
 #include <cstring>
 
@@ -345,7 +346,7 @@ namespace lib {
 
     struct Buffer : buf {
         Buffer(Buffer const&) = delete;
-        Buffer(Buffer &&other) : buf(other.data, other.len) {
+        Buffer(Buffer &&other) noexcept : buf(other.data, other.len) {
             other.data = nil;
             other.len = 0;
         }
@@ -365,11 +366,12 @@ namespace lib {
             len = n;
         }
 
-        Buffer& operator = (Buffer &&other) {
-            // if (this == &other) {
-            //     return *this;
-            // }
-            this->~Buffer();
+        Buffer& operator = (Buffer &&other) noexcept {
+            if (this == &other) {
+                return *this;
+            }
+            // Release the allocation
+            ::free(data);
             data = other.data;
             len = other.len;
 
@@ -427,9 +429,9 @@ namespace lib {
             buffer(cap),
             length(0) {}
 
-        String(String &&other) {
-            buffer = std::move(other.buffer);
-            length = other.length;
+        String(String &&other) noexcept :
+            buffer(std::move(other.buffer)),
+            length(other.length) {
             other.length = 0;
         }
 
@@ -555,7 +557,10 @@ namespace lib {
             return *this;
         }
 
-        String& operator = (String&& other) {
+        String& operator = (String&& other) noexcept {
+            if (this == &other) {
+                return *this;
+            }
             buffer = std::move(other.buffer);
             length = other.length;
             other.length = 0;
