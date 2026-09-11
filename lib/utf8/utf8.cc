@@ -315,7 +315,7 @@ rune RuneDecoder::decode_rune(str s, bool eof, int &bytes_consumed, bool &ok, bo
                 if (sz == 3) {
                     state = 0;
                     // runecount++;
-                    rune r = r = ((c0 & Mask3) << 12) | ((c1 & MaskX) << 6) | (c2 & MaskX);
+                    rune r = ((c0 & Mask3) << 12) | ((c1 & MaskX) << 6) | (c2 & MaskX);
                     return bytes_consumed=i, ok=true, is_valid=true, r;
                 }
             
