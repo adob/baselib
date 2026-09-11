@@ -58,11 +58,7 @@ namespace lib::fmt {
 
         void write_to(io::Writer &out, error) const override;
 
-        operator String() {
-            io::Buffer buffer;
-            write_to(buffer, error::ignore);
-            return buffer.to_string();
-       }
+        // String's WriterTo constructor provides the implicit owning conversion.
     };
 
     template <typename T>

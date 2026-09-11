@@ -603,7 +603,9 @@ namespace lib {
             return ::memcmp(this->buffer.data, s.data, this->length) == 0;
         }
 
-        constexpr bool operator == (String const& other) const {
+        // Accept existing owning strings without converting other operand types.
+        template <std::same_as<String> S>
+        constexpr bool operator == (S const& other) const {
             return *this == str(other.buffer.data, other.length);
         }
 
@@ -615,14 +617,10 @@ namespace lib {
             return ::memcmp(this->buffer.data, p, N-1) == 0 && p[N-1] == '\0';
         }
 
-        auto operator<=>(const String &other) const {
-            std::size_t min_length = std::min(this->length, other.length);
-            int cmp = std::memcmp(this->buffer.data, other.buffer.data, min_length);
-    
-            if (cmp != 0) {
-                return cmp <=> 0;  // Compare based on data
-            }
-            return this->length <=> other.length;  // Compare based on length
+        // Require an owning string operand, then compare its view without allocation.
+        template <std::same_as<String> S>
+        auto operator<=>(S const& other) const {
+            return str(*this) <=> str(other);
         }
     };
 

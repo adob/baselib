@@ -181,7 +181,7 @@ bool ErrorRecorder::is(Error const &other) {
   if (this->type != other.type) {
     return false;
   }
-  if (this->msg != fmt::stringify(other)) {
+  if (this->msg != String(fmt::stringify(other))) {
     return false;
   }
   return true;
