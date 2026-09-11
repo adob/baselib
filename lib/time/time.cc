@@ -171,11 +171,6 @@ time::duration time::hz(float64 n) {
     return { int64(std::round(1e9 / n)) };
 }
 
-static auto fn() {
-    struct {} ret;
-    return ret;
-}
-
 // norm returns nhi, nlo such that
 //
 //	hi * base + lo == nhi * base + nlo
