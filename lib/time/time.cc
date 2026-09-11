@@ -1,18 +1,18 @@
 #include "lib/array.h"
 #include "lib/error.h"
 #include "lib/panic.h"
-#include "lib/str.h"
+import lib.str;
 import lib.types;
-#include <cerrno>
+import <cerrno>;
 #include <cstdlib>
 #include <errno.h>
-#include <stdlib.h>
+import <stdlib.h>;
 #include <sys/types.h>
 #include <tuple>
 #include "time.h"
 
 #include <cmath>
-#include <time.h>
+import <time.h>;
 
 #include "lib/os/error.h"
 #include "lib/os/file.h"

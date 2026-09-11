@@ -2,7 +2,7 @@
 
 #include "lib/array.h"
 #include "lib/error.h"
-#include "lib/str.h"
+import lib.str;
 import lib.types;
 #include <functional>
 #include <memory>

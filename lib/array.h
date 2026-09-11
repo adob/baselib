@@ -1,7 +1,8 @@
 #pragma once
 
-#include "lib/str.h"
-#include <string.h>
+#include "lib/assert.h"
+import lib.str;
+import <cstring>;
 import lib.types;
 #include "concepts.h"
 #include "exceptions.h"

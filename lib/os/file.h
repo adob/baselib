@@ -2,7 +2,7 @@
 #include "lib/error.h"
 #include "lib/io/io.h"
 #include "lib/os/types.h"
-#include "lib/str.h"
+import lib.str;
 import lib.types;
 
 

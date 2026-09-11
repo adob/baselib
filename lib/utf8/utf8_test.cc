@@ -4,7 +4,7 @@
 #include "lib/testing/testing.h"
 import lib.types;
 #include "lib/io/io.h"
-#include "lib/str.h"
+import lib.str;
 #include "lib/utf8/decode.h"
 #include "lib/utf8/encode.h"
 #include "utf8.h"

@@ -1,7 +1,5 @@
 #pragma once
-
-#include "lib/str.h"
-
+import lib.str;
 namespace lib::filepath {
     const char Separator     = '/'; // OS-specific path separator
 	const char ListSeparator = ':'; // OS-specific path list separator)

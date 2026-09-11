@@ -8,7 +8,7 @@ import lib.types;
 
 #include "fmt.h"
 #include "lib/math/bits.h"
-#include "lib/str.h"
+import lib.str;
 #include "lib/strings/strings.h"
 #include "lib/testing/benchmark.h"
 #include "lib/testing/testing.h"
@@ -840,7 +840,7 @@ FmtTest fmt_tests[] = {
 	// // Comparison of padding rules with C printf.
 	// /*
 	// 	C program:
-	// 	#include <stdio.h>
+	// 	import <stdio.h>;
 
 	// 	char *format[] = {
 	// 		"[%.2f]",

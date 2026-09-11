@@ -1,7 +1,5 @@
 #pragma once
-
-
-#include "lib/str.h"
+import lib.str;
 #include <compare>
 import lib.types;
 

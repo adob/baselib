@@ -1,6 +1,6 @@
 #include "lib/errors/errors.h"
 #include "lib/io/io.h"
-#include "lib/str.h"
+import lib.str;
 #include "lib/type_id.h"
 #include "error.h"
 //#include "lib/fmt/fmt.h"

@@ -5,9 +5,9 @@
 #include "lib/error.h"
 #include "lib/errors/errors.h"
 #include "lib/fs/fs.h"
-#include "lib/str.h"
+import lib.str;
 #include "lib/type_id.h"
-#include <string.h>
+import <cstring>;
 #include <errno.h>
 
 #include "error.h"

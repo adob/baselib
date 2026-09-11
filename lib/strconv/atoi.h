@@ -3,8 +3,7 @@
 #include "lib/array.h"
 import lib.types;
 #include "lib/error.h"
-#include "lib/str.h"
-
+import lib.str;
 namespace lib::strconv {
 
     // ErrRange indicates that a value is out of range for the target type.

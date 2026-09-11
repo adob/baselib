@@ -2,10 +2,10 @@
 
 #include "lib/assert.h"
 #include <algorithm>
-#include <cstddef>
+import <cstddef>;
 #include <cstring>
 #include <string>
-#include "lib/str.h"
+import lib.str;
 import lib.types;
 
 namespace lib {

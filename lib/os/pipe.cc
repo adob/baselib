@@ -1,6 +1,6 @@
 #include "lib/error.h"
 #include "lib/os/file.h"
-#include "lib/str.h"
+import lib.str;
 #include <fcntl.h>              /* Obtain O_* constant definitions */
 #include <unistd.h>
 #include <errno.h>

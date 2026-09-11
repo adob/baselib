@@ -5,7 +5,7 @@ import lib.types;
 #ifdef __ZEPHYR__
 #include <zephyr/kernel.h>
 #else
-#include <pthread.h>
+import <pthread.h>;
 #endif
 
 

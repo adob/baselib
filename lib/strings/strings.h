@@ -1,10 +1,10 @@
 #pragma once
 
 #include "lib/error.h"
-#include "lib/str.h"
+import lib.str;
 #include "lib/utf8/utf8.h"
 #include <array>
-#include <string.h>
+import <cstring>;
 #include <string>
 #include <cstring>
 #include <functional>

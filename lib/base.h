@@ -2,7 +2,7 @@
 import lib.types;
 #include "./type_id.h"
 #include "./mem.h"
-#include "./str.h"
+import lib.str;
 #include "./buf.h"
 #include "./bitflag.h"
 #include "./error.h"

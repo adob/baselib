@@ -3,7 +3,7 @@
 #include <concepts>
 #include <type_traits>
 import lib.types;
-#include "str.h"
+import lib.str;
 #include "array.h"
 #include "type_id.h"
 

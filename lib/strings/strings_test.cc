@@ -5,8 +5,7 @@ import lib.types;
 #include "lib/io/io.h"
 #include "lib/math/math.h"
 #include "strings.h"
-
-#include "lib/str.h"
+import lib.str;
 #include "lib/testing/testing.h"
 #include "lib/testing/benchmark.h"
 #include <functional>

@@ -1,3 +1,3 @@
 #pragma once
-#include <stdlib.h>
+import <stdlib.h>;
 import lib.types;

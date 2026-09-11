@@ -1,11 +1,10 @@
 import lib.types;
 #include <algorithm>
 #include <cstring>
-#include <string.h>
+import <cstring>;
 #include <utility>
 #include "2way.h"
-
-#include "lib/str.h"
+import lib.str;
 #include "lib/math/math.h"
 
 using namespace lib;

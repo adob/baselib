@@ -1,5 +1,5 @@
 #include "lib/fmt/fmt.h"
-#include "lib/str.h"
+import lib.str;
 #include "lib/testing/testing.h"
 #include "lib/time/time.h"
 import lib.types;

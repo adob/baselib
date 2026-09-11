@@ -2,7 +2,7 @@
 #include "lib/mem.h"
 import lib.types;
 #include "./exceptions.h"
-#include "./str.h"
+import lib.str;
 #include "./panic.h"
 #include "lib/io/io.h"
 #include "fmt/fmt.h"

@@ -4,15 +4,15 @@
 import lib.types;
 #include <algorithm>
 #include <cstdlib>
-#include <stdlib.h>
+import <stdlib.h>;
 #include <utility>
-#include <string.h>
-#include <stdio.h>
+import <cstring>;
+import <stdio.h>;
 
 #include "io.h"
 #include "lib/fmt/fmt.h" // Defines ErrorReporter::report used by inline error handling.
 #include "lib/mem.h"
-#include "lib/str.h"
+import lib.str;
 #include "util.h"
 
 #include "lib/exceptions.h"

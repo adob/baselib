@@ -1,7 +1,7 @@
 #pragma once
 
 #include "lib/error.h"
-#include "lib/str.h"
+import lib.str;
 #include <exception>
 #include <vector>
 

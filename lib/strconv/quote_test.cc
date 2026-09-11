@@ -1,6 +1,6 @@
 #include "lib/array.h"
 #include "lib/fmt/fmt.h"
-#include "lib/str.h"
+import lib.str;
 #include "quote.h"
 #include "lib/testing/testing.h"
 

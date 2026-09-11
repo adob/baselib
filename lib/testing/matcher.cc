@@ -2,7 +2,7 @@
 #include "lib/fmt/fmt.h"
 #include "lib/io/io.h"
 #include "lib/panic.h"
-#include "lib/str.h"
+import lib.str;
 #include "lib/sync/lock.h"
 #include "lib/sync/mutex.h"
 #include "lib/testing/testing.h"

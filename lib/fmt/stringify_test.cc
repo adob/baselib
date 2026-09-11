@@ -1,4 +1,4 @@
-#include "lib/str.h"
+import lib.str;
 #include <compare>
 #include "fmt.h"
 #include "lib/testing/testing.h"

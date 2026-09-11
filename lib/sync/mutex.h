@@ -9,7 +9,7 @@ import lib.types;
 #elif __ZEPHYR__
 #include <zephyr/kernel.h>
 #else
-#include <pthread.h>
+import <pthread.h>;
 #endif
 
 namespace lib::sync {

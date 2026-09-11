@@ -1,5 +1,5 @@
 #include "lib/array.h"
-#include "lib/str.h"
+import lib.str;
 #include "lib/testing/testing.h"
 #include "fuzz.h"
 #include "lib/flag/flag.h"

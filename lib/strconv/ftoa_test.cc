@@ -1,5 +1,5 @@
 #include "lib/fmt/fmt.h"
-#include "lib/str.h"
+import lib.str;
 #include "ftoa.h"
 #include "lib/math/bits.h"
 #include "lib/testing/testing.h"

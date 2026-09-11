@@ -3,7 +3,7 @@
 #include <vector>
 
 #include "lib/debug/debug.h"
-#include "lib/str.h"
+import lib.str;
 #include "lib/strings/strings.h"
 #include "testing.h"
 #include "func.h"

@@ -9,7 +9,7 @@
 import lib.types;
 #include "lib/utils.h"
 #include <functional>
-#include <stdio.h>
+import <stdio.h>;
 #include <tuple>
 #include <vector>
 #include "testing.h"
@@ -20,7 +20,7 @@ import lib.types;
 #include "benchmark.h"
 #include "lib/runtime/debug.h"
 #include "lib/runtime/symtab.h"
-#include "lib/str.h"
+import lib.str;
 #include "lib/sync/go.h"
 #include "lib/sync/lock.h"
 #include "lib/strings/strings.h"

@@ -3,7 +3,7 @@
 #include "lib/error.h"
 import lib.types;
 #include "lib/io/io.h"
-#include <stdio.h>
+import <stdio.h>;
 
 #ifdef ARDUIINO
 #include "stdio+arduino.h"

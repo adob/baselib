@@ -15,10 +15,7 @@ import lib.types;
 #include "lib/io/util.h"
 #include "lib/os/file+posix.h"
 #include "lib/os/types.h"
-
-#include "lib/str.h"
-
-
+import lib.str;
 using namespace lib;
 using namespace os;
 

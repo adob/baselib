@@ -1,6 +1,5 @@
 #pragma once
-
-#include "lib/str.h"
+import lib.str;
 import lib.types;
 #include <boost/core/pointer_traits.hpp>
 #include "lib/error.h"

@@ -3,8 +3,7 @@
 #include "lib/error.h"
 #include "lib/io/io.h"
 import lib.types;
-#include "lib/str.h"
-    
+import lib.str;
 namespace lib::utf8 {
     /// encode(b, r) writes into b the UTF-8 encoding
     /// of the rune r. The resulting string is returned. If b is not large enough, an exception

@@ -1,4 +1,4 @@
-#include <stdio.h>
+import <stdio.h>;
 #include "sharedlib/array.h"
 #include "./quote.h"
 #include "sharedlib/utf8.h"

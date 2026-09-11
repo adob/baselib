@@ -1,6 +1,6 @@
 #include "lib/array.h"
 #include "lib/error.h"
-#include "lib/str.h"
+import lib.str;
 #include <functional>
 #include <tuple>
 #include "example.h"

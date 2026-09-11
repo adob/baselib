@@ -2,8 +2,7 @@
 
 #include <utility>
 import lib.types;
-#include "lib/str.h"
-
+import lib.str;
 namespace lib::utf8 {
     struct DecodeRuneResult {
         rune r;

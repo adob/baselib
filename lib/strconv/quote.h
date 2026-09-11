@@ -2,7 +2,7 @@
 
 #include "lib/error.h"
 import lib.types;
-#include "lib/str.h"
+import lib.str;
 #include "lib/io/io.h"
 
 namespace lib::strconv {

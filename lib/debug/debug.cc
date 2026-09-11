@@ -10,11 +10,11 @@
 
 #include "lib/error.h"
 #include "lib/os/stdio.h"
-#include "lib/str.h"
-#include <cstddef>
+import lib.str;
+import <cstddef>;
 #include <cstdio>
 #include <cstdlib>
-#include <stdio.h>
+import <stdio.h>;
 #include <string>
 #include <vector>
 #include "lib/fmt/fmt.h"

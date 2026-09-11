@@ -3,7 +3,7 @@
 
 import lib.types;
 #include <algorithm>
-#include <stdlib.h>
+import <stdlib.h>;
 #include <cmath>
 #include <limits>
 #include <numbers>

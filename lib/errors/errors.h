@@ -1,6 +1,5 @@
 #pragma once
-
-#include "lib/str.h"
+import lib.str;
 #include "lib/type_id.h"
 import lib.types;
 #include "../error.h"

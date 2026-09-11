@@ -2,10 +2,10 @@
 #include "lib/fmt/fmt.h"
 #include "lib/io/io.h"
 #include "lib/panic.h"
-#include "lib/str.h"
+import lib.str;
 #include "lib/type_id.h"
 import lib.types;
-#include <stdio.h>
+import <stdio.h>;
 #include "errors.h"
 #include "lib/error.h"
 

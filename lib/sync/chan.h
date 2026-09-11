@@ -9,7 +9,7 @@ import lib.types;
 #include <array>
 #include <boost/circular_buffer_fwd.hpp>
 #include <cstdio>
-#include <stdio.h>
+import <stdio.h>;
 #include <utility>
 #include <boost/circular_buffer.hpp>
 #include <atomic>

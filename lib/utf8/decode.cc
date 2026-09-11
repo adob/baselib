@@ -1,4 +1,4 @@
-#include "lib/str.h"
+import lib.str;
 import lib.types;
 #include <utility>
 #include "utf8.h"

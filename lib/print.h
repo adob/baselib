@@ -1,7 +1,7 @@
 #pragma once
 #include "lib/io/io.h"
-#include "lib/str.h"
-#include <stdio.h>
+import lib.str;
+import <stdio.h>;
 #include "lib/error.h"
 #include "lib/fmt/fmt.h"
 

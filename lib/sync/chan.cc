@@ -11,7 +11,7 @@ import lib.types;
 #include "chan.h"
 
 #include <atomic>
-#include <pthread.h>
+import <pthread.h>;
 
 using namespace lib;
 using namespace sync;

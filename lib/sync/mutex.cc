@@ -1,7 +1,7 @@
 #include "lib/panic.h"
-#include <cerrno>
+import <cerrno>;
 #include <errno.h>
-#include <pthread.h>
+import <pthread.h>;
 #include "mutex.h"
 
 #ifdef ESP_PLATFORM

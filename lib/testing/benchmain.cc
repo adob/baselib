@@ -1,5 +1,5 @@
 #include "lib/error.h"
-#include "lib/str.h"
+import lib.str;
 #include "lib/strings/strings.h"
 #include "lib/testing/testing.h"
 import lib.types;

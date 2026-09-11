@@ -2,8 +2,7 @@
 
 import lib.types;
 #include <utility>
-#include "lib/str.h"
-
+import lib.str;
 namespace lib::strings::detail {
     std::pair<size, size> critical_factorization_fwd(str s);
     std::pair<size, size> critical_factorization_rev(str s);

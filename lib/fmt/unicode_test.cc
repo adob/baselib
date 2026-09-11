@@ -1,4 +1,4 @@
-#include "lib/str.h"
+import lib.str;
 #include <initializer_list>
 #include "fmt.h"
 #include "lib/strings/strings.h"

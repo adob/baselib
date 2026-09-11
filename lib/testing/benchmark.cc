@@ -3,7 +3,7 @@
 #include "lib/fmt/fmt.h"
 #include "lib/os/stdio.h"
 #include "lib/panic.h"
-#include "lib/str.h"
+import lib.str;
 #include "lib/sync/atomic.h"
 #include "lib/sync/lock.h"
 #include "lib/sync/rwmutex.h"
@@ -14,7 +14,7 @@ import lib.types;
 #include <cmath>
 #include <compare>
 #include <functional>
-#include <stdio.h>
+import <stdio.h>;
 #include <tuple>
 #include <utility>
 #include <vector>

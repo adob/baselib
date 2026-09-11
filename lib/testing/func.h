@@ -3,9 +3,7 @@
 #include <vector>
 
 #include "lib/error.h"
-#include "lib/str.h"
-
-
+import lib.str;
 namespace lib::testing {
     namespace detail {
         struct FuncData {

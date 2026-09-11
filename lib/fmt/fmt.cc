@@ -2,7 +2,7 @@
 #include "lib/error.h"
 #include "lib/math/math.h"
 #include "lib/panic.h"
-#include "lib/str.h"
+import lib.str;
 #include <cstdint>
 #include <cwchar>
 #include <stdint.h>

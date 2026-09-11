@@ -1,6 +1,6 @@
 #include "lib/fmt/fmt.h"
 #include "lib/io/io.h"
-#include "lib/str.h"
+import lib.str;
 import lib.types;
 #include <algorithm>
 #include "2way.h"

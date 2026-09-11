@@ -8,7 +8,7 @@
 #include "lib/base.h"
 #include "atomic.h"
 #include "lib/io/io.h"
-#include "lib/str.h"
+import lib.str;
 #include "mutex.h"
 #include "cond.h"
 #include "lock.h"

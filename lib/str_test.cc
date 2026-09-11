@@ -1,7 +1,8 @@
+import lib.str;
+
 #include "lib/fmt/fmt.h"
 import lib.types;
 #include <initializer_list>
-#include "str.h"
 #include "lib/io/io.h"
 #include "lib/testing/testing.h"
 
@@ -10,6 +11,17 @@ import lib.types;
 #include <vector>
 
 using namespace lib;
+
+// Check exported APIs and companion-object linkage; t reports failures.
+void test_string_module_exports(testing::T &t) {
+    String text("hello");
+    CString terminated = str(text).c_str();
+    if (text.std_string() != "hello" || str(text).std_string() != "hello" ||
+        str::from_c_str(terminated.c_str()) != "hello" ||
+        std::hash<String>{}(text) != std::hash<std::string_view>{}("hello")) {
+        t.errorf("imported string APIs must preserve their behavior");
+    }
+}
 
 // Verify concatenation materializes an owning String in each initialization form; t reports failures.
 void test_string_concatenation_conversions(testing::T &t) {

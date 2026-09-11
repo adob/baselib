@@ -1,9 +1,7 @@
 #pragma once
 
 #include <functional>
-
-#include "lib/str.h"
-
+import lib.str;
 namespace lib::flag {
     struct FlagSet {
         // void var(str name, int value, str usage) {

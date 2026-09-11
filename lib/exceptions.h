@@ -1,7 +1,5 @@
 #pragma once
-
-
-#include "./str.h"
+import lib.str;
 import lib.types;
 
 #ifdef __cpp_exceptions

@@ -1,9 +1,9 @@
 #include "lib/panic.h"
-#include <cerrno>
+import <cerrno>;
 #include <errno.h>
 #include "rwmutex.h"
 #include "lib/os/error.h"
-#include <pthread.h>
+import <pthread.h>;
 using namespace lib;
 using namespace sync;
 

@@ -1,5 +1,5 @@
 #include "lib/array.h"
-#include "lib/str.h"
+import lib.str;
 import lib.types;
 #include <algorithm>
 #include "util.h"

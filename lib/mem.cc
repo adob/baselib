@@ -1,8 +1,8 @@
-#include "lib/str.h"
+import lib.str;
 import lib.types;
 #include "mem.h"
 
-#include <stdlib.h>
+import <stdlib.h>;
 
 #include "exceptions.h"
 

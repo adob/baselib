@@ -1,7 +1,5 @@
 #pragma once
-
-#include "str.h"
-
+import lib.str;
 namespace lib {
     struct Error;
     namespace io {
