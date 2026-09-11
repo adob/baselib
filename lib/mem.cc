@@ -25,7 +25,7 @@ byte *mem::realloc(byte *p, size newsize) {
 
 void mem::touch(str s) {
 
-    volatile char * volatile ptr = (volatile char * volatile)s.data; // forces a read
+    volatile char *ptr = (volatile char *)s.data; // forces a read
     const char *end = s.data + s.len;
     
     while (ptr != end) {
@@ -36,7 +36,7 @@ void mem::touch(str s) {
 }
 
 void mem::touch(void *p) {
-    volatile byte * volatile ptr = (volatile byte * volatile) p;
+    volatile byte *ptr = (volatile byte *) p;
     volatile byte x = *ptr;
     (void) x;
 }
