@@ -255,7 +255,8 @@ time::time time::date(int year, Month month, int day, int hour, int min, int sec
 	uint64 abs = d * SecondsPerDay;
 	abs += uint64(hour*SecondsPerHour + min*SecondsPerMinute + sec);
 
-	auto unix = int64(abs) + (AbsoluteToInternal + InternalToUnix);
+	// Needed by the timezone lookup below once date() is implemented.
+	[[maybe_unused]] auto unix = int64(abs) + (AbsoluteToInternal + InternalToUnix);
 
     panic("unimplemented");
     return {};
