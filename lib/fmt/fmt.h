@@ -393,7 +393,8 @@ namespace lib::fmt {
     template <typename ...Args>
     void fprint(io::Writer &out, error err, const Args &...arg) {
         Fmt fmt(out, err);
-        ( (fmt.write(arg), !err) && ...);
+        // Keep short-circuiting on errors; only the final boolean is unused.
+        static_cast<void>(((fmt.write(arg), !err) && ...));
         // int i = 0;
         // ( ((i++ != 0 ? fmt.write(' '):void()), fmt.write(arg), !err) && ...);
     }
@@ -407,7 +408,7 @@ namespace lib::fmt {
     template <typename ...Args>
     void fcat(io::Writer &out, error err, const Args &...arg) {
         Fmt fmt(out, err);
-        ( (fmt.write(arg), !err) && ...);
+        static_cast<void>(((fmt.write(arg), !err) && ...));
     }
 
     // print
@@ -421,7 +422,7 @@ namespace lib::fmt {
     void fprintln(io::Writer &out, error err, const Args &...arg) {
         Fmt fmt(out, err);
         int i = 0;
-        ( ((i++ != 0 ? fmt.write(' '):void()), fmt.write(arg), !err) && ...);
+        static_cast<void>(((i++ != 0 ? fmt.write(' ') : void(), fmt.write(arg), !err) && ...));
         fmt.write("\n");
     }
 
