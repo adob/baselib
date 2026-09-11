@@ -6,6 +6,7 @@
 #include <cxxabi.h>
 #include <dlfcn.h>
 #include <unistd.h>
+#include <limits>
 
 using namespace lib;
 using namespace lib::testing;
@@ -80,9 +81,16 @@ std::vector<FuncData> detail::get_all_funcs(error) {
         }
 
         size_t num_symbols = shdr.sh_size / shdr.sh_entsize;
+        // gelf_getsym accepts int indices; check the largest index before narrowing.
+        if (num_symbols != 0 && num_symbols - 1 > size_t(std::numeric_limits<int>::max())) {
+            fprintf(stderr, "ELF symbol table is too large for gelf_getsym indices\n");
+            elf_end(e);
+            close(fd);
+            exit(EXIT_FAILURE);
+        }
         for (size_t i = 0; i < num_symbols; ++i) {
         GElf_Sym sym;
-        if (gelf_getsym(data, i, &sym) != &sym) {
+        if (gelf_getsym(data, int(i), &sym) != &sym) {
             fprintf(stderr, "gelf_getsym failed: %s\n", elf_errmsg(-1));
             continue;
         }
