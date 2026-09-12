@@ -2,13 +2,13 @@ module;
 #include "chan_impl.h"
 
 export module lib.sync.chan;
-export import lib.sync.atomic;
+import lib.sync.atomic;
 
-export import lib.array;
-export import lib.panic;
-export import lib.sync.lock;
-export import lib.sync.mutex;
-export import lib.types;
+import lib.array;
+import lib.panic;
+import lib.sync.lock;
+import lib.sync.mutex;
+import lib.types;
 import <array>;
 import <stdio.h>;
 import <utility>;

@@ -2,7 +2,9 @@ module;
 #include "serial_impl+linux.h"
 
 export module lib.serial;
-export import lib.os.file;
+import lib.str;
+import lib.error;
+import lib.os.file;
 
 
 export extern "C++" {

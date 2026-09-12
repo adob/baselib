@@ -2,7 +2,7 @@ module;
 #include "mstats_impl.h"
 
 export module lib.runtime.mstats;
-export import lib.types;
+import lib.types;
 
 
 export extern "C++" {

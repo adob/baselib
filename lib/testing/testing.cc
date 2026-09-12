@@ -2,25 +2,31 @@ module;
 #include "testing_impl.h"
 
 export module lib.testing;
-export import lib.array;
-export import lib.error;
-export import lib.fmt;
-export import lib.str;
-export import lib.types;
+import lib.array;
+import lib.error;
+import lib.fmt;
+import lib.str;
+import lib.types;
 import <boost/core/pointer_traits.hpp>;
 import <boost/move/utility_core.hpp>;
-import <tuple>;
 import <variant>;
 import <vector>;
 import <functional>;
 
-export import lib.io;
-export import lib.runtime.symtab;
-export import lib.sync.chan;
-export import lib.sync.mutex;
-export import lib.sync.rwmutex;
-export import lib.sync.atomic;
-export import lib.time;
+import lib.io;
+import lib.runtime.symtab;
+import lib.sync.chan;
+import lib.sync.mutex;
+import lib.sync.rwmutex;
+import lib.sync.atomic;
+import lib.time;
+
+// TODO: Investigate template reachability without these header re-exports.
+export import <tuple>;
+export import <boost/circular_buffer.hpp>;
+#ifdef __GXX_RTTI
+export import <typeinfo>;
+#endif
 
 extern "C++" int main(int argc, char *argv[]);
 

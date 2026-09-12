@@ -2,7 +2,7 @@ module;
 #include "mutex_impl.h"
 
 export module lib.sync.mutex;
-export import lib.types;
+import lib.types;
 
 #ifdef ESP_PLATFORM
 import <freertos/FreeRTOS.h>;

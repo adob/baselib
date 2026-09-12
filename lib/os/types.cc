@@ -2,7 +2,7 @@ export module lib.os.types;
 import <fcntl.h>;
 import <sys/stat.h>;
 
-export import lib.fs;
+import lib.fs;
 
 
 

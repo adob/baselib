@@ -6,9 +6,10 @@ module;
 #endif
 
 export module lib.os.stdio;
-export import lib.error;
-export import lib.types;
-export import lib.io;
+import lib.str;
+import lib.error;
+import lib.types;
+import lib.io;
 import <stdio.h>;
 
 

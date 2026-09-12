@@ -2,10 +2,10 @@ module;
 #include "go_impl.h"
 
 export module lib.sync.go;
-export import lib.panic;
+import lib.panic;
 import <utility>;
 
-export import lib.exceptions;
+import lib.exceptions;
 
 // TODO: Investigate Clang template visibility failures with plain imports;
 // remove these re-exports if they are only compiler workarounds.

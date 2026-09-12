@@ -1,5 +1,5 @@
 export module lib.math.bits;
-export import lib.types;
+import lib.types;
 
 import <cmath>;
 

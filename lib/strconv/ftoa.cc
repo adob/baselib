@@ -2,9 +2,9 @@ module;
 #include "ftoa_impl.h"
 
 export module lib.strconv.ftoa;
-export import lib.error;
-export import lib.types;
-export import lib.io;
+import lib.error;
+import lib.types;
+import lib.io;
 
 
 export extern "C++" {

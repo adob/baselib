@@ -2,9 +2,9 @@ module;
 #include "fmt_impl.h"
 
 export module lib.fmt;
-export import lib.error;
-export import lib.str;
-export import lib.types;
+import lib.error;
+import lib.str;
+import lib.types;
 import <concepts>;
 import <cstdlib>;
 import <iterator>;
@@ -15,9 +15,9 @@ import <utility>;
 import <variant>;
 import <stdio.h>;
 
-export import lib.io;
-export import lib.errors;
-export import lib.os.stdio;
+import lib.io;
+import lib.errors;
+import lib.os.stdio;
 
 // TODO: Investigate Clang template visibility failures with plain imports;
 // remove these re-exports if they are only compiler workarounds.

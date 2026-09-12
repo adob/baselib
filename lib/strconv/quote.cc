@@ -2,10 +2,10 @@ module;
 #include "quote_impl.h"
 
 export module lib.strconv.quote;
-export import lib.error;
-export import lib.types;
-export import lib.str;
-export import lib.io;
+import lib.error;
+import lib.types;
+import lib.str;
+import lib.io;
 
 
 export extern "C++" {

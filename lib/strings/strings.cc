@@ -2,18 +2,18 @@ module;
 #include "strings_impl.h"
 
 export module lib.strings;
-export import lib.error;
-export import lib.str;
-export import lib.utf8;
+import lib.error;
+import lib.str;
+import lib.utf8;
 import <cstring>;
 import <string>;
 import <functional>;
 import <vector>;
 
-export import lib.io;
-export import lib.math;
-export import lib.types;
-export import lib.utf8.decode;
+import lib.io;
+import lib.math;
+import lib.types;
+import lib.utf8.decode;
 
 // TODO: Investigate Clang template visibility failures with plain imports;
 // remove these re-exports if they are only compiler workarounds.

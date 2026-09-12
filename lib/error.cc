@@ -1,10 +1,10 @@
 export module lib.error;
 import <concepts>;
 import <type_traits>;
-export import lib.types;
-export import lib.str;
-export import lib.array;
-export import lib.type_id;
+import lib.types;
+import lib.str;
+import lib.array;
+import lib.type_id;
 
 // Preserve compatibility with declarations in the remaining headers.
 export extern "C++" {

@@ -2,16 +2,17 @@ module;
 #include "benchmark_impl.h"
 
 export module lib.testing.benchmark;
-export import lib.testing.func;
+import lib.sync.atomic;
+import lib.testing.func;
 
-export import lib.array;
-export import lib.error;
-export import lib.io;
-export import lib.str;
-export import lib.types;
+import lib.array;
+import lib.error;
+import lib.io;
+import lib.str;
+import lib.types;
 import <vector>;
-export import lib.testing;
-export import lib.time;
+import lib.testing;
+import lib.time;
 import <functional>;
 import <unordered_map>;
 

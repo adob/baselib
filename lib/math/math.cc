@@ -1,5 +1,5 @@
 export module lib.math;
-export import lib.types;
+import lib.types;
 import <algorithm>;
 import <stdlib.h>;
 import <cmath>;

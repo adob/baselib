@@ -7,13 +7,13 @@ import "deps/atomic_queue/include/atomic_queue/atomic_queue.h";
 import <atomic>;
 import <pthread.h>;
 
-export import lib.base;
-export import lib.sync.atomic;
-export import lib.io;
-export import lib.str;
-export import lib.sync.mutex;
-export import lib.sync.cond;
-export import lib.sync.lock;
+import lib.base;
+import lib.sync.atomic;
+import lib.io;
+import lib.str;
+import lib.sync.mutex;
+import lib.sync.cond;
+import lib.sync.lock;
 
 
 export extern "C++" {

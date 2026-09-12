@@ -2,8 +2,8 @@ module;
 #include "isprint_impl.h"
 
 export module lib.strconv.isprint;
-export import lib.array;
-export import lib.types;
+import lib.array;
+import lib.types;
 
 
 export extern "C++" {

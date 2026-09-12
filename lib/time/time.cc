@@ -2,10 +2,10 @@ module;
 #include "time_impl.h"
 
 export module lib.time;
-export import lib.str;
+import lib.str;
 import <compare>;
 import <time.h>;
-export import lib.types;
+import lib.types;
 
 #ifdef unix
 #undef unix

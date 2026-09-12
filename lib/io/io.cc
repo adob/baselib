@@ -2,12 +2,13 @@ module;
 #include "io_impl.h"
 
 export module lib.io;
-export import lib.str;
-export import lib.types;
+import lib.panic;
+import lib.str;
+import lib.types;
 import <algorithm>;
 import <array>;
-export import lib.error;
-export import lib.array;
+import lib.error;
+import lib.array;
 
 
 export extern "C++" {
@@ -113,7 +114,12 @@ namespace lib::io {
     };
 
     struct Writer : ReaderWriter {
-        ReadResult direct_read(buf, error) override final;
+        // TODO: GCC 15 fails to emit Writer RTTI with an out-of-line key function
+        // when lib.io is privately imported. Keep this definition inline for now.
+        ReadResult direct_read(buf, error) override final {
+            panic("unimplemented");
+            return {};
+        }
     };
 
     ReaderWriter::operator Writer&() {

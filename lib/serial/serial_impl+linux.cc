@@ -1,3 +1,7 @@
+import <utility>;
+import lib.os.file;
+import lib.types;
+import lib.str;
 import lib.serial;
 import lib.error;
 import lib.os.error;

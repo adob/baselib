@@ -2,14 +2,15 @@ module;
 #include "gang_impl.h"
 
 export module lib.sync.gang;
-export import lib.sync.mutex;
-export import lib.sync.go;
-export import lib.sync.lock;
+import lib.sync.mutex;
+import lib.sync.go;
+import lib.sync.lock;
 import <utility>;
 
 // TODO: Investigate Clang template visibility failures with plain imports;
 // remove these re-exports if they are only compiler workarounds.
 export import <deque>;
+export import <thread>;
 
 
 export extern "C++" {

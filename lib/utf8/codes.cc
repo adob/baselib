@@ -1,6 +1,6 @@
 export module lib.utf8.codes;
-export import lib.types;
-export import lib.utf8;
+import lib.types;
+import lib.utf8;
 
 
 export extern "C++" {

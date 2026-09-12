@@ -2,7 +2,8 @@ module;
 #include "fuzz_impl.h"
 
 export module lib.testing.fuzz;
-export import lib.array;
+import lib.str;
+import lib.array;
 
 
 export extern "C++" {

@@ -2,10 +2,10 @@ module;
 #include "error_impl.h"
 
 export module lib.os.error;
-export import lib.fs;
-export import lib.error;
-export import lib.str;
-export import lib.type_id;
+import lib.fs;
+import lib.error;
+import lib.str;
+import lib.type_id;
 
 
 export extern "C++" {

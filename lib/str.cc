@@ -2,7 +2,7 @@ module;
 #include "assert.h"
 
 export module lib.str;
-export import lib.types;
+import lib.types;
 import <algorithm>;
 import <concepts>;
 import <cstdlib>;

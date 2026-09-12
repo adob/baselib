@@ -1,6 +1,6 @@
 import lib.error;
-#include <functional>
-#include <vector>
+import <functional>;
+import <vector>;
 
 import lib.debug;
 import lib.str;

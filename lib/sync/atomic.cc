@@ -1,5 +1,5 @@
 export module lib.sync.atomic;
-export import lib.types;
+import lib.types;
 
 // TODO: Investigate Clang template visibility failures with plain imports;
 // remove these re-exports if they are only compiler workarounds.

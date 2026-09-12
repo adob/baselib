@@ -20,6 +20,7 @@ import <stdio.h>;
 using namespace lib;
 using namespace io;
 
+
 // static deferror ErrNegativeRead("io: read returned negative count");
 
 #pragma GCC diagnostic ignored "-Wshadow"
@@ -671,10 +672,6 @@ io::Buffer::~Buffer() {
     }
 }
 
-ReadResult Writer::direct_read(buf, error) {
-    panic("unimplemented");
-    return {};
-}
 
 
 Str::Str(str s) {

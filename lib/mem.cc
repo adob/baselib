@@ -1,5 +1,5 @@
 export module lib.mem;
-export import lib.types;
+import lib.types;
 
 // Preserve compatibility with declarations in the remaining headers.
 export extern "C++" {

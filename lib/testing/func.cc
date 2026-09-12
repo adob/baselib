@@ -4,8 +4,8 @@ module;
 export module lib.testing.func;
 import <vector>;
 
-export import lib.error;
-export import lib.str;
+import lib.error;
+import lib.str;
 
 export extern "C++" {
 namespace lib::testing {

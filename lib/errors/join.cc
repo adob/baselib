@@ -2,8 +2,8 @@ module;
 #include "join_impl.h"
 
 export module lib.errors.join;
-export import lib.array;
-export import lib.error;
+import lib.array;
+import lib.error;
 
 
 export extern "C++" {

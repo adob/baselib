@@ -1,3 +1,7 @@
+import lib.error;
+import lib.str;
+import lib.io;
+import lib.types;
 import lib.base;
 import lib.time;
 import lib.fmt;

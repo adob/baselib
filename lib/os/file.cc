@@ -3,11 +3,11 @@ module;
 #include "file_posix_impl+posix.h"
 
 export module lib.os.file;
-export import lib.error;
-export import lib.io;
-export import lib.os.types;
-export import lib.str;
-export import lib.types;
+import lib.error;
+import lib.io;
+import lib.os.types;
+import lib.str;
+import lib.types;
 
 
 

@@ -2,9 +2,10 @@ module;
 #include "util_impl.h"
 
 export module lib.io.util;
-export import lib.error;
-export import lib.str;
-export import lib.types;
+import lib.io;
+import lib.error;
+import lib.str;
+import lib.types;
 
 
 

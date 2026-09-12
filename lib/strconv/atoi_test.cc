@@ -1,6 +1,6 @@
 import lib.str;
 import lib.types;
-#include <functional>
+import <functional>;
 import lib.strconv.atoi;
 import lib.error;
 import lib.fmt;

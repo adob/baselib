@@ -3,7 +3,7 @@ module;
 
 export module lib.flag;
 import <functional>;
-export import lib.str;
+import lib.str;
 
 export extern "C++" {
 namespace lib::flag {

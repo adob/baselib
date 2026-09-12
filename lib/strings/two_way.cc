@@ -2,9 +2,9 @@ module;
 #include "two_way_impl.h"
 
 export module lib.strings.two_way;
-export import lib.types;
+import lib.types;
 import <utility>;
-export import lib.str;
+import lib.str;
 
 export extern "C++" {
 namespace lib::strings::detail {

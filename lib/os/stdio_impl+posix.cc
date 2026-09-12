@@ -1,3 +1,6 @@
+import lib.str;
+import lib.error;
+import lib.types;
 // StdStream
 
 import lib.os.stdio;

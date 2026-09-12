@@ -1,7 +1,7 @@
 export module lib.serial.serial_listener;
-export import lib.error;
-export import lib.io;
-export import lib.sync.mutex;
+import lib.error;
+import lib.io;
+import lib.sync.mutex;
 
 
 export extern "C++" {

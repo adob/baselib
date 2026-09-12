@@ -2,11 +2,11 @@ module;
 #include "fs_impl.h"
 
 export module lib.fs;
-export import lib.bitflag;
-export import lib.error;
-export import lib.str;
-export import lib.types;
-export import lib.time;
+import lib.bitflag;
+import lib.error;
+import lib.str;
+import lib.types;
+import lib.time;
 
 
 

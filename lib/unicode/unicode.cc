@@ -1,5 +1,5 @@
 export module lib.unicode;
-export import lib.types;
+import lib.types;
 
 
 export extern "C++" {

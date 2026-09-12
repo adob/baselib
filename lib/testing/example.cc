@@ -2,8 +2,9 @@ module;
 #include "example_impl.h"
 
 export module lib.testing.example;
-export import lib.array;
-export import lib.error;
+import lib.str;
+import lib.array;
+import lib.error;
 import <variant>;
 import <functional>;
 import <tuple>;

@@ -2,8 +2,8 @@ module;
 #include "tables_impl.h"
 
 export module lib.unicode.tables;
-export import lib.array;
-export import lib.types;
+import lib.array;
+import lib.types;
 
 
 export extern "C++" {

@@ -2,8 +2,8 @@ module;
 #include "letter_impl.h"
 
 export module lib.unicode.letter;
-export import lib.types;
-export import lib.unicode.tables;
+import lib.types;
+import lib.unicode.tables;
 
 export extern "C++" {
 namespace lib::unicode {

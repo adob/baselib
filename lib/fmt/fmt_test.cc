@@ -1,10 +1,10 @@
 import lib.array;
 import lib.panic;
 import lib.types;
-#include <functional>
+import <functional>;
 #include <sys/types.h>
-#include <vector>
-#include <variant>
+import <vector>;
+import <variant>;
 
 import lib.fmt;
 import lib.math.bits;

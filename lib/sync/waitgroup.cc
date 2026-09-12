@@ -2,8 +2,8 @@ module;
 #include "waitgroup_impl.h"
 
 export module lib.sync.waitgroup;
-export import lib.sync.mutex;
-export import lib.sync.cond;
+import lib.sync.mutex;
+import lib.sync.cond;
 
 
 export extern "C++" {

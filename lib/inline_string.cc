@@ -6,8 +6,8 @@ import <algorithm>;
 import <cstddef>;
 import <cstring>;
 import <string>;
-export import lib.str;
-export import lib.types;
+import lib.str;
+import lib.types;
 
 // Preserve compatibility with declarations in the remaining headers.
 export extern "C++" {

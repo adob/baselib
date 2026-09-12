@@ -1,9 +1,9 @@
 export module lib.sync.once;
 import <atomic>;
 
-export import lib.sync.lock;
-export import lib.sync.mutex;
-export import lib.types;
+import lib.sync.lock;
+import lib.sync.mutex;
+import lib.types;
 
 
 export extern "C++" {

@@ -2,15 +2,15 @@ module;
 #include "matcher_impl.h"
 
 export module lib.testing.matcher;
-export import lib.array;
-export import lib.error;
-export import lib.str;
-export import lib.types;
+import lib.array;
+import lib.error;
+import lib.str;
+import lib.types;
 import <functional>;
 import <memory>;
 import <tuple>;
 import <variant>;
-export import lib.sync.mutex;
+import lib.sync.mutex;
 import <unordered_map>;
 
 

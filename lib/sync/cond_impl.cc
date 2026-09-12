@@ -1,3 +1,4 @@
+import lib.sync.mutex;
 import lib.sync.cond;
 import lib.panic;
 import lib.os.error;

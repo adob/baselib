@@ -1,3 +1,5 @@
+import lib.os.types;
+import lib.types;
 import lib.os.file;
 
 import <sys/stat.h>;

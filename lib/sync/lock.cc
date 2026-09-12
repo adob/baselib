@@ -2,12 +2,12 @@ module;
 #include "lock_impl.h"
 
 export module lib.sync.lock;
-export import lib.sync.mutex;
+import lib.sync.mutex;
 
 
-export import lib.types;
+import lib.types;
 #if !defined(ESP_PLATFORM) && !defined(AZURE_RTOS)
-export import lib.sync.rwmutex;
+import lib.sync.rwmutex;
 #endif
 
 

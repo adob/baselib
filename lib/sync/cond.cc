@@ -2,9 +2,9 @@ module;
 #include "cond_impl.h"
 
 export module lib.sync.cond;
-export import lib.sync.mutex;
+import lib.sync.mutex;
 
-export import lib.types;
+import lib.types;
 #ifdef __ZEPHYR__
 import <zephyr/kernel.h>;
 #else

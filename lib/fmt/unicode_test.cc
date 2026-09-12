@@ -1,5 +1,5 @@
 import lib.str;
-#include <initializer_list>
+import <initializer_list>;
 import lib.fmt;
 import lib.strings;
 import lib.testing;

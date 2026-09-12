@@ -2,14 +2,14 @@ module;
 #include "pipe_impl.h"
 
 export module lib.io.pipe;
-export import lib.str;
-export import lib.types;
+import lib.str;
+import lib.types;
 import <boost/core/pointer_traits.hpp>;
-export import lib.error;
-export import lib.io;
-export import lib.sync.chan;
-export import lib.sync.mutex;
-export import lib.sync.once;
+import lib.error;
+import lib.io;
+import lib.sync.chan;
+import lib.sync.mutex;
+import lib.sync.once;
 
 import <memory>;
 

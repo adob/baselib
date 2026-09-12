@@ -2,9 +2,10 @@ module;
 #include "varint_impl.h"
 
 export module lib.varint;
-export import lib.error;
-export import lib.str;
-export import lib.types;
+import lib.io;
+import lib.error;
+import lib.str;
+import lib.types;
 
 
 

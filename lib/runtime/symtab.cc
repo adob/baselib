@@ -1,6 +1,6 @@
 export module lib.runtime.symtab;
-export import lib.str;
-export import lib.types;
+import lib.str;
+import lib.types;
 
 
 export extern "C++" {

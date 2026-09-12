@@ -1,7 +1,7 @@
 export module lib.sync.map;
-export import lib.sync.lock;
-export import lib.sync.rwmutex;
-export import lib.types;
+import lib.sync.lock;
+import lib.sync.rwmutex;
+import lib.types;
 
 // TODO: Investigate Clang template visibility failures with plain imports;
 // remove these re-exports if they are only compiler workarounds.

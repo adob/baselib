@@ -2,11 +2,11 @@ module;
 #include "encode_impl.h"
 
 export module lib.utf8.encode;
-export import lib.array;
-export import lib.error;
-export import lib.io;
-export import lib.types;
-export import lib.str;
+import lib.array;
+import lib.error;
+import lib.io;
+import lib.types;
+import lib.str;
 
 export extern "C++" {
 namespace lib::utf8 {

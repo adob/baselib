@@ -1,3 +1,4 @@
+import <string>;
 import lib.base;
 import lib.array;
 import lib.bitflag;

@@ -2,8 +2,8 @@ module;
 #include "debug_impl.h"
 
 export module lib.debug;
-export import lib.error;
-export import lib.str;
+import lib.error;
+import lib.str;
 import <exception>;
 import <vector>;
 

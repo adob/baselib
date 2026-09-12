@@ -2,7 +2,7 @@ module;
 #include "graphic_impl.h"
 
 export module lib.unicode.graphic;
-export import lib.types;
+import lib.types;
 
     
 

@@ -2,7 +2,7 @@ module;
 #include "path_impl.h"
 
 export module lib.filepath.path;
-export import lib.str;
+import lib.str;
 
 export extern "C++" {
 namespace lib::filepath {

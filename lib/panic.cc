@@ -1,5 +1,5 @@
 export module lib.panic;
-export import lib.str;
+import lib.str;
 
 // Preserve compatibility with declarations in the remaining headers.
 export extern "C++" {

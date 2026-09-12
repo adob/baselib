@@ -1,3 +1,4 @@
+import lib.array;
 import lib.testing;
 import lib.base;
 import lib.errors;

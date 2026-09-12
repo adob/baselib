@@ -1,7 +1,7 @@
 export module lib.math.matrix;
-export import lib.error;
-export import lib.types;
-export import lib.fmt;
+import lib.error;
+import lib.types;
+import lib.fmt;
 
 
 export extern "C++" {

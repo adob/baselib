@@ -2,11 +2,11 @@ module;
 #include "itoa_impl.h"
 
 export module lib.strconv.itoa;
-export import lib.error;
-export import lib.types;
+import lib.error;
+import lib.types;
 import <cstdio>;
 import <limits.h>;
-export import lib.io;
+import lib.io;
 import <type_traits>;
 
 

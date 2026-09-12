@@ -1,9 +1,9 @@
 import lib.str;
-#include <compare>
+import <compare>;
 import lib.fmt;
 import lib.testing;
 
-#include <type_traits>
+import <type_traits>;
 
 using namespace lib;
 

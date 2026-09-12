@@ -3,8 +3,8 @@ module;
 
 export module lib.utf8.decode;
 import <utility>;
-export import lib.types;
-export import lib.str;
+import lib.types;
+import lib.str;
 
 export extern "C++" {
 namespace lib::utf8 {

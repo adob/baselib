@@ -2,7 +2,7 @@ module;
 #include "rwmutex_impl.h"
 
 export module lib.sync.rwmutex;
-export import lib.types;
+import lib.types;
 
 #ifdef __ZEPHYR__
 import <zephyr/kernel.h>;

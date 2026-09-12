@@ -5,8 +5,8 @@ export module lib.serial.usbio;
 import <zephyr/device.h>;
 import <zephyr/usb/class/usbd_cdc_acm.h>;
 
-export import lib.serial.serial_listener;
-export import lib.types;
+import lib.serial.serial_listener;
+import lib.types;
 
 
 export extern "C++" {

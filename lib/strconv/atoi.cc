@@ -2,10 +2,10 @@ module;
 #include "atoi_impl.h"
 
 export module lib.strconv.atoi;
-export import lib.array;
-export import lib.types;
-export import lib.error;
-export import lib.str;
+import lib.array;
+import lib.types;
+import lib.error;
+import lib.str;
 
 export extern "C++" {
 namespace lib::strconv {

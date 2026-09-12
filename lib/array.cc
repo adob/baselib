@@ -2,13 +2,13 @@ module;
 #include "lib/assert.h"
 
 export module lib.array;
-export import lib.str;
+import lib.str;
 import <cstring>;
 import <initializer_list>;
 import <concepts>;
-export import lib.types;
-export import lib.concepts;
-export import lib.exceptions;
+import lib.types;
+import lib.concepts;
+import lib.exceptions;
 
 // Preserve compatibility with declarations in the remaining headers.
 export extern "C++" {

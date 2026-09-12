@@ -8,8 +8,10 @@ units that import the library.
 
 A former `lib/foo/foo.h` normally becomes module `lib.foo` in `lib/foo/foo.cc`.
 Other interfaces use their path, for example `lib.sync.mutex` and
-`lib.unicode.tables`. Consumers use named imports. Public dependencies are
-re-exported when their declarations were previously exposed through headers.
+`lib.unicode.tables`. Consumers use named imports. Each module exports its own API; dependencies
+on other `lib.*` modules are ordinary imports. Consumers must directly import
+each module whose declarations they use. Same-module interface partitions
+remain re-exported, as do the separately documented header-unit workarounds.
 
 Where an existing `.cc` contains out-of-line definitions, those definitions move
 to `*_impl.cc`. A small `*_impl.h` marker remains for buildtool's companion-source
@@ -24,6 +26,9 @@ Platform-specific code retains its preprocessor conditions and build tags.
 
 Public template dependencies such as `<future>`, `<deque>`, and Boost's circular
 buffer are re-exported where Clang needs their definitions in an importing TU.
+These workarounds are grouped under TODO comments; GCC 15 also needs `<typeinfo>`
+visible when instantiating formatting templates. `Writer::direct_read` remains
+inline because GCC 15 otherwise omits its RTTI after removing module re-exports.
 Namespace-scope API constants use `inline constexpr` so GCC can export them from
 the C++ linkage block. The error constraint uses a named concept around the
 compiler trait to avoid Clang's imported trait-initializer issue and GCC's ban on

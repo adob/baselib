@@ -2,11 +2,11 @@ module;
 #include "utf8_impl.h"
 
 export module lib.utf8;
-export import lib.array;
-export import lib.error;
-export import lib.str;
-export import lib.io;
-export import lib.types;
+import lib.array;
+import lib.error;
+import lib.str;
+import lib.io;
+import lib.types;
 
 /// namespace utf8 implements functions and constants to support text encoded in UTF-8.
 /// It includes functions to translate between runes and UTF-8 byte sequences.
