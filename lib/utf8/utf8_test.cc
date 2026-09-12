@@ -1,13 +1,13 @@
 import lib.array;
 import lib.error;
-import "lib/fmt/fmt.h";
-#include "lib/testing/testing.h"
+import lib.fmt;
+import lib.testing;
 import lib.types;
-import "lib/io/io.h";
+import lib.io;
 import lib.str;
-#include "lib/utf8/decode.h"
-#include "lib/utf8/encode.h"
-#include "utf8.h"
+import lib.utf8.decode;
+import lib.utf8.encode;
+import lib.utf8;
 
 
 using namespace lib;

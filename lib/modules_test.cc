@@ -8,7 +8,7 @@ import lib.inline_string;
 import lib.type_id;
 import lib.utils;
 
-#include "lib/testing/testing.h"
+import lib.testing;
 
 // Exercise the public module imports together; t reports API or linkage failures.
 void test_top_level_module_exports(lib::testing::T &t) {

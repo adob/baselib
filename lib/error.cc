@@ -24,6 +24,10 @@ namespace lib {
 
     struct Error;
 
+    // Test T without requiring an imported standard-trait specialization.
+    template <typename T>
+    concept ErrorValue = __is_base_of(Error, std::remove_cvref_t<T>);
+
     namespace errors {
         void log_error(const Error &);
     }
@@ -76,7 +80,7 @@ namespace lib {
             if (e.type) {
                 return;
             }
-            if constexpr (std::is_same_v<T, Error>) {
+            if constexpr (__is_same(T, Error)) {
                 panic("can't init Error");
             }
             e.type = type_id<T>;
@@ -253,7 +257,7 @@ namespace lib {
         void operator()(str s) const;
 
         template <typename T>
-        void operator()(T &&e) const requires std::is_base_of_v<Error, std::remove_cvref_t<T>> {
+        void operator()(T &&e) const requires ErrorValue<T> {
             e.init();
             reporter->report(e);
         }

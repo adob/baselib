@@ -1,340 +1,89 @@
-import lib.panic;
-#include "lib/time/time.h"
-import lib.types;
-#include <utility>
-#include <errno.h>
-import <sys/stat.h>;
-import <unistd.h>;
-import <fcntl.h>;
+module;
+#include "file_impl.h"
+#include "file_posix_impl+posix.h"
 
-#include "file.h"
-#include "error.h"
-import lib.error;
-import "lib/fmt/fmt.h";
-#include "lib/fs/fs.h"
-#include "lib/filepath/path.h"
-import "lib/io/io.h";
-#include "lib/io/util.h"
-#include "lib/os/file+posix.h"
-#include "lib/os/types.h"
-import lib.str;
-using namespace lib;
-using namespace os;
+export module lib.os.file;
+export import lib.error;
+export import lib.io;
+export import lib.os.types;
+export import lib.str;
+export import lib.types;
 
 
-os::File::File(File&& other)
-    : io::Buffered(std::move(other)),
-      fd(other.fd),
-      name(std::move(other.name)) { 
-    other.fd = -1; 
-}
 
 
-void os::File::close(error err) {
-    int fd = this->fd;
+export extern "C++" {
+namespace lib::os {
 
-    if (fd == -1) {
-        return err(PathError("close", this->name, ErrClosed()));
-    } 
-
-    flush(err);
-
-    // invalidate the file descriptor early
-    // this is because Linux invalidates the file descriptor early even if there
-    // is a failure to close (such as an I/O error)
-    this->fd = -1;
-
-retry:
-    int ret = ::close(fd);
-    if (ret == -1) {
-        if (errno == EINTR) {
-            goto retry;
-        }
-
-        return err(PathError("close", this->name, Errno(errno)));
-    }
-}
-
-os::File os::open(str name, error err) {
-    return open_file(name, O_RDONLY, 0, err);
-}
-
-os::File os::open_file(str name, int flag, FileMode perm, error err) {
-    File f;
-
-    f.name = name;
-
-retry:
-    f.fd = ::open(f.name, flag|O_CLOEXEC, syscall_mode(perm));
-    if (f.fd == -1) {
-        if (errno == EINTR) {
-            goto retry;
-        }
-
-        err(PathError("open", name, Errno(errno)));
-        return f;
-    }
-
-    if (flag & (O_RDONLY | O_RDWR)) {
-        f.resize_readbuf(4096);
-    }
-    
-    if (flag & (O_WRONLY | O_RDWR)) {
-        f.resize_writebuf(4096);
-    }
-
-    //f.flags = flags;
-    return f;
-}
-
-static void fill_file_info_from_sys(FileInfo *fi, str name) {
-    fi->name = filepath::base(name);
-    fi->size = fi->stat.st_size;
-    fi->mod_time = time::unix(fi->stat.st_mtim);
-    fi->mode = FileMode(fi->stat.st_mode & 0777);
-
-    switch (fi->stat.st_mode & S_IFMT) {
-        case S_IFBLK: fi->mode |= ModeDevice; break;
-        case S_IFCHR: fi->mode |= ModeDevice | ModeCharDevice; break;
-        case S_IFDIR: fi->mode |= ModeDir; break;
-        case S_IFIFO: fi->mode |= ModeNamedPipe; break;
-        case S_IFLNK: fi->mode |= ModeSymlink; break;
-        case S_IFREG: /* do nothing */; break;
-        case S_IFSOCK: fi->mode |= ModeSocket; break;
-    }
-
-    if (fi->stat.st_mode & S_ISGID) {
-        fi->mode |= ModeSetgid;
-    }
-
-    if (fi->stat.st_mode & S_ISUID) {
-        fi->mode |= ModeSetuid;
-    }
-
-    if (fi->stat.st_mode & S_ISVTX ) {
-        fi->mode |= ModeSticky;
-    }
-}
-
-FileInfo File::stat(error err) {
-    FileInfo fi;
-
-retry:
-    int r = ::fstat(fd, &fi.stat);
-    if (r == -1) {
-        if (errno == EINTR) {
-            goto retry;
-        }
+    struct File : io::Buffered {
+        int fd = -1;
+        CString name;
+        //int efd = -1;
         
-        err(PathError("stat", name, Errno(errno)));
-        return fi;
-    }
+        File() = default;
+        explicit File(int fd) : fd(fd) {}
+        File(File const&) = delete;
+        File(File&& other);
 
-    fill_file_info_from_sys(&fi, name);
-
-    return fi;
-}
-
-void os::write_file(str name, str data, error err) {
-    write_file(name, data, 0666, err);
-}
-
-void os::write_file(str name, str data, FileMode perm, error err) {
-    File f = open_file(name, O_WRONLY|O_CREAT|O_TRUNC, perm, err);
-    if (err) {
-        return;
-    }
-
-    f.direct_write(data, err);
-    if (err) {
-        return;
-    }
-
-    f.close(err);
-}
-
-String os::read_file(str path, error err) {
-    os::File f = open(path, err);
-    if (err) {
-        return "";
-    }
-
-    
-    FileInfo info = f.stat(error::ignore);
-    size file_size = size(info.size);
-    if (file_size != info.size) {
-        file_size = 0;
-    }
-    //file_size++; // one byte for final read at EOF
-
-    // If a file claims a small size, read at least 512 bytes.
-	// In particular, files in Linux's /proc claim size 0 but
-	// then do not work right if read in small pieces,
-	// so an initial read of 1 byte would not work correctly.
-	if (file_size < 512) {
-		file_size = 512;
-	}
-
-    String s;
-    s.ensure(file_size);
-    size bytes_read = 0;
-    
-    for (;;) {
-        io::ReadResult r = f.direct_read(s.buffer+bytes_read, err);
-        bytes_read += r.nbytes;
-
-        if (err || r.eof) {
-            break;
-        }
-
-        s.ensure(bytes_read+1);
-    }
-
-    s.expand(bytes_read);
-    return s;
-
+        FileInfo stat(error err);
         
-    // }
-    // size size = info.size;
+        // read reads up to len(b) bytes into b and returns the number of bytes read. At end of 
+        // file, 0 is returned.
+        io::ReadResult direct_read(buf b, error err) override;
 
-    // if (!staterr) {
-    //     sz = info.size;
-    // }
+        size direct_write(str data, error err) override;
+        
+        File& operator= (File const&) = delete;
+        File& operator= (File&& other);
+        
+        // Close closes the [File], rendering it unusable for I/O.
+        // On files that support [File.SetDeadline], any pending I/O operations will
+        // be canceled and return immediately with an [ErrClosed] error.
+        // Close will return an error if it has already been called.
+        void close(error err) override;
+        
+        ~File();
+        
+        friend File open(str, int, error);
 
-    // if (sz < 512) {
-    //     sz = 512;
-    // }
-
-    // String s(sz);
+      private:
+        void wrap_err(str op, const lib::Error &wrapped, error err);
+    };
     
-    // for (;;) {
-    //     size n = f.direct_read(s.buffer[len(s), len(s.buffer)], err);
-    //     s.length += n;
-    //     if (err) {
-    //         if (err == io::EOF) {
-    //             err = {};
-    //         }
-    //         return s;
-    //     }
+    // Open opens the named file for reading. If successful, methods on
+    // the returned file can be used for reading; the associated file
+    // descriptor has mode O_RDONLY.
+    // If there is an error, it will be of type *PathError.
+    File open(str name, error err);
 
-    //     if (len(s) >= len(s.buffer)) {
-    //         s.buffer.resize(len(s.buffer)*2);
-    //     }
-    // } 
+    // OpenFile is the generalized open call; most users will use Open
+    // or Create instead. It opens the named file with specified flag
+    // (O_RDONLY etc.). If the file does not exist, and the O_CREATE flag
+    // is passed, it is created with mode perm (before umask). If successful,
+    // methods on the returned File can be used for I/O.
+    // If there is an error, it will be of type *PathError.
+    File open_file(str name, int flag, FileMode perm, error err);
+
+    // WriteFile writes data to the named file, creating it if necessary.
+    // If the file does not exist, WriteFile creates it with permissions perm (before umask);
+    // otherwise WriteFile truncates it before writing, without changing permissions.
+    // Since WriteFile requires multiple system calls to complete, a failure mid-operation
+    // can leave the file in a partially written state.
+    //
+    // perm defaults to 0666
+    void write_file(str name, str data, FileMode perm, error err);
+    void write_file(str name, str data, error err);
+
+    String read_file(str name, error err);
 
 }
 
-io::ReadResult os::File::direct_read(buf b, error err) {
-    //y3printf("DIRECT READ\n");
 
-    io::ReadResult r;
-  retry:
-    size ret = ::read(fd, b.data, b.len);
-    if (ret == -1) {
-        if (errno == EINTR) {
-            goto retry;
-        }
-        err(PathError("read", this->name, Errno(errno)));
-        return r;
-    }
-
-    if (ret == 0) {
-        r.eof = true;
-    }
-    
-    r.nbytes += ret;
-
-
-    // print "direct_read <%d> <%x>" % ret, b[0];
-    // for (size i = 0; i < ret; i++) {
-    //     printf("%02x ", b[i]);
-    // }
-    // printf("\n");
-    return r;
 }
 
-// size os::File::read_full(buf b, error& err) {
-//     size total = 0;
-//     size want = len(buf);
-//     
-//   again:
-//     size ret = this->read(b, err);
-//     if (err) {
-//         return ret;
-//     }
-//     
-//     if (ret == 0) {
-//         err(ErrEOF);
-//         return total;
-//     }
-//     
-//     total += ret;
-//     if (total < want) {
-//         b = b(total);
-//         goto again;
-//     }
-//     
-//     return total;
-// }
-
-size os::File::direct_write(str data, error err) {
-    //printf("DIRECT WRITE %d\n", int(len(data)));
-    size total = 0;
-    size want = len(data);
-
-    retry:
-    size n = ::write(fd, data.data, data.len);
-    if (n == -1) {
-        if (errno == EINTR) {
-            goto retry;
-        }
-        wrap_err("write", Errno(errno), err);
-
-        return total;
-    }
-
-    if (n > len(data)) {
-        panic(fmt::sprintf("invalid return from write: got %d from write of %d", n, len(data)));
-    }
-    
-    total += n;
-    if (total < want) {
-        if (n == 0) {
-            wrap_err("write", io::ErrUnexpectedEOF(), err);
-            return total;
-        }
-        data = data+total;
-        goto retry;
-    }
-    return total;
+export extern "C++" {
+namespace lib::os {
+    // Translate portable mode bits for the POSIX file implementation.
+    uint32 syscall_mode(FileMode mode);
 }
-
-File& File::operator = (File&& other) {
-    if (this == &other) {
-        return *this;
-    }
-
-    fd = other.fd;
-    other.fd = -1;
-
-    name = std::move(other.name);
-
-    io::Buffered::operator=(std::move(other));
-
-    return *this;
 }
-
-os::File::~File() {
-    //printf("os::File destructor %d\n", fd);
-
-    if (fd == -1) {
-        return;
-    }
-    
-    this->close(error::ignore);
-}
-
-void File::wrap_err(str op, const lib::Error &wrapped, error err) {
-    err(PathError(op, this->name, wrapped));
-}
-

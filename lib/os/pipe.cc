@@ -1,35 +1,20 @@
-import lib.error;
-#include "lib/os/file.h"
-import lib.str;
-#include <fcntl.h>              /* Obtain O_* constant definitions */
-#include <unistd.h>
-#include <errno.h>
+module;
+#include "pipe_impl.h"
 
-#include "pipe.h"
-#include "error.h"
+export module lib.os.pipe;
+export import lib.error;
+export import lib.os.file;
 
-using namespace lib;
 
-os::FilePair os::pipe(error err) {
-    return pipe(O_CLOEXEC, err);
-}
-
-os::FilePair os::pipe(int flags, error err) {
-    int pipefds[2];
-    
-    int r = ::pipe2(pipefds, flags);
-    if (r != 0) {
-        err(SyscallError("pipe2", errno));
-        return {};
-    }
-    
-    FilePair pair {
-        .reader  = File(pipefds[0]),
-        .writer  = File(pipefds[1]),
+export extern "C++" {
+namespace lib::os {
+    struct FilePair {
+        File reader;
+        File writer;
     };
     
-    pair.reader.resize_readbuf(4096);
-    pair.writer.resize_writebuf(4096);
-    
-    return pair;
+    FilePair pipe(error err);
+    FilePair pipe(int flags, error err);
+}
+
 }

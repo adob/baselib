@@ -1,10 +1,10 @@
 import lib.str;
 import lib.types;
 #include <functional>
-#include "atoi.h"
+import lib.strconv.atoi;
 import lib.error;
-import "lib/fmt/fmt.h";
-#include "lib/testing/testing.h"
+import lib.fmt;
+import lib.testing;
 
 using namespace lib;
 using namespace lib::strconv;

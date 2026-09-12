@@ -1,86 +1,41 @@
-import lib.panic;
-import <cerrno>;
-#include <errno.h>
-#include "rwmutex.h"
-#include "lib/os/error.h"
+module;
+#include "rwmutex_impl.h"
+
+export module lib.sync.rwmutex;
+export import lib.types;
+
+#ifdef __ZEPHYR__
+import <zephyr/kernel.h>;
+#else
 import <pthread.h>;
-using namespace lib;
-using namespace sync;
+#endif
 
-// RWMutex::RWMutex() {}
-void RWMutex::r_lock() {
-#ifdef __ZEPHYR__
-    panic("unimplemented");
-#else
-    int code = pthread_rwlock_rdlock(&this->rwlock);
-    if (code != 0) {
-        panic(os::Errno(code));
-    }
-#endif
-}
-bool lib::sync::RWMutex::try_r_lock() {
-#ifdef __ZEPHYR__
-    panic("unimplemented");
-    return false;
-#else
-    int r = pthread_rwlock_tryrdlock(&this->rwlock);
-    if (r == 0) {
-        return true;
-    }
-    if (r == EBUSY) {
-        return false;
-    }
-    panic(os::Errno(r));
-    return false;
-#endif
-}
 
-void lib::sync::RWMutex::r_unlock() {
-#ifdef __ZEPHYR__
-    panic("unimplemented");
-#else
-    if (int code = pthread_rwlock_unlock(&this->rwlock)) {
-        panic(os::Errno(code));
-    }
-#endif
+export extern "C++" {
+namespace lib::sync {
+    struct RWMutex : noncopyable {
+    #ifdef __ZEPHYR__
+    #else
+        pthread_rwlock_t rwlock = PTHREAD_RWLOCK_INITIALIZER;
+    #endif
+    
+        // Mutex w;
+        // uint32 writer_sem = 0;
+        // uint32 reader_sem = 0;
+        // std::atomic<int32> reader_count = 0;
+        // std::atomic<int32> reader_wait = 0;
+
+        // RWMutex();
+
+        void r_lock();
+        bool try_r_lock();
+        void r_unlock();
+        void lock();
+        bool try_lock();
+        void unlock();
+
+        // ~RWMutex();
+    } ;
 }
 
-void lib::sync::RWMutex::lock() {
-#ifdef __ZEPHYR__
-    panic("unimplemented");
-#else
-    int code = pthread_rwlock_wrlock(&this->rwlock);
-    if (code != 0) {
-        panic(os::Errno(code));
-    }
-#endif
 }
-
-bool lib::sync::RWMutex::try_lock() {
-#ifdef __ZEPHYR__
-    panic("unimplemented");
-    return false;
-#else
-    int r = pthread_rwlock_trywrlock(&this->rwlock);
-    if (r == 0) {
-        return true;
-    }
-    if (r == EBUSY) {
-        return false;
-    }
-    panic(os::Errno(r));
-    return false;
-#endif
-}
-
-void lib::sync::RWMutex::unlock() {
-#ifdef __ZEPHYR__
-    panic("unimplemented");
-#else
-    if (int code = pthread_rwlock_unlock(&this->rwlock)) {
-        panic(os::Errno(code));
-    }
-#endif
-}
-
-// lib::sync::RWMutex::~RWMutex() {}

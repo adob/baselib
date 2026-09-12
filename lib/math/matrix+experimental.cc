@@ -1,13 +1,13 @@
 module;
 
-import lib.exceptions;
+export import lib.exceptions;
 
-import "lib/io/io.h";
-import "lib/fmt/fmt.h";
+export import lib.io;
+import lib.fmt;
 
 export module lib.math:matrix;
 
-import lib.types;
+export import lib.types;
 
 export namespace lib::math {
     template <typename T, size N>

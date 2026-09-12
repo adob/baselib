@@ -1,19 +1,15 @@
-#include "debug.h"
+module;
+#include "debug_impl.h"
 
-#include <sys/sysinfo.h>
+export module lib.runtime.debug;
 
-#include "lib/sync/once.h"
-
-using namespace lib;
-using namespace lib::runtime;
-
-static int ncpu = -1;
-static sync::Once config;
-
-int runtime::num_cpu() {
-    config.run([&] {
-        ncpu = get_nprocs();
-    });
-    
-    return ncpu;
+export extern "C++" {
+namespace lib::runtime {
+    // num_cpu returns the number of logical CPUs usable by the current process.
+    //
+    // The set of available CPUs is checked by querying the operating system
+    // at process startup. Changes to operating system CPU allocation after
+    // process startup are not reflected.
+    int num_cpu();
+}
 }

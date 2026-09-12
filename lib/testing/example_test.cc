@@ -1,4 +1,4 @@
-#include "lib/testing/testing.h"
+import lib.testing;
 #include "../print.h"
 
 using namespace lib;

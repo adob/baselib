@@ -1,21 +1,20 @@
-import lib.types;
-#include "graphic.h"
-#include "unicode.h"
-#include "tables.h"
-#include "letter.h"
+module;
+#include "graphic_impl.h"
 
-using namespace lib;
-using namespace lib::unicode;
+export module lib.unicode.graphic;
+export import lib.types;
 
-bool unicode::is_space(rune r) {
-    if (r < MaxLatin1) {
-        switch (r) {
-            case '\t': case '\n': case '\v': case '\f': case '\r':
-            case ' ': case 0x85: case 0xA0:
-                return true;
-        }
-        return false;
-    }
-    return is_excluding_latin(White_Space, r);
+    
+
+export extern "C++" {
+namespace lib::unicode {
+    
+    // IsSpace reports whether the rune is a space character as defined
+    // by Unicode's White Space property; in the Latin-1 space
+    // this is
+    //      '\t', '\n', '\v', '\f', '\r', ' ', U+0085 (NEL), U+00A0 (NBSP).
+    // Other definitions of spacing characters are set by category
+    // Z and property Pattern_White_Space.
+    bool is_space(rune r);
 }
-
+}

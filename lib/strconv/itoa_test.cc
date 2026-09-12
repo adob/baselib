@@ -1,10 +1,10 @@
-import "lib/fmt/fmt.h";
+import lib.fmt;
 import lib.str;
 import lib.types;
-#include "itoa.h"
+import lib.strconv.itoa;
 
 import lib.exceptions;
-#include "lib/testing/testing.h"
+import lib.testing;
 
 using namespace lib;
 using namespace lib::strconv;

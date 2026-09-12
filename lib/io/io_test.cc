@@ -1,10 +1,10 @@
-import "lib/fmt/fmt.h";
+import lib.fmt;
 import lib.panic;
 import lib.str;
 import lib.types;
-#include "../testing/testing.h"
+import lib.testing;
 import lib.error;
-import "lib/io/io.h";
+import lib.io;
 
 
 using namespace lib;

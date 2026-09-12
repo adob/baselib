@@ -1,28 +1,23 @@
-#include "lib/sync/cond.h"
-#include "waitgroup.h"
-#include "lock.h"
+module;
+#include "waitgroup_impl.h"
 
-using namespace lib;
-using namespace lib::sync;
+export module lib.sync.waitgroup;
+export import lib.sync.mutex;
+export import lib.sync.cond;
 
-WaitGroup::WaitGroup(int n) : cnt(n) {}
 
-void WaitGroup::add(int n) {
-    Lock lock(mtx);
-    cnt += n;
+export extern "C++" {
+namespace lib::sync {
+    struct WaitGroup {
+        int   cnt;
+        Mutex mtx;
+        Cond cond;
 
-    if (cnt == 0) {
-        cond.signal();
-    }
+
+        explicit WaitGroup(int n = 0);
+        void add(int);
+        void done();
+        void wait();
+    };
 }
-
-void WaitGroup::done() {
-    add(-1);
-}
-
-void WaitGroup::wait() {
-    Lock lock(mtx);
-    if (cnt != 0) {
-        cond.wait(mtx);
-    }
 }

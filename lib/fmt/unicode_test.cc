@@ -1,8 +1,8 @@
 import lib.str;
 #include <initializer_list>
-import "fmt.h";
-#include "lib/strings/strings.h"
-#include "lib/testing/testing.h"
+import lib.fmt;
+import lib.strings;
+import lib.testing;
 
 using namespace lib;
 

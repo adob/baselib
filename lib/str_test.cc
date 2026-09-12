@@ -1,14 +1,14 @@
 import lib.str;
 
-import "lib/fmt/fmt.h";
-import lib.types;
-#include <initializer_list>
-import "lib/io/io.h";
-#include "lib/testing/testing.h"
+import <algorithm>;
+import <utility>;
+import <vector>;
 
-#include <algorithm>
-#include <utility>
-#include <vector>
+import lib.fmt;
+import lib.types;
+import <initializer_list>;
+import lib.io;
+import lib.testing;
 
 using namespace lib;
 

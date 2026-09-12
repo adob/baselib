@@ -1,636 +1,414 @@
-import lib.array;
-import lib.panic;
-#include "lib/sync/atomic.h"
-#include "lib/sync/lock.h"
-import lib.types;
-#include <algorithm>
-#include <cstdint>
-#include <stdint.h>
-#include <utility>
-#ifndef __ZEPHYR__
-#include "chan.h"
+module;
+#include "chan_impl.h"
 
-#include <atomic>
-import <pthread.h>;
+export module lib.sync.chan;
+export import lib.sync.atomic;
 
-using namespace lib;
-using namespace sync;
-using namespace sync::internal;
+export import lib.array;
+export import lib.panic;
+export import lib.sync.lock;
+export import lib.sync.mutex;
+export import lib.types;
+import <array>;
+import <stdio.h>;
+import <utility>;
+import <atomic>;
 
-// notes
-// other implementations
-// https://github.com/facebook/folly/blob/main/folly/channels/Channel.h
-// https://github.com/andreiavrammsd/cpp-channel/blob/master/include/msd/channel.hpp
-// https://github.com/atollk/copper/blob/main/include/copper.h
-// https://github.com/Balnian/ChannelsCPP
-// https://github.com/navytux/pygolang/blob/6aec47842dfc03c16071fa540d7d9d1ab68573f2/golang/runtime/libgolang.cpp
-
-// https://github.com/cameron314/concurrentqueue
-
-static __thread uint64 seed = 0;
-
-static inline uint64_t wyrand(uint64_t *seed){  
-    *seed += 0xa0761d6478bd642full; 
-    uint64_t see1 = *seed ^ 0xe7037ed1a0b428dbull;
-    see1 *= (see1>>32)|(see1<<32);
-    return  (*seed*((*seed>>32)|(*seed<<32)))^((see1>>32)|(see1<<32));
-  }
-
-// static inline uint32_t rotl(const uint32_t x, int k) {
-// 	return (x << k) | (x >> (32 - k));
-// }
-
-static uint32 cheaprand() {
-    if constexpr (sizeof(void*) >= 8) {
-        return uint32(wyrand(&seed));
-    }
-
-    // Implement xorshift64+: 2 32-bit xorshift sequences added together.
-	// Shift triplet [17,7,16] was calculated as indicated in Marsaglia's
-	// Xorshift paper: https://www.jstatsoft.org/article/view/v008i14/xorshift.pdf
-	// This generator passes the SmallCrush suite, part of TestU01 framework:
-	// http://simul.iro.umontreal.ca/testu01/tu01.html
-	uint32 *t = (uint32*)(&seed);
-	uint32 s1 = t[0];
-    uint32 s0 = t[1];
-
-	s1 ^= s1 << 17;
-	s1 = s1 ^ s0 ^ s1>>7 ^ s0>>16;
-
-	t[0] = s0;
-    t[1] = s1;
-	
-    return s0 + s1;
-    // const uint32_t result = rotl(s[0] + s[3], 7) + s[0];
-
-	// const uint32_t t = s[1] << 9;
-
-	// s[2] ^= s[0];
-	// s[3] ^= s[1];
-	// s[1] ^= s[2];
-	// s[0] ^= s[3];
-
-	// s[2] ^= t;
-
-	// s[3] = rotl(s[3], 11);
-
-	// return result;
-}
-
-uint32 cheaprandn(uint32 n) {
-    // See https://lemire.me/blog/2016/06/27/a-fast-alternative-to-the-modulo-reduction/
-	return uint32((uint64(cheaprand()) * uint64(n)) >> 32);
-}
+// TODO: Investigate Clang template visibility failures with plain imports;
+// remove these re-exports if they are only compiler workarounds.
+export import <boost/circular_buffer.hpp>;
 
 
-ChanBase::ChanBase(int capacity) : capacity(capacity) {}
 
-bool ChanBase::send_nonblocking(this ChanBase &c, void *elem, bool move, sync::Lock &lock, std::atomic<bool> *skip_active) {
-    if (c.closed()) {
-        panic("send on closed channel");
-    }
+export extern "C++" {
+namespace lib::sync {
+    using namespace lib;
 
-    try_again:
+    template <typename T>
+    struct Chan;
 
-    Selector *receiver = c.receivers.pop_if([&](Selector *receiver) {
-        return receiver->active != skip_active;
-    });
+    struct SelectOp;
+    struct Recv;
+    struct Send;
 
-    // block until there is a no receiver
-    if (receiver == nil) {
+    inline constexpr bool DebugChecks = false;
 
-        if (!c.is_full()) {
-            c.buffer_push(elem, move);
-            return true;
-        }
+    namespace internal {
+
+        template <typename T>
+        struct IntrusiveList {
+            struct Element {
+                T *prev = nil;
+                T *next = nil;
+            } ;
+
+            void push(T *e) {
+                e->next = this->head;
+                e->prev = nil;
+
+                if (this->head) {
+                    this->head->prev = e;
+                }
+
+                this->head = e;
+            }
+
+            T *pop() {
+                T *e = this->head;
+                this->head = e->next;
+
+                if (e->next) {
+                    e->next->prev = nil; 
+                }
+                return e;
+            }
+
+            template <typename Predicate>
+            T *pop_if(Predicate pred) {
+                for (T *e = this->head; e != nil; e = e->next) {
+                    if (!pred(e)) {
+                        continue;
+                    }
+
+                    remove(e);
+                    return e;
+                }
+
+                return nil;
+            }
+
+            void remove(T *e) {
+                // printf("REMOVE this(%p) %p\n", this, e);
+                if constexpr (DebugChecks) {
+                    bool found = false;
+                    for (T *elem = this->head; elem != nil; elem = elem->next) {
+                        if (e == elem) {
+                            found = true;
+                            break;
+                        }
+                    }
+                    if (!found) {
+                        printf("PANIC!!! %p\n", this);
+                        dump();
+
+                        panic("element not found");
+                    }
+                }
+                if (!e->prev) {
+                    this->head = e->next;
+                } else {
+                    e->prev->next = e->next;
+                }
+
+                if (e->next) {
+                    e->next->prev = e->prev;
+                }
+            }
+
+            bool empty() const {
+                return this->head == nil;
+            }
+
+            T *head = nil;
+
+            void dump() {
+                //flockfile(stdout);
+                if (!this->head) {
+                    printf("empty list this(%p)\n", this);
+                    return;
+                }
+                printf("DUMP this(%p) [%p", this, this->head);
+                for (T *elem = this->head->next; elem != nil; elem = elem->next) {
+                    printf(" -> %p", elem);
+                }
+
+                printf("]\n");
+            }
+
+            bool contains(T *e) {
+                for (T *elem = this->head; elem != nil; elem = elem->next) {
+                    if (e == elem) {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+        } ;
+
+        struct Waiter {
+            std::atomic<int> state = 0;
+
+            void notify();
+
+            void wait();
+        } ;
+
+        struct Selector : IntrusiveList<Selector>::Element {
+            void    *value = nil;
+            bool    *ok = nil;
+            bool    move = false;
+
+            int      id = 0;
+
+            std::atomic<bool>      *active = nil;
+            Waiter *completed;
+            atomic<Selector*> *completer = nil;
+            bool done = false;
+
+            bool panic = false;
+        };
+
+        struct ChanBase {
+            int       unread = 0;
+            const int       capacity = 0;
+            //void       *receiver = nil;
+
+            internal::IntrusiveList<internal::Selector>  receivers;
+            internal::IntrusiveList<internal::Selector>    senders;
         
-        return false;
+            enum State : byte {
+                Open,
+                Closed
+            } state = Open;
+            
+            mutable Mutex lock;
+
+            ChanBase(int capacity);
+
+            void close(this ChanBase &c);
+
+            bool closed(this ChanBase const& c);
+            
+            bool is_buffered(this ChanBase const& c);
+            bool is_empty(this ChanBase const& c);
+            bool is_full(this ChanBase const& c);
+            int length() const;
+
+        protected:
+            virtual void buffer_push(void *elem, bool move) = 0;
+            virtual void set(void *dest, void *val, bool move) = 0;
+            virtual void buffer_pop(void *out) = 0;
+
+            void send_i(this ChanBase &c, void *elem, bool move);
+            bool send_nonblocking(this ChanBase &c, void *elem, bool move, Lock&, std::atomic<bool> *skip_active = nil);
+            void send_blocking(this ChanBase &c, void *elem, bool move, Lock&);
+
+            void recv_i(this ChanBase &c, void *out, bool *closed);
+            bool recv_nonblocking(this ChanBase &c, void *out, bool *closed, Lock&, std::atomic<bool> *skip_active = nil);
+            void recv_blocking(this ChanBase &c, void *out, bool *closed, Lock&);
+
+            bool try_recv(this ChanBase &c, void *out, bool *ok, bool try_locks, bool *lock_fail);
+            bool try_send(this ChanBase &c, void *out, bool move, bool try_locks, bool *lock_fail);
+
+            bool subscribe_recv(this ChanBase &c, internal::Selector &receiver, Lock&);
+            bool subscribe_send(this ChanBase &c, internal::Selector &sender, Lock&);
+
+            void unsubscribe_recv(this ChanBase &c, internal::Selector &receiver, Lock&);
+            void unsubscribe_send(this ChanBase &c, internal::Selector &sender, Lock&);
+
+            void send(ChanBase &c, void *elem, void(*)(ChanBase &c, void *elem));
+
+            friend Recv;
+            friend Send;
+        };
     }
 
-    receiver->done = true;
+    // https://github.com/golang/go/blob/master/src/runtime/chan.go
+    // https://medium.com/womenintechnology/exploring-the-internals-of-channels-in-go-f01ac6e884dc
+    // https://github.com/tylertreat/chan/blob/master/src/chan.h
 
-    bool expected = false;
-    bool ok = receiver->active->compare_exchange_strong(expected, true);
-    if (!ok) {
-        goto try_again;
-    }
+    template <typename T>
+    struct Chan : internal::ChanBase {
+        boost::circular_buffer<T> buffer;
 
-    if (receiver->value) {
-        c.set(receiver->value, elem, move);
-    }
-    if (receiver->ok) {
-        *receiver->ok = true;
-    }
+        Chan(int capacity = 0) : ChanBase(capacity), buffer(capacity) {}
 
-    receiver->completer->store(receiver);
-    receiver->completed->notify();
-    lock.unlock();
-    return true;
-}
 
-void ChanBase::send_blocking(this ChanBase &c, void *elem, bool move, sync::Lock &lock) {
-    bool ok = c.send_nonblocking(elem, move, lock);
-    if (ok) {
-        return;
-    }
+        void send(this Chan &c, T &&elem) {
+            c.send_i(&elem, true);
+        }
 
-    std::atomic<bool> active = false;
-    Waiter completed;
-    atomic<Selector*> completer = nil;
+        void send(this Chan &c, T const& elem) {
+            c.send_i((void*) &elem, false);
+        }
 
-    Selector sender = {
-        .value = elem,
-        .move  = move,
-        .active = &active,
-        .completed = &completed,
-        .completer = &completer,
+        T recv(this Chan &c, bool *ok = nil) {
+            T t = {};
+            c.recv_i(&t, ok);
+            return t;
+        }
+
+        protected:
+        void buffer_push(void *elem, bool move) override {
+            this->unread++;
+            if (move) {
+                this->buffer.push_front(std::move(*((T*) elem)));
+            } else {
+                this->buffer.push_front(*((const T*) elem));
+            }
+        }
+
+        void buffer_pop(void *out) override {
+            this->unread--;
+            if (out) {
+                *((T*) out) = std::move(this->buffer[this->unread]);
+            }
+        }
+
+        void set(void *dest, void *val, bool move) override {
+            if (val == nil) {
+                *((T*) dest) = T{};
+            } else if (move) {
+                *((T*) dest) = std::move(*(T*) val);
+            } else {
+                *((T*) dest) = *(const T*) val;
+            }
+        }
     } ;
 
-    c.senders.push(&sender);
+    template <>
+    struct Chan<void> : internal::ChanBase {
+        Chan(int capacity = 0) : ChanBase(capacity) {}
 
-    lock.unlock();
-    completed.wait();
-
-    if (sender.panic) {
-        panic("send on closed channel");
-    }
-}
-
-void ChanBase::send_i(this ChanBase &c, void *elem, bool move) {
-    Lock lock(c.lock);
-
-    if (c.closed()) {
-        panic("send on closed channel");
-    }
-
-    c.send_blocking(elem, move, lock);
-}
-
-bool ChanBase::recv_nonblocking(this ChanBase &c, void *out, bool *ok_ptr, Lock &lock, std::atomic<bool> *skip_active) {
-    if (!c.is_empty()) {
-        c.buffer_pop(out);
-
-        if (ok_ptr) {
-            *ok_ptr = true;
+        void send(this Chan &c) {
+            c.send_i(0, false);
         }
 
-        // signal senders if present
-        try_again1:
-        Selector *sender = c.senders.pop_if([&](Selector *sender) {
-            return sender->active != skip_active;
-        });
-        if (sender != nil) {
-            sender->done = true;
-
-            bool expected = false;
-            bool ok = sender->active->compare_exchange_strong(expected, true);
+        bool recv(this Chan &c, bool *ok = nil) {
+            bool b;
             if (!ok) {
-                goto try_again1;
+                ok = &b;
             }
 
-            c.buffer_push(sender->value, sender->move);
-            sender->completer->store(sender);
-            sender->completed->notify();
+            c.recv_i(0, ok);
 
+            return *ok;
+        }
+
+      protected:
+        void buffer_push(void*, bool) override {
+            this->unread++;
+        }
+
+        void buffer_pop(void *) override {
+             this->unread--;
+        }
+
+        void set(void *, void *, bool) override {}
+    } ;
+
+    struct SelectOp {
+        internal::ChanBase *chan;
+        void *data;
+        
+        virtual bool poll(bool try_locks, bool *lock_fail) const = 0;
+
+        virtual bool subscribe(sync::internal::Selector &receiver, Lock&) const = 0;
+        virtual void unsubscribe(sync::internal::Selector &receiver, Lock&) const = 0;
+    } ;  
+
+    struct Recv : SelectOp {
+        bool *ok;
+
+        template <typename T>
+        Recv(Chan<T> &chan, T *data = nil, bool *ok = nil)  {
+            init(&chan, data, ok);
+        }
+
+        template <typename T>
+        Recv(Chan<T> *chan, T *data = nil, bool *ok = nil)  {
+
+            init(chan, data, ok);
+        }
+
+        void init(internal::ChanBase *chan, void *data, bool *ok) {
+            this->chan = chan;
+            this->data = data;
+            // this->mtx = chan.lock;
+            this->ok = ok;
+        }
+
+        bool poll(bool try_locks, bool *lock_fail) const override;
+
+        bool subscribe(sync::internal::Selector &receiver, Lock&) const override;
+        void unsubscribe(sync::internal::Selector &receiver, Lock&) const override;
+    } ;
+    
+    struct Send : SelectOp {
+        bool move = false;
+
+        template <typename T>
+        Send(sync::Chan<T> &chan, T const &data)  : move(false) {
+            init(&chan, (void*) &data);
+        }
+
+        template <typename T>
+        Send(sync::Chan<T> &chan, T &&data)  : move(true) {
+            init(&chan, &data);
+        }
+
+        template <typename T>
+        Send(sync::Chan<T> *chan, T const &data)  : move(false) {
+            init(chan, (void*) &data);
+        }
+
+        template <typename T>
+        Send(sync::Chan<T> *chan, T &&data)  : move(true) {
+            init(chan, &data);
+        }
+    
+        void init(internal::ChanBase *chan, void *data) {
+            this->chan = chan;
+            this->data = data;
+        }
+
+        bool poll(bool try_locks, bool *lock_fail) const override;
+
+        bool subscribe(sync::internal::Selector &receiver, Lock&) const override;
+        void unsubscribe(sync::internal::Selector &receive, Lock&) const override;
+    } ;
+
+
+    namespace internal {
+        struct OpData {
+            sync::Lock chanlock;
+            sync::Lock selector_lock;
+
+            SelectOp const& op;
+
+            Selector selector;
+            Selector *ready_selector = nil;
             
-            lock.unlock();
-        }
-        return true;
+
+            OpData(SelectOp const& op) : op(op) {}
+        } ;
+
+        int select_i(arr<OpData> ops, arr<OpData*> ops_ptrs, arr<OpData*> lockfail_ptrs, bool blocking);
     }
 
-    if (c.closed()) {
-        if (ok_ptr) {
-            *ok_ptr = false;
-        }
-        return true;
+    template <typename... Args>
+    int select(Args&&... ops) {
+        std::array<internal::OpData, sizeof...(Args)> ops_data = {ops...};
+        std::array<internal::OpData*, sizeof...(Args)> ops_ptrs = {};
+        std::array<internal::OpData*, sizeof...(Args)> ops_ptrs2 = {};
+
+        return internal::select_i(arr(ops_data.data(), ops_data.size()), arr(ops_ptrs.data(), ops_ptrs.size()), arr(ops_ptrs2.data(), ops_ptrs2.size()), true);
+
     }
 
-    try_again2:
-    // block if there any no senders
-    Selector *sender = c.senders.pop_if([&](Selector *sender) {
-        return sender->active != skip_active;
-    });
-    if (sender == nil) {
-        return false;
+    template <typename... Args>
+    int poll(Args&&... ops) {
+        std::array<internal::OpData, sizeof...(Args)> ops_data = {ops...};
+        std::array<internal::OpData*, sizeof...(Args)> ops_ptrs = {};
+        std::array<internal::OpData*, sizeof...(Args)> ops_ptrs2 = {};
+
+        return internal::select_i(arr(ops_data.data(), ops_data.size()), arr(ops_ptrs.data(), ops_ptrs.size()), arr(ops_ptrs2.data(), ops_ptrs2.size()), false);
     }
 
-    sender->done = true;
 
-    bool expected = false;
-    bool ok = sender->active->compare_exchange_strong(expected, true);
-    if (!ok) {
-        goto try_again2;
-    }
 
-    if (out) {
-        c.set(out, sender->value, sender->move);
-    }    
-    
-    if (ok_ptr) {
-        *ok_ptr = true;
-    }
-
-    sender->completer->store(sender);
-    sender->completed->notify();
-
-    lock.unlock();
-    return true;
+   
 }
 
-void ChanBase::recv_blocking(this ChanBase &c, void *out, bool *ok, Lock &lock) {
-    if (c.recv_nonblocking(out, ok, lock)) {
-        return;
-    }
-
-    std::atomic<bool> active = false;
-    Waiter completed;
-    atomic<Selector*> completer = nil;
-
-    Selector receiver = {
-        .value = out,
-        .ok = ok,
-        .active = &active,
-        .completed = &completed,
-        .completer = &completer,
-    };
-
-    c.receivers.push(&receiver);
-
-    lock.unlock();
-    completed.wait();
 }
-
-void ChanBase::recv_i(this ChanBase &c, void *out, bool *ok) {
-    Lock lock(c.lock);
-
-    c.recv_blocking(out, ok, lock);
-}
-
-void ChanBase::close(this ChanBase &c) {
-    Lock lock(c.lock);
-
-    if (c.closed()) {
-        panic("close of closed channel");
-    }
-
-    c.state = Closed;
-    Selector *next;
-
-    for (Selector *sender = c.senders.head; sender != nil; sender = next) {
-        next = sender->next;
-
-        sender->done = true;
-
-        bool expected = false;
-        bool ok = sender->active->compare_exchange_strong(expected, true);
-        if (!ok) {
-            continue;
-        }
-        sender->panic = true;
-        sender->completer->store(sender);
-        sender->completed->notify();
-    }
-
-    for (Selector *receiver = c.receivers.head; receiver != nil; receiver = next) {
-        next = receiver->next;
-
-        receiver->done = true;
-        
-        bool expected = false;
-        bool ok = receiver->active->compare_exchange_strong(expected, true);
-        if (!ok) {
-            continue;
-        }
-
-        if (receiver->value) {
-            c.set(receiver->value, nil, false);
-        }
-        if (receiver->ok) {
-            *receiver->ok = false;
-        }
-
-        receiver->completer->store(receiver);
-        receiver->completed->notify();
-    }
-
-    c.senders.head = nil;
-    c.receivers.head = nil;
-}
-
-bool ChanBase::closed(this ChanBase const& c) {
-    return c.state == Closed;
-}
-
-bool ChanBase::is_buffered(this ChanBase const& c) {
-    return c.capacity > 0;
-}
-
-bool ChanBase::is_empty(this ChanBase const& c) {
-    return c.unread == 0;
-}
-bool ChanBase::is_full(this ChanBase const& c) {
-    // printf("is_full unread %d; capacity %d\n", c.unread, c.capacity);
-    return c.unread >= c.capacity;
-}
-
-int ChanBase::length() const {
-    Lock lock(this->lock);
-    return this->unread;
-}
-
-bool ChanBase::try_recv(this ChanBase &c, void *out, bool *ok, bool try_locks, bool *lock_fail) {
-    Lock lock;
-    if (try_locks) {
-        if (!lock.try_lock(c.lock)) {
-            *lock_fail = true;
-            return false;
-        }
-    } else {
-        lock.lock(c.lock);
-    }
-
-    return c.recv_nonblocking(out, ok, lock);
-}
-
-bool ChanBase::try_send(this ChanBase &c, void *out, bool move, bool try_locks, bool *lock_fail) {
-    Lock lock;
-    if (try_locks) {
-        if (!lock.try_lock(c.lock)) {
-            *lock_fail = true;
-            return false;
-        }
-    } else {
-        lock.lock(c.lock);
-    }
-
-    return c.send_nonblocking(out, move, lock);
-}
-
-
-bool ChanBase::subscribe_recv(this ChanBase &c, internal::Selector &receiver, Lock &lock) {
-    if (c.recv_nonblocking(receiver.value, receiver.ok, lock, receiver.active)) {
-        return true;
-    }
-
-    c.receivers.push(&receiver);
-    return false;
-}
-
-bool ChanBase::subscribe_send(this ChanBase &c, internal::Selector &sender, Lock &lock) {
-    if (c.send_nonblocking(sender.value, sender.move, lock, sender.active)) {
-        return true;
-    }
-
-    c.senders.push(&sender);
-    return false;
-}
-
-void ChanBase::unsubscribe_recv(this ChanBase &c, internal::Selector &receiver, Lock&) {
-    if (receiver.done) {
-        return;
-    }
-
-    c.receivers.remove(&receiver);
-}
-
-void ChanBase::unsubscribe_send(this ChanBase &c, internal::Selector &sender, Lock&) {
-    if (sender.done) {
-        return;
-    }
-    
-    c.senders.remove(&sender);
-}
-
-
-bool Recv::poll(bool try_locks, bool *lock_fail) const {
-    ChanBase & c = *this->chan;
-
-    return c.try_recv(this->data, this->ok, try_locks, lock_fail);
-}
-
-bool Send::poll(bool try_locks, bool *lock_fail) const {
-    ChanBase & c = *this->chan;
-
-    return c.try_send(this->data, this->move, try_locks, lock_fail);
-}
-
-bool Recv::subscribe(sync::internal::Selector &receiver, Lock &lock) const {
-    ChanBase &c = *this->chan;
-
-    receiver.value = this->data;
-    receiver.ok = this->ok;
-    
-    return c.subscribe_recv(receiver, lock);
-}
-
-bool Send::subscribe(sync::internal::Selector &sender, Lock &lock) const {
-    ChanBase &c = *this->chan;
-
-    sender.value = this->data;
-    sender.move = this->move;
-    
-    return c.subscribe_send(sender, lock);
-}
-
-void Recv::unsubscribe(sync::internal::Selector &receiver, Lock &lock) const {
-    ChanBase &c = *this->chan;
-
-    c.unsubscribe_recv(receiver, lock);
-}
-
-void Send::unsubscribe(sync::internal::Selector &receiver, Lock &lock) const {
-    ChanBase &c = *this->chan;
-
-    c.unsubscribe_send(receiver, lock);
-}
-
-int internal::select_i(arr<OpData> ops, arr<OpData*> ops_ptrs, arr<OpData*> lockfail_ptrs, bool block) {
-    // fill ops_ptrs array
-    int avail_ops = 0;
-    int lockfail_cnt = 0;
-    int cnt = 0;
-    for (OpData &op : ops) {
-        op.selector.id = cnt++;
-
-        // skip nil cases
-        if (op.op.chan == nil) {
-            continue;
-        }
-
-        ops_ptrs[avail_ops++] = &op;
-    }
-
-    for (int i = avail_ops; i > 0; i--) {
-        int selected_idx = cheaprandn(i);
-        OpData *selected_op = ops_ptrs[selected_idx];
-        
-        bool lockfail = false;
-        // poll() may panic, for example Send on a closed channel. At this point
-        // no selectors have been queued, so select_i has nothing to clean up.
-        bool ok = selected_op->op.poll(true, &lockfail);
-        if (ok) {
-            return int(selected_op - ops.data);
-        }
-
-        if (lockfail) {
-            lockfail_ptrs[lockfail_cnt++] = selected_op;
-        }
-
-        std::swap(ops_ptrs[selected_idx], ops_ptrs[i-1]);
-    }
-
-    for (int i = 0; i < lockfail_cnt; i++) {
-        OpData *selected_op = lockfail_ptrs[i];
-
-        // This second poll() can also panic before any selector has been queued.
-        bool ok = selected_op->op.poll(false, nil);
-        if (ok) {
-            return int(selected_op - ops.data);
-        }
-    }    
-
-    if (!block) {
-        return -1;
-    }
-    // sort opts_ptr by lock order
-    std::sort(ops_ptrs.begin(), ops_ptrs.begin()+avail_ops, [](OpData *d1, OpData *d2) {
-        return uintptr(d1->op.chan) < uintptr(d2->op.chan);
-    });
-    
-    std::atomic<bool> active = false;
-    Waiter completed;
-    atomic<Selector*> completer = nil;
-
-    struct SubscriptionCleanup {
-        arr<OpData*> ops_ptrs;
-        int subscribed = 0;
-        bool armed = true;
-
-        Lock *held_lock_for(int idx) {
-            OpData &op = *ops_ptrs[idx];
-            if (op.chanlock.locked) {
-                return &op.chanlock;
-            }
-
-            for (int j = idx - 1; j >= 0; j--) {
-                OpData &prev = *ops_ptrs[j];
-                if (prev.op.chan == op.op.chan && prev.chanlock.locked) {
-                    return &prev.chanlock;
-                }
-            }
-
-            return nil;
-        }
-
-        void disarm() {
-            armed = false;
-        }
-
-        ~SubscriptionCleanup() {
-            if (!armed) {
-                return;
-            }
-
-            // Runs while unwinding from a panic in subscribe(). These selectors
-            // point into select_i's stack frame, so leaving them queued would
-            // create stale pointers in the channel.
-            for (int j = subscribed - 1; j >= 0; j--) {
-                OpData &op = *ops_ptrs[j];
-                Lock *lock = held_lock_for(j);
-                if (lock == nil) {
-                    continue;
-                }
-                // unsubscribe() is expected not to panic during panic cleanup.
-                op.op.unsubscribe(op.selector, *lock);
-            }
-        }
-    } cleanup{ops_ptrs};
-
-    int i = 0;
-    // lock in lock order and subscribe
-    for (; i < avail_ops; i++) {
-        OpData &op = *ops_ptrs[i];
-
-        op.selector.active = &active;
-        op.selector.completed = &completed;
-        op.selector.completer = &completer;
-
-        // skip re-locking the same lock
-        if (i == 0 || &op.op.chan->lock != &ops_ptrs[i-1]->op.chan->lock) {
-            op.chanlock.lock(op.op.chan->lock);
-        }
-
-        // subscribe() can panic after earlier cases have queued stack-backed
-        // selectors. SubscriptionCleanup is armed here so those earlier cases
-        // are unsubscribed during stack unwinding.
-        if (op.op.subscribe(op.selector, op.chanlock)) {
-            cleanup.disarm();
-            for (int j = i-1; j >= 0; j--) {
-                OpData &op = *ops_ptrs[j];
-                // unsubscribe() is expected not to panic; if it does, select_i
-                // cannot safely preserve the queued-selector invariant.
-                op.op.unsubscribe(op.selector, op.chanlock);
-            }
-            return int(&op - ops.data);
-        }
-
-        cleanup.subscribed = i + 1;
-    }
-
-    cleanup.disarm();
-
-    // unlock
-    for (int j = i-1; j >= 0; j--) {
-        OpData &op = *ops_ptrs[j];
-        if (op.chanlock.locked) {
-            op.chanlock.unlock();
-        }
-    }
-
-    completed.wait();
-
-    Selector *selected = completer.load();
-
-    // unsubscribe
-    for (int j = 0; j < i; j++) {
-        OpData &op = *ops_ptrs[j];
-
-        if (&op.selector == selected) {
-            continue;
-        }
-        Lock lock(op.op.chan->lock);
-        // Normal post-wakeup cleanup. unsubscribe() is expected not to panic.
-        op.op.unsubscribe(op.selector, lock);
-
-        if constexpr (DebugChecks) {
-            if (op.op.chan->receivers.contains(&op.selector)) {
-                panic("DebugCheck1");
-            }
-            if (op.op.chan->senders.contains(&op.selector)) {
-                panic("DebugCheck2");
-            }
-        }
-    }
-
-    return selected->id;
-}
-void lib::sync::internal::Waiter::notify() {
-    state.store(1, std::memory_order::release);
-    state.notify_one();
-    state.store(2);
-}
-
-void lib::sync::internal::Waiter::wait() {
-    for (;;) {
-        int s = state.load(std::memory_order::acquire);
-        if (s == 0) {
-            state.wait(0);
-            continue;
-        }
-        if (s == 2) {
-            return;
-        }
-        // spin wait
-    }
-}
-#endif

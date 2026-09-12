@@ -1,9 +1,9 @@
 export module lib.print;
-export import "io/io.h";
+export import lib.io;
 export import lib.str;
 import <stdio.h>;
 export import lib.error;
-export import "fmt/fmt.h";
+export import lib.fmt;
 
 export extern "C++" {
 namespace prettyprint {

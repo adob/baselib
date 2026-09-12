@@ -1,47 +1,39 @@
-#include "lib/serial/usbio+zephyr.h"
+module;
+#include "usbio_impl+zephyr.h"
 
-#include "lib/os/error.h"
+export module lib.serial.usbio;
+import <zephyr/device.h>;
+import <zephyr/usb/class/usbd_cdc_acm.h>;
 
+export import lib.serial.serial_listener;
+export import lib.types;
+
+
+export extern "C++" {
 namespace lib::serial {
 
-io::ReadResult USBConn::direct_read(buf buffer, error err)
-{
-	size_t bytes_read;
-	int ret = usbd_cdc_acm_read(&conn_, buffer.data, len(buffer), &bytes_read);
+class USBConn final : public Conn {
+public:
+	io::ReadResult direct_read(buf buffer, error err) override;
+	size direct_write(str buffer, error err) override;
 
-	if (ret != 0) {
-		err(os::Errno(-ret));
-	}
+private:
+	struct usbd_cdc_acm_conn conn_ = {};
 
-	return {.nbytes = size(bytes_read), .eof = ret == 0 && bytes_read == 0};
-}
+	friend class USBListener;
+};
 
-size USBConn::direct_write(str buffer, error err)
-{
-	size_t bytes_written;
-	int ret = usbd_cdc_acm_write(&conn_, (const byte *)buffer.data, len(buffer),
-				     &bytes_written);
+class USBListener final : public Listener, nonmovable {
+public:
+	explicit USBListener(const struct device *dev) : dev_(dev) {}
 
-	if (ret != 0) {
-		err(os::Errno(-ret));
-	}
+	Conn &accept(error err) override;
 
-	return size(bytes_written);
-}
-
-Conn &USBListener::accept(error err)
-{
-	if (conn_.conn_.dev != nullptr) {
-		(void)usbd_cdc_acm_close(&conn_.conn_);
-	}
-
-	conn_.reset();
-	int ret = usbd_cdc_acm_accept(dev_, &conn_.conn_);
-	if (ret != 0) {
-		err(os::Errno(-ret));
-	}
-
-	return conn_;
-}
+private:
+	const struct device *dev_;
+	USBConn conn_;
+};
 
 } // namespace lib::serial
+
+}

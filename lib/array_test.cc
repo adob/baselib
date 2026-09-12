@@ -2,7 +2,7 @@ import lib.array;
 import <initializer_list>;
 import <type_traits>;
 
-#include "lib/testing/testing.h"
+import lib.testing;
 
 using IntList = std::initializer_list<int>;
 static_assert(std::is_convertible_v<IntList&, lib::view<int>>);

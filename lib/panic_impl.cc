@@ -10,10 +10,12 @@
 // #include "../deps/backward-cpp/backward.hpp"
 // #endif
 
+import <stdio.h>;
+import <stdlib.h>;
 import lib.error;
-import "lib/fmt/fmt.h";
+import lib.fmt;
 import lib.panic;
-import "lib/io/io.h";
+import lib.io;
 import lib.str;
 import lib.panic;
 import lib.exceptions;

@@ -1,8 +1,8 @@
 import lib.array;
-import "lib/fmt/fmt.h";
+import lib.fmt;
 import lib.str;
-#include "quote.h"
-#include "lib/testing/testing.h"
+import lib.strconv.quote;
+import lib.testing;
 
 using namespace lib;
 using namespace strconv;

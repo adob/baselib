@@ -1,380 +1,146 @@
-import lib.array;
-import lib.error;
-import lib.panic;
-import lib.str;
-import lib.types;
-import <cerrno>;
-import <cstdlib>;
-#include <errno.h>
-import <stdlib.h>;
-#include <sys/types.h>
-#include <tuple>
-#include "time.h"
+module;
+#include "time_impl.h"
 
-#include <cmath>
+export module lib.time;
+export import lib.str;
+import <compare>;
 import <time.h>;
+export import lib.types;
 
-#include "lib/os/error.h"
-#include "lib/os/file.h"
-#include "lib/strings/strings.h"
-
-#ifdef __ZEPHYR__
-#include "zephyr/kernel.h"
-#include "zephyr/sys/time_units.h"
+#ifdef unix
+#undef unix
+#define unix unix
 #endif
 
 
-using namespace lib;
+export extern "C++" {
+namespace lib::time {
+    using namespace lib;
 
-const int 
-    SecondsPerMinute   = 60,
-	SecondsPerHour     = 60 * SecondsPerMinute,
-	SecondsPerDay      = 24 * SecondsPerHour,
-	// SecondsPerWeek     = 7 * SecondsPerDay,
-	DaysPer400Years    = 365*400 + 97,
-	DaysPer100Years    = 365*100 + 24,
-	DaysPer4Years      = 365*4 + 1;
+    struct duration : numeric {
+        int64 nsecs = 0;
 
-// The unsigned zero year for internal calculations.
-// Must be 1 mod 400, and times before it will not compute correctly,
-// but otherwise can be changed at will.
-const int64 AbsoluteZeroYear = -292277022399;
+        constexpr duration(int64 nsecs=0) : nsecs(nsecs) {}
 
+        float64 seconds() const;
+        int64 milliseconds() const;
+        int64 nanoseconds() const { return this->nsecs; };
+    } ;
 
-// const int64 WallToInternal = int64(1884*365 + 1884/4 - 1884/100 + 1884/400) * SecondsPerDay;
-const int64 UnixToInternal = int64(1969*365 + 1969/4 - 1969/100 + 1969/400) * SecondsPerDay;
+    enum Month {
+        January = 1,
+        February,
+        March,
+        April,
+        May,
+        June,
+        July,
+        August,
+        September,
+        October,
+        November,
+        December,
+    } ;
 
-// The year of the zero Time.
-// Assumed by the unixToInternal computation below.
-const int64 InternalYear = 1;
+    struct Location {
+        str name;
+    } ;
 
-// Offsets to convert between internal and absolute or Unix times.
-const int64 AbsoluteToInternal = int64((AbsoluteZeroYear - InternalYear) * 365.2425 * SecondsPerDay);
-const int64 InternalToUnix = -UnixToInternal;
+    inline const Location UTC   = {.name = "UTC"};
+    inline const Location Local = {.name = "Local"};
 
-// const uint64 HasMonotonic = uint64(1) << 63;
-// const int64  MaxWall      = WallToInternal + ((uint64(1)<<33) - 1); // year 2157
-// const int64  MinWall      = UnixToInternal;               // year 1885
-// const uint64 NsecMask     = (int64(1)<<30) - 1;
-// const uint   NsecShift    = 30;
+    struct monotime : duration {
+      duration sub(monotime other);
+    } ;
 
-const arr<int32> DaysBefore = {{
-	0,
-	31,
-	31 + 28,
-	31 + 28 + 31,
-	31 + 28 + 31 + 30,
-	31 + 28 + 31 + 30 + 31,
-	31 + 28 + 31 + 30 + 31 + 30,
-	31 + 28 + 31 + 30 + 31 + 30 + 31,
-	31 + 28 + 31 + 30 + 31 + 30 + 31 + 31,
-	31 + 28 + 31 + 30 + 31 + 30 + 31 + 31 + 30,
-	31 + 28 + 31 + 30 + 31 + 30 + 31 + 31 + 30 + 31,
-	31 + 28 + 31 + 30 + 31 + 30 + 31 + 31 + 30 + 31 + 30,
-	31 + 28 + 31 + 30 + 31 + 30 + 31 + 31 + 30 + 31 + 30 + 31,
-}};
+    struct time {
+        // nanoseconds since boot
+        int64 nsecs = 0;
+        // uint64          wall = 0;
+        // int64           ext  = 0;
+        //const Location *location = nil;
 
+        // Unix returns t as a Unix time, the number of seconds elapsed
+        // since January 1, 1970 UTC. The result does not depend on the
+        // location associated with t.
+        // Unix-like operating systems often record time as a 32-bit
+        // count of seconds, but since the method here returns a 64-bit
+        // value it is valid for billions of years into the past or future.
+        int64 unix() const;
 
-const time::duration MinDuration = int64(-1) << 63;
-const time::duration MaxDuration = (uint64(1)<<63) - 1;
+        // unix_nano returns t as a Unix time, the number of nanoseconds elapsed
+        // since January 1, 1970 UTC. The result is undefined if the Unix time
+        // in nanoseconds cannot be represented by an int64 (a date before the year
+        // 1678 or after 2262). Note that this means the result of calling unix_nano
+        // on the zero Time is undefined. The result does not depend on the
+        // location associated with t.
+        int64 unix_nano() const;
 
-#ifdef __ZEPHYR__
-#else
-const int64 btime_ns = []{
-    String data = os::read_file("/proc/stat",error::panic);
-    for (str line : strings::split(data, "\n")) {
-        if (!strings::has_prefix(line, "btime ")) {
-            continue;
+        // Sub returns the duration t-u. If the result exceeds the maximum (or minimum)
+        // value that can be stored in a [Duration], the maximum (or minimum) duration
+        // will be returned.
+        // To compute t-d for a duration d, use t.Add(-d)
+        duration sub(time u) const;
+    } ;
+
+    inline constexpr duration nanosecond = duration { 1 };
+    inline constexpr duration microsecond = 1'000 * nanosecond;
+    inline constexpr duration millisecond = 1'000 * microsecond;
+    inline constexpr duration second      = 1'000 * millisecond;
+    inline constexpr duration minute      = 60 * second;
+    inline constexpr duration hour        = 60 * minute;
+
+    monotime clock();
+    time     now();
+    
+    // since returns the time elapsed since t.
+    // It is shorthand for time.Now().Sub(t).
+    duration since(time t);
+
+    duration hz(float64 n);
+
+    // Unix returns the local Time corresponding to the given Unix time,
+    // sec seconds and nsec nanoseconds since January 1, 1970 UTC.
+    // It is valid to pass nsec outside the range [0, 999999999].
+    // Not all sec values have a corresponding time value. One such
+    // value is 1<<63-1 (the largest int64 value).
+    time    unix(const ::timespec &walltime);
+    time    unix(int64 sec, int32 nsec);
+    time    unix(int64 sec, int64 nsec);
+
+    time date(int year, Month month, int day, int hour, int min, int sec, int nsec, const Location &loc);
+
+    void sleep(duration d);
+
+    struct LoopTimer {
+        duration delay_duration;
+        monotime prev_time;
+
+        explicit LoopTimer(duration d) : delay_duration(d) {}
+
+        void start() {
+            prev_time = clock();
         }
-        str val = line + len("btime ");
-        int64 btime = atol(val.c_str());
-        if (btime == 0) {
-            panic("invalid btime value in /proc/stat");
+
+        duration delay() {
+            if (!prev_time) {
+                prev_time = clock();
+                return {};
+            }
+
+            monotime now = clock();
+            duration elapsed = now - prev_time;
+            if (elapsed > delay_duration) {
+                prev_time = now;
+                return elapsed;
+            }
+            
+            duration delay = delay_duration - elapsed;
+            sleep(delay);
+            prev_time = clock();
+            return elapsed;
         }
-        return btime * 1'000'000;
-    }
-    panic("btime not found in /proc/stat");
-    return int64(0);
-}();
-#endif
-
-time::monotime time::clock() {
-#ifdef __ZEPHYR__
-	return { k_cyc_to_ns_floor64(k_cycle_get_64()) };
-#else
-    struct timespec ts;
-    int ret = clock_gettime(CLOCK_BOOTTIME, &ts);
-    if (ret) {
-        panic(os::Errno(errno));
-    }
-
-    return { ts.tv_sec*1'000'000'000 + ts.tv_nsec };
-#endif
+    } ;
 }
 
-time::time time::now() {
-#ifdef __ZEPHYR__
-	panic("unimplemented");
-#else
-    struct timespec boottime;
-    int ret = clock_gettime(CLOCK_BOOTTIME, &boottime);
-    if (ret) {
-        panic(os::Errno(errno));
-    }
-
-    int64 boot_ns = boottime.tv_sec*1'000'000'000 + boottime.tv_nsec;
-	return {boot_ns};
-#endif
-    // struct timespec walltime;
-    // ret = clock_gettime(CLOCK_REALTIME, &walltime);
-    // if (ret) {
-    //     panic(os::Errno(errno));
-    // }
-
-    // int64 sec = walltime.tv_sec;
-    // int32 nsec = int32(walltime.tv_nsec);
-
-    // //mono -= start_time;
-    // sec += UnixToInternal - MinWall;
-    // if (uint64(sec) >> 33 != 0) {
-    //     // Seconds field overflowed the 33 bits available when
-	// 	// storing a monotonic time. This will be true after
-	// 	// March 16, 2157.
-	// 	return time{uint64(nsec), sec + MinWall};
-    // }
-
-    // return {HasMonotonic | uint64(sec) << NsecShift | uint64(nsec), mono, /*&Local*/};
-}
-
-void time::sleep(duration d) {
-#ifdef __ZEPHYR__
-	panic("unimplemented");
-#else
-    struct timespec req = {
-        .tv_sec  = d.nsecs / 1'000'000'000,
-        .tv_nsec = d.nsecs % 1'000'000'000
-     };
-     
-retry:
-    int r = nanosleep(&req, &req);
-    if (r != 0) {
-        if (errno == EINTR) {
-            goto retry;
-        }
-    	panic("nanosleep failed");
-    }
-#endif
-}
-
-float64 time::duration::seconds() const {
-    int64 seconds  = nsecs / second.nsecs;
-	int64 nanos    = nsecs % second.nsecs;
-
-	return float64(seconds) + float64(nanos)/1e9;
-}
-
-int64 time::duration::milliseconds() const {
-    return nsecs / 1'000'000;
-}
-
-time::duration time::hz(float64 n) {
-    return { int64(std::round(1e9 / n)) };
-}
-
-// norm returns nhi, nlo such that
-//
-//	hi * base + lo == nhi * base + nlo
-//	0 <= nlo < base
-static std::tuple<int, int> norm(int hi, int lo, int base) {
-	if (lo < 0) {
-		int n = (-lo-1)/base + 1;
-		hi -= n;
-		lo += n * base;
-	}
-	if (lo >= base) {
-		int n = lo / base;
-		hi += n;
-		lo -= n * base;
-	}
-	return {hi, lo};
-}
-
-static bool is_leap(int year){
-	return year%4 == 0 && (year%100 != 0 || year%400 == 0);
-}
-
-// daysSinceEpoch takes a year and returns the number of days from
-// the absolute epoch to the start of that year.
-// This is basically (year - zeroYear) * 365, but accounting for leap days.
-static uint64 days_since_epoch(int year) {
-	uint64 y = uint64(int64(year) - AbsoluteZeroYear);
-
-	// Add in days from 400-year cycles.
-	auto n = y / 400;
-	y -= 400 * n;
-	auto d = DaysPer400Years * n;
-
-	// Add in 100-year cycles.
-	n = y / 100;
-	y -= 100 * n;
-	d += DaysPer100Years * n;
-
-	// Add in 4-year cycles.
-	n = y / 4;
-	y -= 4 * n;
-	d += DaysPer4Years * n;
-
-	// Add in non-leap years.
-	n = y;
-	d += 365 * n;
-
-	return d;
-}
-
-
-time::time time::date(int year, Month month, int day, int hour, int min, int sec, int nsec, const Location &loc) {
-    // Normalize month, overflowing into year.
-	int m = int(month) - 1;
-	std::tie(year, m) = norm(year, m, 12);
-	month = Month(m + 1);
-
-	// Normalize nsec, sec, min, hour, overflowing into day.
-	std::tie(sec, nsec) = norm(sec, nsec, 1e9);
-	std::tie(min, sec) = norm(min, sec, 60);
-	std::tie(hour, min) = norm(hour, min, 60);
-	std::tie(day, hour) = norm(day, hour, 24);
-
-	// Compute days since the absolute epoch.
-	uint64 d = days_since_epoch(year);
-
-	// Add in days before this month.
-	d += uint64(DaysBefore[month-1]);
-	if (is_leap(year) && month >= March) {
-		d++; // February 29
-	}
-
-	// Add in days before today.
-	d += uint64(day - 1);
-
-	// Add in time elapsed today.
-	uint64 abs = d * SecondsPerDay;
-	abs += uint64(hour*SecondsPerHour + min*SecondsPerMinute + sec);
-
-	// Needed by the timezone lookup below once date() is implemented.
-	[[maybe_unused]] auto unix = int64(abs) + (AbsoluteToInternal + InternalToUnix);
-
-    panic("unimplemented");
-    return {};
-	// Look for zone offset for expected time, so we can adjust to UTC.
-	// The lookup function expects UTC, so first we pass unix in the
-	// hope that it will not be too close to a zone transition,
-	// and then adjust if it is.
-	// _, offset, start, end, _ := loc.lookup(unix)
-	// if offset != 0 {
-	// 	utc := unix - int64(offset)
-	// 	// If utc is valid for the time zone we found, then we have the right offset.
-	// 	// If not, we get the correct offset by looking up utc in the location.
-	// 	if utc < start || utc >= end {
-	// 		_, offset, _, _, _ = loc.lookup(utc)
-	// 	}
-	// 	unix -= int64(offset)
-	// }
-
-	// t := unixTime(unix, int32(nsec))
-	// t.setLoc(loc)
-	// return t
-}
-
-time::time time::unix(const struct timespec& walltime) {
-#ifdef __ZEPHYR__
-	panic("unimplemented");
-#else
-    int64 sec = walltime.tv_sec;
-    int32 nsec = int32(walltime.tv_nsec);
-
-	return time{ (sec*1'000'000 + nsec) - btime_ns };
-	// return time {uint64(nsec), sec + UnixToInternal, /*Local*/};
-#endif
-}
-
-time::time time::unix(int64 sec, int32 nsec) {
-#ifdef __ZEPHYR__
-	panic("unimplemented");
-#else
-	int64 timestamp_ns = sec*1'000'000 + nsec;
-	int64 since_boot_ns = timestamp_ns - btime_ns;
-	// if (nsec < 0 || nsec >= 1'000'000'000) {
-	// 	int32 n = nsec / 1'000'000'000;
-	// 	sec += n;
-	// 	nsec -= n * 1'000'000'000;
-	// 	if (nsec < 0) {
-	// 		nsec += 1'000'000'000;
-	// 		sec--;
-	// 	}
-	// }
-
-	return time {since_boot_ns, /*Local*/};
-#endif
-}
-
-// time::time unix(int64 sec, int64 nsec) {
-// 	if (nsec < 0 || nsec >= 1'000'000'000) {
-// 		int64 n = nsec / 1'000'000'000;
-// 		sec += n;
-// 		nsec -= n * 1'000'000'000;
-// 		if (nsec < 0) {
-// 			nsec += 1'000'000'000;
-// 			sec--;
-// 		}
-// 	}
-
-// 	return time::time(sec, nsec);
-// }
-
-time::duration time::monotime::sub(monotime other) {
-  return this->nsecs - other.nsecs;
-}
-
-int64 time::time::unix() const {
-	time const &t = *this;
-
-	return t.unix_nano() / 1'000'000;
-}
-
-int64 time::time::unix_nano() const {
-#ifdef __ZEPHYR__
-	panic("unimplemented");
-#else
-	time const &t = *this;
-	return btime_ns + t.nsecs;
-#endif
-}
-
-// int64 time::time::sec() const {
-// 	time const &t = *this;
-// 	return 
-// 	// time::time const &t = *this;
-
-// 	// if t.wall&hasMonotonic != 0 {
-// 	// 	return wallToInternal + int64(t.wall<<1>>(nsecShift+1))
-// 	// }
-// 	// return t.ext
-// 	return 0;
-// }
-
-time::duration time::time::sub(time u) const {
-	time const &t = *this;
-	int64 d = t.nsecs - u.nsecs;
-	if (d < 0 && t.nsecs > u.nsecs) {
-		return MaxDuration;  // t - u is positive out of range
-	}
-	if (d > 0 && t.nsecs < u.nsecs) {
-		return MinDuration; // t - u is negative out of range
-	}
-	return d;
-}
-
-
-time::duration time::since(time t) {
-	return now().sub(t);
 }

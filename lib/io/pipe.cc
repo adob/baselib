@@ -1,164 +1,97 @@
-import lib.error;
-import "lib/io/io.h";
-import lib.str;
-#include "lib/sync/chan.h"
-#include "lib/sync/lock.h"
-import lib.types;
-#include "pipe.h"
-#include <memory>
+module;
+#include "pipe_impl.h"
 
-using namespace lib;
-using namespace lib::io;
-using namespace lib::io::internal;
+export module lib.io.pipe;
+export import lib.str;
+export import lib.types;
+import <boost/core/pointer_traits.hpp>;
+export import lib.error;
+export import lib.io;
+export import lib.sync.chan;
+export import lib.sync.mutex;
+export import lib.sync.once;
 
-PipePair io::pipe() {
-    PipePair p {
-        .r = std::make_shared<PipeReader>(),
-        .w = std::make_shared<PipeWriter>(),
+import <memory>;
+
+
+export extern "C++" {
+namespace lib::io {
+    namespace internal {
+        struct Pipe {
+            sync::Mutex      wr_mu;  // Serializes write operations
+            sync::Chan<str>  wr_ch;
+            sync::Chan<size> rd_ch;
+
+            sync::Once once;
+            sync::Chan<void> done;
+
+            sync::Mutex err_mu;
+            ErrorRecorder wr_err;
+            ErrorRecorder rd_err;
+            bool wr_closed = false;
+
+            ReadResult read(buf bytes, error err);
+            size write(str data, error err);
+            void read_close_error(error err);
+            void write_close_error(error err);
+
+            void close_read(Error const *e);
+            void close_write(Error const *e);
+        } ;
     };
+    struct PipePair;
+    PipePair pipe();
+    struct PipeWriter;
 
-    p.w->r = p.r;
+    struct ErrClosedPipe : ErrorBase<ErrClosedPipe, "io: read/write on closed pipe"> {};
 
-    return p;
- };
- 
- ReadResult PipeReader::direct_read(buf bytes, error err) {
-    return this->pipe.read(bytes, err);
- }
+    struct PipeReader : io::Reader {
+        // Read implements the standard Read interface:
+        // it reads data from the pipe, blocking until a writer
+        // arrives or the write end is closed.
+        // If the write end is closed with an error, that error is
+        // returned as err; otherwise err is EOF.
+        ReadResult direct_read(buf bytes, error err) override;
+        void close(error) override;
 
- size PipeWriter::direct_write(str data, error err) {
-    return this->r->pipe.write(data, err);
- }
- 
- ReadResult internal::Pipe::read(buf bytes, error err) {
-    Pipe &p = *this;
+        void close_with_error(Error const &e);
 
-    int r = sync::poll(
-        sync::Recv(p.done)
-    );
-    if (r == 0) {
-        p.read_close_error(err);
-        return {0, true};
-    }
+      private:
+        internal::Pipe pipe;
+        friend PipeWriter;
+    } ;
 
-    str bw;
-    r = sync::select(
-        sync::Recv(p.wr_ch, &bw),
-        sync::Recv(p.done)
-    );
+    struct PipeWriter : io::Writer {
+      size direct_write(str data, error err) override;
+      void close(error) override;
 
-    if (r == 0) {
-        size nr = copy(bytes, bw);
-        p.rd_ch.send(nr);
-        return {nr, false};
-    }
-    
-    p.read_close_error(err);
-    return {0, true};
- }
+      void close_with_error(Error const &e);
 
- void internal::Pipe::read_close_error(error err) {
-    Pipe &p = *this;
-    sync::Lock lock(p.err_mu);
+    private:
+        std::shared_ptr<PipeReader> r;
+        friend PipePair pipe();
+    } ;
 
-    if (!p.rd_err) {
-        if (p.wr_err) {
-            err(p.wr_err.to_error());
-            return;
-        }
+    struct PipePair {
+        std::shared_ptr<PipeReader> r;
+        std::shared_ptr<PipeWriter> w;
+    } ;
 
-        if (p.wr_closed) {
-            return;
-        }
-    }
-
-    err(ErrClosedPipe());
- }
-
- size internal::Pipe::write(str data, error err) {
-    Pipe &p = *this;
-
-    int r =  sync::poll(
-        sync::Recv(p.done)
-    );
-    if (r == 0) {
-        p.write_close_error(err);
-        return 0;
-    }
-    sync::Lock lock(p.wr_mu);
-    size n = 0;
-    
-    for (bool once = true; once || len(data) > 0; once = false) {
-        int r = sync::select(
-            sync::Send(p.wr_ch, data),
-            sync::Recv(p.done)
-        );
-        if (r == 0) {
-            size nw = p.rd_ch.recv();
-            data = data+nw;
-            n += nw;
-        } else {
-            p.write_close_error(err);
-            return n;
-        }
-    }
-
-    return n;
- }
-
- void internal::Pipe::write_close_error(error err) {
-    Pipe &p = *this;
-    sync::Lock lock(p.err_mu);
-
-    if (!p.wr_err && p.rd_err) {
-        err(p.rd_err.to_error());
-        return;
-    }
-
-    err(ErrClosedPipe());
- }
-
-
- void PipeReader::close(error) {
-    return this->pipe.close_read(nil);
- }
-
- void PipeReader::close_with_error(Error const &e) {
-    return this->pipe.close_read(&e);
- }
-
- void PipeWriter::close(error) {
-    return this->r->pipe.close_write(nil);
- }
-
- void PipeWriter::close_with_error(Error const &e) {
-    return this->r->pipe.close_write(&e);
- }
-
- void internal::Pipe::close_read(Error const *e) {
-    Pipe &p = *this;
-    sync::Lock lock(p.err_mu);
-
-    if (e != nil) {
-        p.rd_err.report(*e);
-    }
-
-    p.once.run([&] { p.done.close(); });
- }
- 
- void internal::Pipe::close_write(Error const *e) {
-    Pipe &p = *this;
-    sync::Lock lock(p.err_mu);
-
-    if (p.wr_err.has_error || p.wr_closed) {
-        return;
-    }
-
-    if (e != nil) {
-        p.wr_err.report(*e);
-    } else {
-        p.wr_closed = true;
-    }
-
-    p.once.run([&] { p.done.close(); });
- }
+    // pipe creates a synchronous in-memory pipe.
+    // It can be used to connect code expecting an [io.Reader]
+    // with code expecting an [io.Writer].
+    //
+    // Reads and Writes on the pipe are matched one to one
+    // except when multiple Reads are needed to consume a single Write.
+    // That is, each Write to the [PipeWriter] blocks until it has satisfied
+    // one or more Reads from the [PipeReader] that fully consume
+    // the written data.
+    // The data is copied directly from the Write to the corresponding
+    // Read (or Reads); there is no internal buffering.
+    //
+    // It is safe to call Read and Write in parallel with each other or with Close.
+    // Parallel calls to Read and parallel calls to Write are also safe:
+    // the individual calls will be gated sequentially.
+    PipePair pipe();
+}
+}

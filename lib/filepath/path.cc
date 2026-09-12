@@ -1,63 +1,32 @@
-import lib.str;
-import lib.types;
-#include "path.h"
-#include "lib/strings/strings.h"
+module;
+#include "path_impl.h"
 
-using namespace lib;
-using namespace filepath;
+export module lib.filepath.path;
+export import lib.str;
 
+export extern "C++" {
 namespace lib::filepath {
-    bool is_path_separator(char c);
-    int volume_name_len(str path);
+    inline constexpr char Separator     = '/'; // OS-specific path separator
+	inline constexpr char ListSeparator = ':'; // OS-specific path list separator)
+
+    // Base returns the last element of path.
+    // Trailing path separators are removed before extracting the last element.
+    // If the path is empty, Base returns ".".
+    // If the path consists entirely of separators, Base returns a single separator.
+    str base(str path);
+
+    // VolumeName returns leading volume name.
+    // Given "C:\foo\bar" it returns "C:" on Windows.
+    // Given "\\host\share\foo" it returns "\\host\share".
+    // On other platforms it returns "".
+    str volume_name(str path);
+
+    // FromSlash returns the result of replacing each slash ('/') character
+    // in path with a separator character. Multiple slashes are replaced
+    // by multiple separators.
+    //
+    // See also the Localize function, which converts a slash-separated path
+    // as used by the io/fs package to an operating system path.
+    String from_slash(str path);
 }
-
-str filepath::base(str path) {
-    if (path == "") {
-		return ".";
-	}
-
-	// Strip trailing slashes.
-	while (len(path) > 0 && is_path_separator(path[len(path)-1])) {
-		path = path[0, len(path)-1];
-	}
-	// Throw away volume name
-	path = path+len(volume_name(path));
-	// Find the last element
-	size i = len(path) - 1;
-	while (i >= 0 && !is_path_separator(path[i])) {
-		i--;
-	}
-
-	if (i >= 0) {
-		path = path+(i+1);
-	}
-    
-	// If empty now, it had only slashes.
-	if (path == "") {
-		return path[0,1];
-	}
-
-	return path;
-}
-
-bool filepath::is_path_separator(char c) {
-    return Separator == c;
-}
-
-str filepath::volume_name(str path) {
-    //return FromSlash(path[0,volume_name_len(path)]);
-    return path[0,volume_name_len(path)];
-}
-
-int filepath::volume_name_len(str /*path*/) {
-    return 0;
-}
-
-
-String filepath::from_slash(str path) {
-    if (Separator == '/') {
-		return path;
-	}
-
-	return strings::replace_all(path, '/', Separator);
 }

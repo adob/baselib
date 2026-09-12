@@ -1,25 +1,34 @@
-import lib.array;
-#include "tables.h"
+module;
+#include "tables_impl.h"
 
-using namespace lib;
-using namespace unicode;
+export module lib.unicode.tables;
+export import lib.array;
+export import lib.types;
 
-const RangeTable unicode::White_Space = {
-    (arr<unicode::Range16>) (unicode::Range16[]) {
-        {0x0009, 0x000d, 1},
-        {0x0020, 0x0020, 1},
-        {0x0085, 0x0085, 1},
-        {0x00a0, 0x00a0, 1},
-        {0x1680, 0x1680, 1},
-        {0x180e, 0x180e, 1},
-        {0x2000, 0x200a, 1},
-        {0x2028, 0x2029, 1},
-        {0x202f, 0x202f, 1},
-        {0x205f, 0x205f, 1},
-        {0x3000, 0x3000, 1}
-    },
-    {},
-    4
-} ;
 
+export extern "C++" {
+namespace lib::unicode {
+        
+    struct Range16 {
+        uint16 lo;
+        uint16 hi;
+        uint16 stride;
+    } ;
     
+    struct Range32 {
+        uint32 lo;
+        uint32 hi;
+        uint32 stride;
+    } ;
+    
+    
+    struct RangeTable {
+        const arr<Range16> r16; 
+        const arr<Range32> r32;
+        const int            latin_offset;
+    } ;
+    
+    extern const RangeTable White_Space;
+        
+}
+}

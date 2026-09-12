@@ -1,12 +1,12 @@
-import "lib/fmt/fmt.h";
-import "lib/io/io.h";
+import lib.fmt;
+import lib.io;
 import lib.str;
 import lib.types;
-#include <algorithm>
-#include "2way.h"
-#include "lib/testing/testing.h"
+import <algorithm>;
+import lib.strings.two_way;
+import lib.testing;
 
-#include <random>
+import <random>;
 
 using namespace lib;
 using namespace lib::strings;

@@ -1,8 +1,8 @@
-import "lib/fmt/fmt.h";
+import lib.fmt;
 import lib.str;
-#include "ftoa.h"
-#include "lib/math/bits.h"
-#include "lib/testing/testing.h"
+import lib.strconv.ftoa;
+import lib.math.bits;
+import lib.testing;
 import lib.types;
 
 using namespace lib;

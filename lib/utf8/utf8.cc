@@ -1,536 +1,96 @@
-import lib.array;
-import lib.error;
-#include "lib/math/math.h"
-import lib.str;
-import lib.types;
-#include <algorithm>
-#include "utf8.h"
-#include "codes.h"
-import "lib/io/io.h";
-#include <type_traits>
+module;
+#include "utf8_impl.h"
 
-using namespace lib;
-using namespace utf8;
-using namespace lib::utf8::internal;
-namespace {
+export module lib.utf8;
+export import lib.array;
+export import lib.error;
+export import lib.str;
+export import lib.io;
+export import lib.types;
 
+/// namespace utf8 implements functions and constants to support text encoded in UTF-8.
+/// It includes functions to translate between runes and UTF-8 byte sequences.
 
+export extern "C++" {
+namespace lib::utf8 {
 
-    Array<AcceptRange, 16> accept_ranges {{
-        {locb, hicb},
-        {0xA0, hicb},
-        {locb, 0x9F},
-        {0x90, hicb},
-        {locb, 0x8F},
-    }};
-    
-    Array<uint8, 256> first {{
-        as, as, as, as, as, as, as, as, as, as, as, as, as, as, as, as, // 0x00-0x0F
-        as, as, as, as, as, as, as, as, as, as, as, as, as, as, as, as, // 0x10-0x1F
-        as, as, as, as, as, as, as, as, as, as, as, as, as, as, as, as, // 0x20-0x2F
-        as, as, as, as, as, as, as, as, as, as, as, as, as, as, as, as, // 0x30-0x3F
-        as, as, as, as, as, as, as, as, as, as, as, as, as, as, as, as, // 0x40-0x4F
-        as, as, as, as, as, as, as, as, as, as, as, as, as, as, as, as, // 0x50-0x5F
-        as, as, as, as, as, as, as, as, as, as, as, as, as, as, as, as, // 0x60-0x6F
-        as, as, as, as, as, as, as, as, as, as, as, as, as, as, as, as, // 0x70-0x7F
-        //   1   2   3   4   5   6   7   8   9   A   B   C   D   E   F
-        xx, xx, xx, xx, xx, xx, xx, xx, xx, xx, xx, xx, xx, xx, xx, xx, // 0x80-0x8F
-        xx, xx, xx, xx, xx, xx, xx, xx, xx, xx, xx, xx, xx, xx, xx, xx, // 0x90-0x9F
-        xx, xx, xx, xx, xx, xx, xx, xx, xx, xx, xx, xx, xx, xx, xx, xx, // 0xA0-0xAF
-        xx, xx, xx, xx, xx, xx, xx, xx, xx, xx, xx, xx, xx, xx, xx, xx, // 0xB0-0xBF
-        xx, xx, s1, s1, s1, s1, s1, s1, s1, s1, s1, s1, s1, s1, s1, s1, // 0xC0-0xCF
-        s1, s1, s1, s1, s1, s1, s1, s1, s1, s1, s1, s1, s1, s1, s1, s1, // 0xD0-0xDF
-        s2, s3, s3, s3, s3, s3, s3, s3, s3, s3, s3, s3, s3, s4, s3, s3, // 0xE0-0xEF
-        s5, s6, s6, s6, s7, xx, xx, xx, xx, xx, xx, xx, xx, xx, xx, xx, // 0xF0-0xFF
-    }};
-}
+    inline constexpr rune RuneError = 0xFFFD;     ///< the "error" Rune or "Unicode replacement character"
+    inline constexpr rune RuneSelf  = 0x80;       ///< characters below Runeself are represented as themselves in a single byte.
+    inline constexpr rune MaxRune   = 0x0010FFFF; ///< maximum valid Unicode code point.
+    inline constexpr rune UTFMax    = 4;          ///< maximum number of bytes of a UTF-8 encoded Unicode character.
 
-size RuneDecoder::count(str s) {
-    // size runecount = 0;
-    
-    for (byte c : s) {
-        // fmt::printf("LOOP %#U\n", c);
-        switch (state) {
-        restart:
-          case 0: {
-            runecount++;
-            // fmt::printf("STATE 0 INCREMENT\n");
-            
-            if (c < RuneSelf) {
-                // ASCII fast path
-                continue;
-            }
-              
-            uint8 x = first[c];
-            if (x == xx) {
-                // invalid
-                continue;
-            }
-            
-            state = 1;
-            sz = int(x & 7); // size is 2, 3, or 4
-            accept = accept_ranges[x>>4];
-            // fmt::printf("lo %v; hi %v\n", accept.lo, accept.hi);
-            continue;
-          }
-        
-          case 1:
-              if (c < accept.lo || c > accept.hi) {
-                  //invalid
-                  state = 0;
-                  goto restart;
-              }
-              
-              if (sz == 2) {
-                  state = 0;
-                  continue;
-              }
-              
-              state = 2;
-            //   fmt::printf("STATE 1 3\n");
-              continue;
-              
-          case 2:
-        //   fmt::printf("STATE 2\n");
-            if (c < locb || c > hicb) {
-                runecount += 1;
-                state = 0;
-                goto restart;
-            }
-            
-            if (sz == 3) {
-                state = 0;
-                continue;
-            }
-            
-            state = 3;
-            continue;
-            
-          case 3:
-        //   fmt::printf("STATE 3\n");
-            if (c < locb || c > hicb) {
-                runecount += 2;
-                state = 0;
-                goto restart;
-            }
-            state = 0;
-            continue;
-        }
-    }
-    
-    return runecount;
-}
+    /// rune_start(c) reports wheather the byte c could be the first byte of an encoded rune.
+    /// Second and subsequent bytes always have the top two bits set to 10.
+    inline bool rune_start(char c) { return (c & 0xC0) != 0x80; }
 
-size RuneDecoder::decode(str s, size limit, io::Writer &w, error err) {
-    // fmt::printf("decode with limit %v; state %v\n", limit, state);
-    size i = -1;
-    size runecount = 0;
-    for (byte c : s) {
-        i++;
+    // rune_count returns the number of runes in s. Erroneous and short
+    // encodings are treated as single runes of width 1 byte.
+    size rune_count(str s);
+    size rune_count(io::WriterTo const&);
 
-        restart:
-        if (runecount >= limit) {
-            size avail = i;
-            if (runecount > limit) {
-                avail -= runecount - limit;
-            }
-            w.write(s[0,avail], err);
-            return runecount;
-        }
+    // valid_rune reports whether r can be legally encoded as UTF-8.
+    // Code points that are out of range or a surrogate half are illegal.
+    bool valid_rune(rune r);
 
-        switch (state) {
+    // rune_len returns the number of bytes in the UTF-8 encoding of the rune.
+    // It returns -1 if the rune is not a valid value to encode in UTF-8.
+    int rune_len(rune r);
 
-            case 0: {
-                // 0 bytes read, cnt == 1 on entry
-                if (c < RuneSelf) {
-                    // ASCII fast path
-                    runecount++;
-                    continue;
-                }
-                    
-                uint8 x = first[c];
-                if (x == xx) {
-                    // invalid
-                    runecount++;
-                    continue;
-                }
-                
-                state = 1;
-                sz = int(x & 7); // size is 2, 3, or 4
-                accept = accept_ranges[x >> 4];
-                continue;
-            }
-        
-            case 1:
-                // 1 byte ready, cnt == 1 on entry
-                if (c < accept.lo || c > accept.hi) {
-                    //invalid
-                    state = 0;
-                    runecount++;
-                    if (i == 0) {  
-                        w.write_byte(buffer[0], err);
-                    }
-                    goto restart;
-                }
-                
-                if (sz == 2) {
-                    state = 0;
-                    runecount++;
-                    if (i == 0) {  
-                        w.write_byte(buffer[0], err);
-                    }
-                    continue;
-                }
-                
-                state = 2;
-                continue;
-                
-            case 2:
-                // 2 byte read, cnt == 2 on entry
-                if (c < locb || c > hicb) {
-                    state = 0;
-                    runecount += 2;
-                    if (i == 0) {
-                        w.write(buffer[0, math::min(size(2), limit)], err);
-                    }
-                    goto restart;
-                }
-                
-                if (sz == 3) {
-                    state = 0;
-                    runecount++;
-                    if (i == 0) {
-                        // fmt::printf("dumping buffer %v\n", buffer);
-                        w.write(buffer[0,2], err);
-                    }
-                    continue;
-                    // return 3;
-                }
-            
-                state = 3;
-                // fmt::printf("ENTER STATE 3\n");
-                continue;
-            
-            case 3:
-                // 3 bytes read, cnt == 3 on entry
-                state = 0;
-                if (c < locb || c > hicb) {
-                    runecount += 3;
-                    if (i == 0) {
-                        w.write(buffer[0, math::min(size(2), limit)], err);
-                    }
-                    goto restart;
-                }
-                if (i == 0) {
-                    w.write(buffer[0,3], err);
-                }
-                runecount++;
-                continue;
-        }
-    }
+    struct AcceptRange {
+        uint8 lo;
+        uint8 hi;
+    };
 
-    size end = i+1;
-    if (state == 1) {
-        if (i >= 0) buffer[0] = s[len(s)-1];
-        // fmt::printf("SAVED 1 to buffer\n");
+    struct RuneDecoder {
+        int state = 0;
+        int runecount = 0;
 
-        end = std::max(size(0), end-1);
-    } else if (state == 2) {
-        if (i >= 0) buffer[1] = s[len(s)-1];
-        if (i >= 1) buffer[0] = s[len(s)-2];
-        // fmt::printf("SAVED 2 to buffer\n");
+        int sz;
+        AcceptRange accept;
 
-        end = std::max(size(0), end-2);
-    } else if (state == 3) {
-        if (i >= 0) buffer[2] = s[len(s)-1];
-        if (i >= 1) buffer[1] = s[len(s)-2];
-        if (i >= 2) buffer[0] = s[len(s)-3];
+        Array<byte, 3> buffer = {{}};
 
-        end = std::max(size(0), end-3);
-    }
+        size count(str s);
+        size decode(str s, size limit, io::Writer &w, error err);
+        void decode_eof(size limit, io::Writer &w, error err);
+        size eof();
 
-    // fmt::printf("END end %v\n", end);
-    w.write(s[0,end], err);
+        //  decode rune
+        byte c0 = 0, c1 = 0, c2 = 0;
+        rune decode_rune(str s, bool eof, int &bytes_consumed, bool &ok, bool &is_valid);
+    };
 
-    return runecount;
-}
+    struct RuneCountingForwarder : io::Writer {
+        io::Writer *out;
+        size count();
 
-rune RuneDecoder::decode_rune(str s, bool eof, int &bytes_consumed, bool &ok, bool &is_valid) {
-    int i = 0;
-    // size runecount = 0;
+        RuneCountingForwarder()                 : out(nil) {}
+        RuneCountingForwarder(io::Writer &out) : out(&out) {};
 
-    for (byte c : s) {
-        i++;
+        size direct_write(str data, error err) override;
 
-        switch (state) {
+      private:
+          RuneDecoder state;
+    };
 
-            case 0: {
-                // 0 bytes read, cnt == 1 on entry
-                if (c < RuneSelf) {
-                    // ASCII fast path
-                    // runecount++;
-                    return bytes_consumed=1, ok=true, is_valid=true, rune(c);
-                }
-                    
-                uint8 x = first[c];
-                if (x == xx) {
-                    // invalid
-                    // runecount++;
-                    return bytes_consumed=1, ok=true, is_valid = false, rune(c);
-                }
-                
-                state = 1;
-                sz = int(x & 7); // size is 2, 3, or 4
-                accept = accept_ranges[x >> 4];
-                c0 = c;
-                continue;
-            }
-        
-            case 1:
-                // 1 byte ready, cnt == 1 on entry
-                if (c < accept.lo || c > accept.hi) {
-                    //invalid
-                    state = 0;
-                    // runecount++;
-                    return bytes_consumed=0, ok=true, is_valid=false, rune(c0);
-                }
-                
-                c1 = c;
-                if (sz == 2) {
-                    state = 0;
-                    // runecount++;
-                        
-                    rune r = ((c0 & Mask2) << 6) | (c1 & MaskX);
-                    return bytes_consumed=i, ok=true, is_valid=true, r;
-                }
-                
-                state = 2;
-                continue;
-                
-            case 2:
-                // 2 byte read, cnt == 2 on entry
-                if (c < locb || c > hicb) {
-                    // runecount += 2;
-                    
-                    state = 4;
-                    return bytes_consumed=0, ok=true, is_valid=false, rune(c0);
-                    
-                }
-
-                c2 = c;
-                if (sz == 3) {
-                    state = 0;
-                    // runecount++;
-                    rune r = ((c0 & Mask3) << 12) | ((c1 & MaskX) << 6) | (c2 & MaskX);
-                    return bytes_consumed=i, ok=true, is_valid=true, r;
-                }
-            
-                state = 3;
-                continue;
-            
-            case 3: {
-                // 3 bytes read, cnt == 3 on entry
-                state = 0;
-                if (c < locb || c > hicb) {
-                    runecount += 3;
-                    
-                    state = 5;
-                    return bytes_consumed=0, ok=true, is_valid=false, rune(c0);
-                }
-
-                byte c3 = c;
-                // runecount++;
-                rune r = ((c0 & Mask4) << 18) | ((c1 & MaskX) << 12) | ((c2 & MaskX) << 6) | (c3 & MaskX);
-                return bytes_consumed=i, ok=true, is_valid=true, r;
-            }
-
-            case 4:
-                state = 0;
-                return bytes_consumed=0, ok=true, is_valid=false, rune(c1);
-
-            case 5:
-                state = 6;
-                return bytes_consumed=0, ok=true, is_valid=false, rune(c1);
-
-            case 6:
-                state = 0;
-                return bytes_consumed=0, ok=true, is_valid=false, rune(c2);
-
-        }
-    }
-
-    if (eof) {
-        switch (state) {
-            case 0:
-                return bytes_consumed=0, ok=false, is_valid=0, rune(0);
-
-            case 1:
-                state = 0;
-                return bytes_consumed=0, ok=true, is_valid=0, rune(c0);
-
-            case 2:
-                state = 4;
-                return bytes_consumed=0, ok=true, is_valid=false, rune(c0);
-
-            case 3:
-                state = 5;
-                return bytes_consumed=0, ok=true, is_valid=false, rune(c0);
-
-            // 2 cont
-            case 4:
-                state = 0;
-                return bytes_consumed=0, ok=true, is_valid=false, rune(c1);
-
-            // 3 cont 1
-            case 5:
-                state = 6;
-                return bytes_consumed=0, ok=true, is_valid=false, rune(c1);
-
-            // 3 cont 2
-            case 6:
-                state = 0;
-                return bytes_consumed=0, ok=true, is_valid=false, rune(c2);
-        }       
-    }
-
-    return bytes_consumed=i, ok=false, is_valid=false, rune(0);
-}
-
-void RuneDecoder::decode_eof(size limit, io::Writer &w, error err) {
-    // fmt::printf("decode eof with limit %v; state %v\n", limit, state);
-    if (limit == 0) {
-        return;
-    }
-
-    switch (state) {
-        case 1:
-            w.write(buffer[0,1], err);
-            break;
-
-        case 2:
-            w.write(buffer[0, math::min(size(2), limit)], err);
-            break;
-
-        case 3:
-            w.write(buffer[0, math::min(size(3), limit)], err);
-            break;
-    }
-}
-
-size RuneDecoder::eof() {
-    size count = runecount;
-
-    switch (state) {
-        case 2:
-            count++;
-            break;
-
-        case 3:
-            count += 2;
-            break;
-    }
-
-    return count;
-}
-
-size utf8::rune_count(str s) {
-    RuneDecoder state;
-    state.count(s);
-    return state.eof();
-}
-
-size utf8::rune_count(io::WriterTo const& writable) {
-    RuneCountingForwarder counter;
-    
-    writable.write_to(counter, error::ignore);
-    
-    return counter.count();
-}
-
-size RuneCountingForwarder::direct_write(str s, error err) {
-    state.count(s);
-    
-    if (!out) {
-        return len(s);
-    }
-    
-    return out->direct_write(s, err);
-}
-
-size RuneCountingForwarder::count() {
-    return state.eof();
-}
-
-namespace {
-// Check r's lower bound only when its type can represent negative values.
-template <typename Rune>
-constexpr bool is_nonnegative(Rune r) {
-    if constexpr (std::is_signed_v<Rune>) {
-        return r >= 0;
-    } else {
-        return true;
-    }
-}
-
-static_assert(!is_nonnegative(-1));
-static_assert(is_nonnegative(0));
-static_assert(is_nonnegative(1));
-static_assert(is_nonnegative(0u));
-static_assert(is_nonnegative(~0u));
-}
-
-bool utf8::valid_rune(rune r) {
-    if (r < SurrogateMin) {
-		return is_nonnegative(r);
-    }
-	if (SurrogateMax < r && r <= MaxRune) {
-		return true;
-    }
-    return false;
-}
-
-int utf8::rune_len(rune r) {
-    if (!is_nonnegative(r)) {
-		return -1;
-    }
-	if (r <= Rune1Max) {
-		return 1;
-    }
-    if (r <= Rune2Max) {
-		return 2;
-	} 
-    if (SurrogateMin <= r && r <= SurrogateMax) {
-		return -1;
-    }
-    if (r <= Rune3Max) {
-		return 3;
-    }
-	if (r <= MaxRune) {
-		return 4;
-	}
-	return -1;
-}
-
-RuneTruncater utf8::rune_truncate(io::WriterTo const &w, size n) {
-    return RuneTruncater(w, n);
-}
-
-void RuneTruncater::write_to(io::Writer &w, error err) const {
-    struct RuneTruncaterWritable : io::Writer {
-        io::Writer &dest;
+    struct RuneTruncater : /*io::Writer, */io::WriterTo {
+        io::WriterTo const *w = nil;
+        // size count = 0;
         size max_count = 0;
-        size count = 0;
+
+        RuneTruncater() {}
+        RuneTruncater(io::WriterTo const &w, size max_count) : w(&w), max_count(max_count)  {}
+        // size direct_write(str data, error err) override;
+
+        void write_to(io::Writer &w, error err) const override;
+
+      private:
         RuneDecoder state;
-    
-        RuneTruncaterWritable(io::Writer &dest, size max_count) : dest(dest), max_count(max_count) {}
-    
-        size direct_write(str data, error err) override {
-            count += state.decode(data, max_count - count, dest, err);
+    } ;
 
-            return len(data);
-        }
-    } rtw(w, this->max_count);
+    // rune_truncates w after n runes have been read
+    RuneTruncater rune_truncate(io::WriterTo const &w, size n);
+}
 
-    this->w->write_to(rtw, err);
-    rtw.state.decode_eof(rtw.max_count - rtw.count, w, err);
+
 }

@@ -1,4 +1,4 @@
-#include "testing.h"
+import lib.testing;
 
 
 // // This is exactly what a test would do without a TestMain.

@@ -1,16 +1,16 @@
 import lib.array;
-import "lib/fmt/fmt.h";
+import lib.fmt;
 import lib.types;
-#include <algorithm>
-import "lib/io/io.h";
-#include "lib/math/math.h"
-#include "strings.h"
+import <algorithm>;
+import lib.io;
+import lib.math;
+import lib.strings;
 import lib.str;
-#include "lib/testing/testing.h"
-#include "lib/testing/benchmark.h"
-#include <functional>
-#include <random>
-#include <vector>
+import lib.testing;
+import lib.testing.benchmark;
+import <functional>;
+import <random>;
+import <vector>;
 
 using namespace lib;
 using namespace lib::strings;

@@ -1,12 +1,12 @@
 import lib.error;
 import lib.str;
-#include "lib/strings/strings.h"
-#include "lib/testing/testing.h"
+import lib.strings;
+import lib.testing;
 import lib.types;
 import <vector>;
-#include "lib/debug/debug.h"
-#include "benchmark.h"
-#include "func.h"
+import lib.debug;
+import lib.testing.benchmark;
+import lib.testing.func;
 
 #include "lib/print.h"
 

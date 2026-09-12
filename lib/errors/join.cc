@@ -1,28 +1,22 @@
-import lib.array;
-import lib.error;
-import "lib/io/io.h";
-#include "join.h"
+module;
+#include "join_impl.h"
 
-using namespace lib;
-using namespace errors;
+export module lib.errors.join;
+export import lib.array;
+export import lib.error;
 
-void JoinError::fmt(io::Writer &out, error err) const {
-    if (len(this->errs) == 0) {
-        return;
-    }
 
-    this->errs[0]->fmt(out, err);
+export extern "C++" {
+namespace lib::errors {
+    struct JoinError : ErrorBase<JoinError> {
+        view<Error*> errs;
 
-    for (const Error *e : this->errs+1) {
-        out.write_byte('\n', err);;
-        e->fmt(out, err);
-    }
+        explicit JoinError(view<Error*> errs) : errs(errs) {}
+
+        virtual void fmt(io::Writer &out, error err) const override;
+        virtual view<Error*> unwrap() const override;
+    } ;
+
+    JoinError join(view<Error*>);
 }
-
-JoinError errors::join(view<Error*> errs) {
-    return JoinError(errs);
-}
-
-view<Error*> JoinError::unwrap() const {
-    return this->errs;
 }

@@ -1,16 +1,23 @@
-import lib.array;
-import lib.error;
-import lib.str;
-#include <functional>
-#include <tuple>
-#include "example.h"
+module;
+#include "example_impl.h"
 
-using namespace lib;
-using namespace lib::testing;
-using namespace lib::testing::detail;
+export module lib.testing.example;
+export import lib.array;
+export import lib.error;
+import <variant>;
+import <functional>;
+import <tuple>;
 
-std::tuple<bool, bool> detail::run_examples(
-    std::function<bool(str pat, str s, error)> match_string,
-    view<InternalExample> examples) {
-    return {true, true};
+
+export extern "C++" {
+namespace lib::testing {
+    namespace detail {
+        struct InternalExample;
+
+        std::tuple<bool, bool>
+        run_examples(std::function<bool(str pat, str s, error)> match_string,
+                     view<InternalExample> examples);
+    }
+}
+
 }

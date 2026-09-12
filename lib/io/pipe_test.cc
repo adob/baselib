@@ -1,23 +1,23 @@
 import lib.array;
-import "lib/fmt/fmt.h";
+import lib.fmt;
 import lib.str;
-#include "lib/sync/chan.h"
-#include "lib/time/time.h"
+import lib.sync.chan;
+import lib.time;
 import lib.types;
-#include <algorithm>
-#include <functional>
-#include <vector>
-#include "pipe.h"
+import <algorithm>;
+import <functional>;
+import <vector>;
+import lib.io.pipe;
 
 import lib.error;
-import "lib/io/io.h";
-#include "lib/io/util.h"
-#include "lib/sync/go.h"
-#include "lib/sync/gang.h"
-#include "lib/testing/testing.h"
-#include "lib/strings/strings.h"
+import lib.io;
+import lib.io.util;
+import lib.sync.go;
+import lib.sync.gang;
+import lib.testing;
+import lib.strings;
 
-#include <memory>
+import <memory>;
 
 using namespace lib;
 using namespace lib::io;

@@ -6,12 +6,12 @@ import lib.types;
 #include <vector>
 #include <variant>
 
-import "fmt.h";
-#include "lib/math/bits.h"
+import lib.fmt;
+import lib.math.bits;
 import lib.str;
-#include "lib/strings/strings.h"
-#include "lib/testing/benchmark.h"
-#include "lib/testing/testing.h"
+import lib.strings;
+import lib.testing.benchmark;
+import lib.testing;
 
 
 using namespace lib;

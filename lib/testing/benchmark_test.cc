@@ -1,12 +1,14 @@
-import "lib/fmt/fmt.h";
+import <functional>;
+import <unordered_map>;
+import lib.fmt;
 import lib.str;
-#include "lib/testing/testing.h"
-#include "lib/time/time.h"
+import lib.testing;
+import lib.time;
 import lib.types;
-#include <atomic>
-#include "benchmark.h"
-import "lib/io/io.h";
-#include "lib/runtime/debug.h"
+import <atomic>;
+import lib.testing.benchmark;
+import lib.io;
+import lib.runtime.debug;
 
 using namespace lib;
 using namespace lib::testing;

@@ -1,1117 +1,641 @@
-import lib.array;
-import lib.error;
-#include "lib/math/math.h"
-import lib.panic;
-import lib.str;
-#include <cstdint>
-#include <cwchar>
-#include <stdint.h>
-#include <variant>
-#include <wchar.h>
-import "fmt.h";
-#include <limits>
-#include <type_traits>
-import "lib/io/io.h";
-#include "lib/strconv/ftoa.h"
-import lib.types;
-#include "lib/utf8/decode.h"
-#include "lib/strconv/quote.h"
-#include "lib/strings/strings.h"
-#include "lib/utf8/encode.h"
-#include "lib/utf8/utf8.h"
+module;
+#include "fmt_impl.h"
 
-using namespace lib;
-using namespace fmt;
+export module lib.fmt;
+export import lib.error;
+export import lib.str;
+export import lib.types;
+import <concepts>;
+import <cstdlib>;
+import <iterator>;
+import <stdlib.h>;
+import <type_traits>;
+import <sstream>;
+import <utility>;
+import <variant>;
+import <stdio.h>;
 
-static const str percent_bang_string = "%!";
-static const str ldigits = "0123456789abcdefx";
-static const str udigits = "0123456789ABCDEFx";
+export import lib.io;
+export import lib.errors;
+export import lib.os.stdio;
 
+// TODO: Investigate Clang template visibility failures with plain imports;
+// remove these re-exports if they are only compiler workarounds.
+export import <tuple>;
 
-State::State(io::Writer &out, str format, error err) :
-    Fmt(out, err),
-    begin(format.begin()),
-    end(format.end()) {}
+#ifdef __GXX_RTTI
+// TODO: Investigate GCC 15 requiring typeinfo to be visible in the consumer
+// when instantiating our typeid-using templates, despite the private import.
+export import <typeinfo>;
+#endif
 
+#ifdef __GXX_RTTI
+extern "C" {
+    char*
+    __cxa_demangle(const char* __mangled_name, char* __output_buffer,
+                   size_t* __length, int* __status);
 
-// https://github.com/mpaland/printf
-
-bool State::advance() {
-    const char *itr = begin;
-    char c;
-    if (this->verb == '*') {
-        goto advance_fmtstr;
-    }
-
-    for (; itr != end; itr++) {
-        c = *itr;
-
-        if (c == '%') {
-            out.write(str(begin, itr - begin), err);
-
-            // reset
-            wid = 0;
-            prec  = 0;
-            base  = 10;
-            flags = 0;
-
-            itr++;
-        advance_fmtstr:
-            rune verb;
-
-            for (;;itr++) {
-                if (itr == end) {
-                    return false;
-                }
-                char c = *itr;
-                verb = c;
-                
-                switch (c) {
-                case '#':
-                    sharp = true;
-                    continue;
-
-                case '0':
-                    zero = true;
-                    continue;
-
-                case '+':
-                    plus = true;
-                    continue;
-
-                case '-':
-                    minus = true;
-                    continue;
-                
-                case ' ':
-                    space = true;
-                    continue;
-
-                case '.':
-                    prec_present = true;
-                    itr++;
-                    while (itr != end && '0' <= *itr && *itr <= '9') {
-                        prec = prec*10 + (*itr - '0');
-                        itr++;
-                    }
-                    itr--;
-                    continue;
-
-                case 'b': /* fallthrough*/
-                case 'd': /* fallthrough*/
-                case 'g': /* fallthrough*/
-                case 'G': /* fallthrough*/
-                case 'f': /* fallthrough*/
-                case 'F': 
-                    break;
-
-                case 'x':
-                    base = 16;
-                    break;
-
-                case 'v':
-                    this->sharp_v = this->sharp;
-                    this->sharp = false;
-                    this->plus_v = this->plus;
-                    this->plus = false;
-                    break;
-
-                case 'q':
-                    break;
-
-                case '*':
-                    break;
-
-                default:
-                    if ('0' <= c && c <= '9') {
-                        while (itr != end && '0' <= *itr && *itr <= '9') {
-                            wid = wid*10 + (*itr - '0');
-                            itr++;
-                        }
-                        itr--;
-                        wid_present = true;
-                        continue;
-                    }
-
-                    if (verb > utf8::RuneSelf) {
-                        int nbytes;
-                        verb = utf8::decode_rune(str(itr, end-itr), nbytes);
-                        itr += nbytes-1;
-                    }
-
-                    break;
-
-                }
-
-                break;
-            }
-
-            this->verb = verb;
-            begin = itr+1;
-            return true;
-        }
-    }
-
-    return false;
 }
+#endif
 
-void State::flush() {
-    for (;;) {
-        if (!advance()) {
-            break;
-        }
 
-        out.write("<!>", err);
-    }
+export extern "C++" {
+namespace lib::fmt {
+    struct BufferedWriter : io::StaticBuffered<0, 512> {
+        io::Writer &out;
 
-    out.write(str(begin, end - begin), err);
-}
-
-void Fmt::handle_star(int n) {
-    Fmt &f = *this;
-
-    // ::printf("HANDLE STAR %d\n", f.prec_present);
-    if (f.prec_present) {
-        if (n < 0 || n > 1'000'000) {
-            f.fmt_bad_int_arg();
-            return;
-        }
-
-        f.prec = n;
-        return;
-    }
+        BufferedWriter(io::Writer &out) : out(out) {}
+        virtual io::ReadResult direct_read(buf bytes, error err) override;
+        virtual size           direct_write(str data, error err) override;
+    } ;
     
-    // set width
-    if (math::abs(n) > 1'000'000) {
-        f.fmt_bad_int_arg();
-        return;
-    }
-    if (n < 0) {
-        n = -n;
-        f.minus = true;
-    }
-    f.wid = n;
-    f.wid_present = true;
-}
+    template <typename T>
+    constexpr bool is_formattable(...) { return false; }
 
-template <typename T>
-void Fmt::write_integer(T n, bool is_signed) {
-    Fmt &f = *this;
-    // const str digits = upcase ? udigits : ldigits;
+    template <typename T>
+    void write(io::Writer &out, T const &t, error err);
 
-    switch (f.verb) {
-    case 'v':
-        if (f.sharp_v && !is_signed) {
-            f.fmt_integer(n, is_signed, 16, char(f.verb), ldigits, true);
-        } else {
-            f.fmt_integer(n, is_signed, 10, char(f.verb), ldigits, f.sharp);
-        }
-        break;
-    case 'd':
-        f.fmt_integer(n, is_signed, 10, char(f.verb), ldigits, f.sharp);
-        break;
-    case 'b':
-        f.fmt_integer(n, is_signed, 2, char(f.verb), ldigits, f.sharp);
-        break;
-    case 'O': /* fallthrough*/
-    case 'o':
-        f.fmt_integer(n, is_signed, 8, char(f.verb), ldigits, f.sharp);
-        break;
-    case 'x':
-        f.fmt_integer(n, is_signed, 16, char(f.verb), ldigits, f.sharp);
-        break;
-    case 'X':
-        f.fmt_integer(n, is_signed, 16, char(f.verb), udigits, f.sharp);
-        break;
-    case 'c':
-        f.fmt_c(n);
-        break;
-    case 'q':
-        f.fmt_qc(n);
-        break;
-    case 'U':
-        f.fmt_unicode(n);
-        break;
-    case '*':
-        if constexpr (sizeof(T) > sizeof(int)) {
-            if (
-                (is_signed && (std::make_signed_t<T>(n)) > std::numeric_limits<int>::max()) ||
-                (!is_signed && (n > std::numeric_limits<int>::max()))
-            ) {
-                f.fmt_bad_int_arg();
-                return;
-            }
-        }
-        f.handle_star(int(n));
-        break;
-    default:
-        f.bad_verb(verb);
-        break;
-    }
-}
+    template <typename... Args>
+    void printf(str format, const Args &... args);
 
-template <typename T>
-void Fmt::write_char(T n, bool is_signed) {
-    Fmt &f = *this;
-    rune verb = f.verb;
-    if (f.verb == 'v') {
-        f.verb = 'c';
-    }
-    write_integer(n, is_signed);
-    f.verb = verb;
-}
+    template <typename... Args>
+    void fprintf(FILE*, str format, const Args & ... args);
 
-template <typename T>
-void Fmt::fmt_integer(T n, bool is_signed, int base, char verb, str digits, bool sharp) {
-    Fmt &f = *this;
+    template <typename... Args>
+    void fprintf(io::Writer&, str format, const Args & ... args);
 
-    char buf[256];
+    // template <typename... Args>
+    // String sprintf(str format, const Args & ... args);
 
-    //bool negative = is_signed && n >= T(-1);
-    bool negative = is_signed && ((std::make_signed_t<T>) n) < 0;
-    if (negative) {
-        n = -n;
-    }
 
-    size prec = f.prec;
-    if (f.prec_present) {
-        // Precision of 0 and value of 0 means "print nothing" but padding.
-		if (prec == 0 && n == 0) {
-			bool old_zero = f.zero;
-			f.zero = false;
-			f.write_padding(f.wid);
-			f.zero = old_zero;
-			return;
-		} else if (f.zero && !f.minus && f.wid_present) { // Zero padding is allowed only to the left.
-            // prec = f.wid;
-            // if (negative || f.plus || f.space) {
-            //     prec--; // leave room for sign
-            // }
-        }
-    }
+    // stringifier
+    template <typename T>
+    struct Stringifier final : io::WriterTo  {
+        T const& t;
+        Stringifier(T const& t) : t(t) {}
 
-    char padchar = ' ';
-    if (f.zero && !(f.prec_present && f.wid_present)) {
-        padchar = '0';
-    }
+        void write_to(io::Writer &out, error) const override;
 
-    // Because printing is easier right-to-left: format u into buf, ending at buf[i].
-    size i = sizeof buf;
-    switch (base) {
-    case 10:
-        while (n >= 10) {
-            i--;
-            T next = n / 10;
-            buf[i] = byte('0' + n - next*10);
-            n = next;
-        }
-        break;
-    case 16:
-        while (n >= 16) {
-            i--;
-            buf[i] = digits[n&0xF];
-            n >>= 4;
-        }
-        break;
-    case 8:
-        while (n >= 8) {
-            i--;
-            buf[i] = byte('0' + (n&7));
-            n >>= 3;
-        }
-        break;
-    case 2:
-        while (n >= 2) {
-            i--;
-            buf[i] = byte('0' + (n&1));
-            n >>= 1;
-        }
-        break;
-    default:
-        panic("fmt: unkown base; can't happen");
-    }
-    i--;
-    buf[i] = digits[n];
-
-    size ncount = sizeof(buf) - i;
-
-    size pad_prec = prec > ncount ? prec - ncount : 0;
-    // pad_prec = 0;
-    if (base == 8 && verb != 'O') {
-        pad_prec--;
-    }
-    size sharp_extra = !sharp ? 0
-                            : (base == 16 || base == 2) ? 2
-                                : base == 8 ? verb == 'O' ? 2 : 1
-                                    : 0;
-    ncount += pad_prec + sharp_extra;
-    if (negative||plus||space) ncount++;
-    size pad_width = wid > ncount ? wid-ncount : 0;
-
-    bool left_pad = pad_width > 0 && padchar == ' ' && !f.minus;
-    if (pad_width > 0 && padchar == '0') {
-        pad_prec += pad_width;
-    }
-    bool right_pad = !left_pad && f.minus;
-
-    if (left_pad) {
-        out.write_repeated(padchar, pad_width, err);
-    }
-    if (negative)
-        out.write_byte('-', error::ignore);
-    else if (plus)
-        out.write_byte('+', error::ignore);
-    else if (space)
-        out.write_byte(' ', error::ignore);
-    if (sharp) {
-        if (base == 8)       out.write_byte('0', err);
-        else if (base == 2)  out.write("0b", err);
-        else if (base == 16) out.write("0x", err);
-    }
-    if (verb == 'O') {
-        out.write("0o", err);
-    }
-
-    while (i > 0 && pad_prec > 0) {
-        i--;
-        pad_prec--;
-        buf[i] = '0';
-    }
-    if (pad_prec > 0) {
-        out.write_repeated('0', pad_prec, err);
-    }
-
-    out.write(str(buf+i, sizeof(buf)-i), err);
-    if (right_pad) {
-        out.write_repeated(padchar, pad_width, err);
-    }
-}
-
-void Fmt::fmt_float(std::variant<float32, float64> v, rune verb, int prec) {
-    Fmt &f = *this;
-
-    // Explicit precision in format specifier overrules default precision.
-	if (f.prec_present) {
-		prec = f.prec;
-	}
-
-    int flags = 0;
-    if (f.plus || f.plus_v) {
-        flags |= strconv::FlagPlus;
-    }
-    if (f.minus) {
-        flags |= strconv::FlagMinus;
-    }
-    if (f.zero) {
-        flags |= strconv::FlagZero;
-    }
-    if (f.space) {
-        flags |= strconv::FlagSpace;
-    }
-    if (f.sharp) {
-        flags |= strconv::FlagSharp;
-    }
-
-    if (v.index() == 0) {
-        strconv::format_float(std::get<float32>(v), char(verb), prec, flags, f.wid).write_to(f.out, f.err);
-    } else {
-        strconv::format_float(std::get<float64>(v), char(verb), prec, flags, f.wid).write_to(f.out, f.err);
-    }
-}
-
-template <typename T>
-void Fmt::fmt_c(T c) {
-    Fmt &f = *this;
-    // Explicitly check whether c exceeds utf8.MaxRune since the conversion
-	// of a uint64 to a rune may lose precision that indicates an overflow.
-	rune r = rune(c);
-	if (c > utf8::MaxRune) {
-		r = utf8::RuneError;
-	}
-	// buf := f.intbuf[:0]
-    Array<byte, utf8::UTFMax> buf;
-    f.write_padded(utf8::encode(buf, r));
-}
-
-
-template <typename T>
-void Fmt::fmt_qc(T c) {
-    Fmt &f = *this;
-    rune r = rune(c);
-	if (c > utf8::MaxRune) {
-		r = utf8::RuneError;
-	}
-
-	if (f.plus) {
-        f.write_padded(strconv::quote_rune_to_ascii(r));
-	} else {
-		f.write_padded(strconv::quote_rune(r));
-	}
-}
-
-template <typename T>
-void Fmt::fmt_unicode(T u) {
-    Fmt &f = *this;
-
-	int prec = 4;
-	if (f.prec_present && f.prec > 4) {
-		prec = f.prec;
-	}
-
-    // One byte of T needs at most two hex digits. Keep precision padding and
-    // the quoted rune separate so neither can move this buffer's index.
-    Array<byte, 2 * sizeof(T)> buf;
-	size i = len(buf);
-    bool quoted = f.sharp && u <= utf8::MaxRune && strconv::is_print(rune(u));
-    rune character = rune(u);
-	// Format the Unicode code point u as a hexadecimal number.
-	while (u >= 16) {
-		i--;
-		buf[i] = udigits[u&0xF];
-		prec--;
-		u >>= 4;
-	}
-	i--;
-	buf[i] = udigits[u];
-	prec--;
-    size zeroes = prec > 0 ? prec : 0;
-    // Field width counts runes: "U+" is two, and " '日'" is four, regardless
-    // of how many UTF-8 bytes the quoted character takes.
-    size width = 2 + zeroes + len(buf) - i + (quoted ? 4 : 0);
-    size padding = f.wid > width ? f.wid - width : 0;
-    if (!f.minus) {
-        f.out.write_repeated(' ', padding, f.err);
-    }
-    f.out.write("U+", f.err);
-    f.out.write_repeated('0', zeroes, f.err);
-    f.out.write(buf+i, f.err);
-    if (quoted) {
-        Array<byte, utf8::UTFMax> encoded;
-        size length = utf8::encode_rune(encoded, character);
-        f.out.write(" '", f.err);
-        f.out.write(encoded.slice(0, length), f.err);
-        f.out.write_byte('\'', f.err);
-    }
-    if (f.minus) {
-        f.out.write_repeated(' ', padding, f.err);
-    }
-}
-
-
-// template <typename T>
-// void Fmt::write_float(T val) {
-
-//     if (val != val) {
-//         out.write("NaN", error::ignore());
-//         return;
-//     }
-
-//     if (val < std::numeric_limits<T>::min()) {
-//         out.write("-Inf", error::ignore());
-//         return;
-//     }
-
-//     if (val > std::numeric_limits<T>::max()) {
-//         out.write("+Inf", error::ignore());
-//         return;
-//     }
-
-
-
-// }
-
-void Fmt::write_padded(str s){
-    Fmt &f = *this;
-    if (f.wid == 0) {
-        f.out.write(s, f.err);
-        return;
-    }
-
-    size runecount = utf8::rune_count(s);
-    if (runecount >= f.wid) {
-        f.out.write(s, f.err);
-        return;
-    }
-
-    bool left = !f.minus;
-    size padamt = f.wid - runecount;
-
-    if (left) {
-        char padchar = f.zero ? '0' : ' ';
-        f.out.write_repeated(padchar, padamt, f.err);
-        f.out.write(s, f.err);
-    } else {
-        f.out.write(s, f.err);
-        f.out.write_repeated(' ', padamt, f.err);
-    }
-}
-
-void Fmt::write_padded(io::WriterTo const& writable) {
-    Fmt &f = *this;
-    if (f.wid == 0) {
-        writable.write_to(f.out, f.err);
-        return;
-    }
-
-    bool left = !f.minus;
-
-    if (left) {
-        size runecount = utf8::rune_count(writable);
-        size padamt = f.wid - runecount;
-        if (padamt > 0) {
-            char padchar = f.zero ? '0' : ' ';
-            f.out.write_repeated(padchar, padamt, f.err);
-        }
-        writable.write_to(f.out, f.err);
-    } else {
-        utf8::RuneCountingForwarder counter(f.out);
-        writable.write_to(counter, f.err);
-        size padamt = f.wid - counter.count();
-        if (padamt > 0) {
-            f.out.write_repeated(' ', padamt, f.err);
-        }
-    }
-}
-
-//template
-//void Fmt::write_integer(unsigned int n, bool);
-
-void Fmt::fmt_bad_int_arg() {
-    Fmt &f = *this;
-
-    if (f.prec_present) {
-        write_string("%!(BADPREC)");
-    } else {
-        write_string("%!(BADWIDTH)");
-    }
-}
-
-void Fmt::write(str v) {
-    Fmt &f = *this;
-    switch (verb) {
-        case 'v':
-            if (f.sharp_v) {
-                f.fmt_q(v);
-            } else {
-                f.fmt_s(v);
-            }
-            break;
-        case 's':
-            f.fmt_s(v);
-            break;
-        case 'x':
-            f.fmt_sx(v, ldigits);
-            break;
-        case 'X':
-            f.fmt_sx(v, udigits);
-            break;
-        case 'q':
-            f.fmt_q(v);
-            break;
-        case '*':
-            f.fmt_bad_int_arg();
-            break;
-        default:
-            f.bad_verb(verb);
-            break;
-            
-    }
-
-    // write_padded(*this, v);
-}
-
-void Fmt::fmt_q(str s) {
-    Fmt &f = *this;
-    s = f.truncate_string(s);
-	if (f.sharp && strconv::can_backquote(s)) {
-		f.write_padded(strings::cat("`", s, "`"));
-		return;
-	}
-	if (f.plus) {
-        f.write_padded(strconv::quote_to_ascii(s));
-	} else {
-        f.write_padded(strconv::quote(s));
-	}
-}
-
-void Fmt::fmt_qw(io::WriterTo const &w) {
-    Fmt &f = *this;
-    io::WriterTo const *out = &w;
-    utf8::RuneTruncater t;
-
-    if (f.prec_present) {
-        t = utf8::rune_truncate(w, f.prec);
-        out = &t;
-    }
-    
-    if (f.sharp && strconv::can_backquote(*out)) {
-        f.write_padded(cat('`', *out, '`'));
-        return;
-    }
-
-    if (f.plus) {
-        f.write_padded(strconv::quote_to_ascii(*out));
-	} else {
-        f.write_padded(strconv::quote(*out));
-	}
-}
-
-void Fmt::fmt_s(str s) {
-    Fmt &f = *this;
-    s = f.truncate_string(s);
-	f.write_padded(s);
-}
-
-void Fmt::fmt_w(io::WriterTo const &w) {
-    Fmt &f = *this;
-    if (f.prec_present) {
-        f.write_padded(utf8::rune_truncate(w, f.prec));
-        return;
-    }
-
-    f.write_padded(w);
-}
-
-void Fmt::fmt_sx(str s, str digits) {
-    Fmt &f = *this;
-    size length = len(s);
-
-	// Set length to not process more bytes than the precision demands.
-	if (f.prec_present && f.prec < length) {
-		length = f.prec;
-	}
-
-	// Compute width of the encoding taking into account the f.sharp and f.space flag.
-	size width = 2 * length;
-	if (width > 0) {
-		if (f.space) {
-			// Each element encoded by two hexadecimals will get a leading 0x or 0X.
-			if (f.sharp) {
-				width *= 2;
-			}
-			// Elements will be separated by a space.
-			width += length - 1;
-		} else if (f.sharp) {
-			// Only a leading 0x or 0X will be added for the whole string.
-			width += 2;
-		}
-	} else { // The byte slice or string that should be encoded is empty.
-		if (f.wid_present) {
-			f.write_padding(f.wid);
-		}
-		return;
-	}
-	// Handle padding to the left.
-	if (f.wid_present && f.wid > width && !f.minus) {
-		f.write_padding(f.wid - width);
-	}
-	
-    // // Write the encoding directly into the output buffer.
-	// // buf := *f.buf
-
-	if (f.sharp) {
-		// Add leading 0x or 0X.
-        f.write_byte('0');
-        f.write_byte(digits[16]);
-	}
-	byte c = 0;
-	for (size i = 0; i < length; i++) {
-		if (f.space && i > 0) {
-			// Separate elements with a space.
-            f.write_byte(' ');
-			if (f.sharp) {
-				// Add leading 0x or 0X for each element.
-				f.write_byte('0');
-                f.write_byte(digits[16]);
-			}
-		}
-		
-        c = s[i]; // Take a byte from the input string.
-		
-		// Encode each byte as two hexadecimal digits.
-		f.write_byte(digits[c>>4]);
-        f.write_byte(digits[c&0xF]);
-	}
-
-	// Handle padding to the right.
-	if (f.wid_present && f.wid > width && f.minus) {
-		f.write_padding(f.wid - width);
-	}
-}
-
-void Fmt::fmt_wx(io::WriterTo const &w, str digits) {
-    struct Writer : io::Writer {
-        io::Writer *out = nil;
-        size cnt = 0;
-        bool prec_present;
-        int prec = 0;
-        bool sharp;
-        bool space;
-        str digits;
-        
-        size direct_write(str data, error err) override {
-
-            for (byte b : data) {
-                if (cnt == 0) {
-                    if (sharp) {
-                        // Add leading 0x or 0X.
-                        out->write_byte('0', err);
-                        out->write_byte(digits[16], err);
-                    }
-                }
-
-                if (prec_present && cnt >= prec) {
-                    break;
-                }
-
-                if (space && cnt > 0) {
-                    // Separate elements with a space.
-                    this->out->write_byte(' ', err);
-                    if (sharp) {
-                        // Add leading 0x or 0X for each element.
-                        this->out->write_byte('0', err);
-                        this->out->write_byte(digits[16], err);
-                    }
-                }
-		
-                // Encode each byte as two hexadecimal digits.
-                this->out->write_byte(digits[b>>4], err);
-                this->out->write_byte(digits[b&0xF], err);
-
-                cnt++;
-            }
-
-            return len(data);
-        }
+        // String's WriterTo constructor provides the implicit owning conversion.
     };
 
-    struct WriterToX : io::WriterTo {
-        io::WriterTo const *w = nil;
-        bool prec_present;
-        int prec;
-        bool sharp;
-        bool space;
-        str digits;
-        
-        void write_to(io::Writer &out, error err) const override {
-            Writer writer;
-            writer.out = &out;
-            writer.prec_present = prec_present;
-            writer.prec = prec;
-            writer.sharp = sharp;
-            writer.space = space;
-            writer.digits = digits;
+    template <typename T>
+    Stringifier<T> stringify(T const& t);
+
+    struct Fmt {
+        io::Writer &out;
+        error err;
+        // bool erroring = false;
+
+        int wid      = 0;
+        int prec     = 0;
+        int base      = 10;
+        rune verb     = 'v';
+
+        union {
+            uint32 flags = 0;
+            struct {
+                bool wid_present  : 1;
+                bool prec_present : 1;
+                // bool upcase       : 1;
+                bool minus        : 1;
+                bool plus         : 1;
+                bool zero         : 1;
+                bool sharp        : 1;
+                bool space        : 1;
+                bool comma        : 1;
+                bool apos         : 1;
+                // bool type         : 1;
+                
+                // For the formats %+v %#v, we set the plusV/sharpV flags
+                // and clear the plus/sharp flags since %+v and %#v are in effect
+                // different, flagless formats set at the top level.
+                bool plus_v  : 1;
+                bool sharp_v : 1;
+            } ;
+        } ;
+
+        Fmt(io::Writer &out, error err) : out(out), err(err) {}
+
+        void write(unsigned char b);
+        void write(char c);
+        void write(char32_t c);
+
+        void write(bool b);
+
+        void write(short i);
+        void write(unsigned short i);
+        void write(int i);
+        void write(unsigned int i);
+        void write(long i);
+        void write(unsigned long i);
+        void write(long long i);
+        void write(unsigned long long i);
+
+        void write(float f);
+        void write(double d);
+
+        void write(str s);
+        void write(const char *);
+        void write(char *);
+        void write(const wchar_t *);
+        void write(wchar_t *);
+        void write(String const&);
+        void write(io::WriterTo const&);
+
+        template <typename T>
+        void write_integer(T n, bool is_signed);
+
+        template <typename T>
+        void write_char(T n, bool is_signed);
+
+        template <typename T>
+        void fmt_integer(T n, bool is_signed, int base, char verb, str digits, bool sharp);
+
+        template <typename T>
+        void write(T const &t, ...) {
+            constexpr bool is_c_str = requires {
+                { t.c_str() } -> std::convertible_to<const char*>;
+            };
+            if constexpr (is_c_str) {
+                write(t.c_str());
+                return;
+            }
+            constexpr bool is_formattable1 = requires(const T& t2) {
+                t.fmt(std::declval<io::Writer&>(), std::declval<error>());
+            };
+            if constexpr (is_formattable1) {
+                struct WriterToWrapper : io::WriterTo {
+                    const T &obj;
+                    WriterToWrapper(T const& t) : obj(t) {}
+
+                    void write_to(io::Writer &w, error err) const override {
+                        obj.fmt(w, err);
+                    }
+                };
+                WriterToWrapper w(t);
+                write((io::WriterTo &) w);
+
+                return;
+            }
+            constexpr bool is_formattable2 = requires(const T& t2) {
+                t.fmt(std::declval<Fmt&>());
+            };
+            if constexpr (is_formattable2) {
+                t.fmt(*this);
+                return;
+            }
+
+            // constexpr bool is_describable = requires {
+            //     t.describe(std::declval<io::OStream&>);
+            // };
+            // if constexpr (is_describable) {
+            //     // struct WriterToWrapper : io::WriterTo {
+            //     //     const T &obj;
+            //     //     WriterToWrapper(T const& t) : obj(t) {}
+
+            //     //     void write_to(io::OStream &ostream, error) const override {
+            //     //         obj.describe(ostream);
+            //     //     }
+            //     // };
+            //     // WriterToWrapper w(t);
+            //     // write((io::WriterTo &) w);
+            //     t.describe(out);
+
+            //     return;
+            // }
+
+            constexpr bool is_to_utf8 = requires {
+                t.toUtf8();
+            };
+            if constexpr (is_to_utf8) {
+                auto utf8 = t.toUtf8();
+                write(str(utf8.data(), utf8.length()));
+                return;
+            }
             
-            this->w->write_to(writer, err);
+            using std::begin;
+            using std::end;
+            
+            constexpr bool iterable = requires {
+                begin(t);
+                end(t);
+            };
+            if constexpr (iterable) {
+                write("[");
+                bool first = true;
+                for (auto const &e : t) {
+                    if (first) {
+                        first = false;
+                    } else {
+                        write(", ");
+                    }
+                    write(e);
+                }
+                write("]");
+                return;
+            }
+            
+            constexpr bool ostream_printable = requires {
+                { std::declval<std::stringstream>() << t } -> std::same_as<std::stringstream&>;
+            };
+            if constexpr (ostream_printable) {
+                std::stringstream ss;
+                ss << t;
+                write("(ss)");
+                write(ss.str());
+                return;
+            }
+
+            if constexpr (std::is_pointer_v<T>) {
+                if (t == nil) {
+                    write("<nil>");
+                    return;
+                }
+                if constexpr (!std::is_same_v<void*, T>) {
+                    write(*t);
+                    return;
+                }
+            }
+
+            constexpr bool is_visitable = requires {
+                visit([](auto &&) {}, t);
+            } ;
+            if constexpr (is_visitable) {
+                visit([&](auto const &v) {
+                    write(v);
+                }, t);
+                return;
+            }
+
+        #ifdef __GXX_RTTI
+            int status;
+            char *demangled = __cxa_demangle(typeid(t).name(), 0, 0, &status);
+            this->write(str("<"));
+            this->write(str::from_c_str(demangled));
+            free(demangled);
+            this->write(str(">"));
+        #else
+            (void) t;
+            this->write(str("???"));
+        #endif
         }
 
+        // template <typename... Args>
+        // void writef(str format, const Args &... args);
+
+        template <typename T>
+        Fmt &operator << (T const& t) {
+            write(t);
+            return *this;
+        }
+
+        private:
+        // fmt_q formats a string as a double-quoted, escaped string constant.
+        // If .sharp is set a raw (backquoted) string may be returned instead
+        // if the string does not contain any control characters other than tab.
+        void fmt_q(str s);
+
+        // fmtS formats a string.
+        void fmt_s(str s);
+
+        void fmt_w(io::WriterTo const &w);
+
+        // fmtSx formats a string as a hexadecimal encoding of its bytes.
+        void fmt_sx(str s, str digits);
+        void fmt_wx(io::WriterTo const &w, str digits);
+
+        // fmt_c formats an integer as a Unicode character.
+        // If the character is not valid Unicode, it will print '\ufffd'.
+        template <typename T>
+        void fmt_c(T c);
+
+        // fmt_qc formats an integer as a single-quoted, escaped Go character constant.
+        // If the character is not valid Unicode, it will print '\ufffd'.
+        template <typename T>
+        void fmt_qc(T c);
+
+        void fmt_qw(io::WriterTo const &);
+
+        // fmt_unicode formats a uint64 as "U+0078" or with f.sharp set as "U+0078 'x'".
+        template <typename T>
+        void fmt_unicode(T c);
+
+        // fmt_float formats a float64/float32. It assumes that verb is a valid format specifier
+        // for strconv.AppendFloat and therefore fits into a byte.
+        void fmt_float(std::variant<float32, float64> v, rune verb, int prec);
         
-    } writer_to;
+        void fmt_bad_int_arg();
 
-    writer_to.w = &w;
-    writer_to.prec_present = prec_present;
-    writer_to.prec = this->prec;
-    writer_to.sharp = this->sharp;
-    writer_to.space = this->space;
-    writer_to.digits = digits;
+        // truncate_string truncates the string s to the specified precision, if present.
+        str truncate_string(str s);
 
-    this->write_padded(writer_to);
-}
+        void write_padded(io::WriterTo const& writable);
+        void write_padded(str s);
 
-void Fmt::write_padding(size n) {
-    Fmt &f = *this;
-    if (n <= 0) { // No padding bytes needed.
-		return;
-	}
+        // write_padding generates n bytes of padding.
+        void write_padding(size n);
+        void write_string(str s);
+        void write_byte(byte b);
+        void write_repeated(byte b, size count);
+        void write_rune(rune r);
+        
+        void write_float(std::variant<float32,float64>);
+
+        void bad_verb(rune r);
+        void handle_star(int n);
+    };
+
+    template <typename T>
+    Stringifier<T> stringify(T const& t) {
+        return Stringifier<T>(t);
+    }
+
+    template <typename T>
+    void Stringifier<T>::write_to(io::Writer &out, error err) const {
+        fmt::write(out, t, err);
+    }
+
+    template <typename T>
+    void write(io::Writer &out, T const &t, error err) {
+        Fmt fmt(out, err);
+        fmt.write(t);
+    }
+
+    struct State : Fmt {
+        const char *begin;
+        const char *end;
+
+        State(io::Writer &out, str format, error);
+
+        template <typename T>
+        State &operator << (T const &t) {
+            if (!advance()) {
+                return *this;
+            }
+
+            write(t);
+            return *this;
+        }
+
+        bool advance();
+        void flush();
+    };
+
+    template <typename... Args>
+    void printf(str format, const Args  & ... args) {
+        BufferedWriter bw(os::stdout);
+        fprintf(bw, format, args...);
+        bw.flush(error::ignore);
+    }
+
+    template <typename... Args>
+    void fprintf(io::Writer &out, error err, str format, const Args  & ... args) {
+        State printer(out, format, err);
+
+        (printer << ... << args).flush();
+    }
+
+    template <typename... Args>
+    void fprintf(io::Writer &out, str format, const Args  & ... args) {
+        fprintf(out, error::ignore, format, args...);
+    }
+
+    template <typename... Args>
+    void fprintf(FILE *file, str format, const Args  & ... args) {
+        os::StdStream out(file, ::fileno(file));
+        fprintf(out, format, args...);
+    }
+
+    // fprint()
+    template <typename ...Args>
+    void fprint(io::Writer &out, error err, const Args &...arg) {
+        Fmt fmt(out, err);
+        // Keep short-circuiting on errors; only the final boolean is unused.
+        static_cast<void>(((fmt.write(arg), !err) && ...));
+        // int i = 0;
+        // ( ((i++ != 0 ? fmt.write(' '):void()), fmt.write(arg), !err) && ...);
+    }
+
+    // template <typename ...Args>
+    // void fprint(io::Writer &out, const Args &...arg) {
+    //     fprint(out, error(error::ignore), arg...);
+    // }
+
+    // cat()
+    template <typename ...Args>
+    void fcat(io::Writer &out, error err, const Args &...arg) {
+        Fmt fmt(out, err);
+        static_cast<void>(((fmt.write(arg), !err) && ...));
+    }
+
+    // print
+    template <typename ...Args>
+    void print(const Args &...arg) {
+        fprint(os::stdout, error::ignore, arg...);
+    }
+
+    // fprintln
+    template <typename ...Args>
+    void fprintln(io::Writer &out, error err, const Args &...arg) {
+        Fmt fmt(out, err);
+        int i = 0;
+        static_cast<void>(((i++ != 0 ? fmt.write(' ') : void(), fmt.write(arg), !err) && ...));
+        fmt.write("\n");
+    }
+
+    template <typename ...Args>
+    void fprintln(io::Writer &out, const Args &...arg) {
+        fprintln(out, error(error::ignore), arg...);
+    }
+
+    // println
+    template <typename ...Args>
+    void println(const Args &...arg) {
+        fprint(os::stdout, error::ignore, arg..., '\n');
+    }
+
+     
+    // template <typename... Args>
+    // void Fmt::writef(str format, const Args  & ... args) {
+    //     State printer(this->out, format, this->err);
+
+    //     (printer << ... << args).flush();
+    // }
     
-    // Decide which byte the padding should be filled with.
-	byte pad_byte = ' ';
-	// Zero padding is allowed only to the left.
-	if (f.zero && !f.minus) {
-		pad_byte = '0';
-	}
+    // template <typename... Args>
+    // String sprintf(str format, const Args & ... args) {
+    //   io::Buffer buffer;
 
-    f.write_repeated(pad_byte, n);
+    //   fprintf(buffer, format, args...);
+
+    //   return buffer.to_string();
+    // }
+
+    // template <typename... Args>
+    // void sprintf(String &s, str format, const Args & ... args) {
+    //     io::StrStream sstream(s);
+    //     fprintf(sstream, format, args...);
+    // }
+
+    namespace detail {
+
+        template<typename Tuple, usize... I>
+        void fprintf_apply(io::Writer &out, error err, str format, Tuple &&t, std::index_sequence<I...>) {
+            fmt::fprintf(out, err, format, *std::get<I>(t)...);
+        }
+
+        template<typename Tuple, usize... I>
+        void sprintln_apply(io::Writer &out, error err, Tuple &&t, std::index_sequence<I...>) {
+            fmt::fprintln(out, err, *std::get<I>(t)...);
+        }
+
+        template<typename Tuple, usize... I>
+        void sprint_apply(io::Writer &out, error err, Tuple &&t, std::index_sequence<I...>) {
+            fmt::fprint(out, err, *std::get<I>(t)...);
+        }
+
+        template<typename Tuple, usize... I>
+        void cat_apply(io::Writer &out, error err, Tuple &&t, std::index_sequence<I...>) {
+            fmt::fcat(out, err, *std::get<I>(t)...);
+        }
+    }
+
+    template <typename... Args>
+    struct FmtWriterTo : io::WriterTo {
+        str format;
+        std::tuple<const Args*...> args;
+
+        FmtWriterTo(str format, const Args & ... args) : format(format), args(&args...) {}
+
+        void write_to(io::Writer &out, error err) const override {
+            detail::fprintf_apply(
+                out,
+                err,
+                format,
+                args,
+                std::make_index_sequence< 
+                    std::tuple_size_v<std::tuple<Args...>>>());
+        }
+    } ;
+
+    template<typename... Args>
+    FmtWriterTo<Args...> sprintf(str format, const Args & ... args) {
+        return FmtWriterTo<Args...>(format, args...);
+    }
+
+    template <typename... Args>
+    struct Sprintlner : io::WriterTo {
+        std::tuple<const Args*...> args;
+
+        Sprintlner(Args const & ...args) : args(&args...) {}
+
+        void write_to(io::Writer &out, error err) const override {
+            detail::sprint_apply(
+                out,
+                err,
+                args,
+                std::make_index_sequence< 
+                    std::tuple_size_v<std::tuple<Args...>>>());
+        }
+    } ;
+
+    template <typename... Args>
+    struct Sprinter : io::WriterTo {
+        std::tuple<const Args*...> args;
+
+        Sprinter(Args const & ...args) : args(&args...) {}
+
+        void write_to(io::Writer &out, error err) const override {
+            detail::sprint_apply(
+                out,
+                err,
+                args,
+                std::make_index_sequence< 
+                    std::tuple_size_v<std::tuple<Args...>>>());
+        }
+    } ;
+
+    template <typename... Args>
+    struct Catter : io::WriterTo {
+        std::tuple<const Args*...> args;
+
+        Catter(Args const & ...args) : args(&args...) {}
+
+        void write_to(io::Writer &out, error err) const override {
+            detail::cat_apply(
+                out,
+                err,
+                args,
+                std::make_index_sequence< 
+                    std::tuple_size_v<std::tuple<Args...>>>());
+        }
+    } ;
+
+    template <typename... Args>
+    struct ErrorF : Error {
+        str format;
+        std::tuple<const Args*...> args;
+
+        ErrorF(str format, const Args & ... args) : format(format), args(&args...) {}
+
+        void fmt(io::Writer &out, error err) const override {
+            detail::fprintf_apply(
+                out,
+                err,
+                format,
+                args,
+                std::make_index_sequence< 
+                    std::tuple_size_v<std::tuple<Args...>>>());
+        }
+    } ;
+
+    // Sprintln formats using the default formats for its operands and returns the resulting string.
+    // Spaces are always added between operands and a newline is appended.
+    template<typename... Args>
+    Sprintlner<Args...> sprintln(const Args & ... args) {
+        return Sprintlner<Args...>(args...);
+        
+    }
+
+    // Args formats using the default formats for its operands and returns the resulting string.
+    // Spaces are added between operands when neither is a string.
+    template<typename... Args>
+    Sprinter<Args...> sprint(const Args & ... args) {
+        return Sprinter<Args...>(args...);
+        
+    }
+
+    template <typename... Args>
+    ErrorF<Args...> errorf(str format, Args const &... args) {
+        return ErrorF(format, args...);
+    }
+    
+    // cat formats using the default formats for its operands and returns the resulting string.
+    // No spaces are added.
+    template<typename... Args>
+    Catter<Args...> cat(const Args & ... args) {
+        return Catter<Args...>(args...);
+        
+    }
 }
 
 
-str Fmt::truncate_string(str s) {
-    Fmt &f = *this;
-    if (f.prec_present) {
-		size n = f.prec;
-		for (auto [i, _] : utf8::runes(s)) {
-			n--;
-			if (n < 0) { 
-				return s[0,i];
-			}
-		}
-	}
-	return s;
+namespace lib {
+    template<typename ...Args>
+    void ErrorReporter::report(str f, const Args &... args) {
+        auto writer = fmt::sprintf(f, args...);
+        this->report(errors::WriterToError(writer));
+    }
 }
 
-// utf8::RuneTruncater Fmt::truncate_w(io::WriterTo const &w, size n) {
-//     Fmt &f = *this;
-//     if (f.prec_present) {
-// 		size n = f.prec;
-// 		for (auto [i, _] : utf8::runes(s)) {
-// 			n--;
-// 			if (n < 0) {
-// 				return s[0,i];
-// 			}
-// 		}
-// 	}
-// 	return s;
+// template <typename... Args>
+// void lib::error::operator()(str fmt, const Args  & ...args) {
+//     String s = fmt::sprintf(fmt, args...);
+//     (*this)(s);
 // }
 
 
-void Fmt::write_string(str s) {
-    this->out.write(s, err);
-}
-void Fmt::write_byte(byte b) {
-    this->out.write_byte(b, err);
-}
+//#include "fmt.inlines.h"
 
-void Fmt::write_repeated(byte b, size count) {
-    this->out.write_repeated(b, count, err);
-}
-
-void Fmt::write_rune(rune r) {
-    Array<byte, utf8::UTFMax> b;
-    str s = utf8::encode(b, r);
-    this->write_string(s);
-}
-
-void Fmt::write_float(std::variant<float32,float64> v) {
-    Fmt &f = *this;
-    switch (f.verb) {
-    case 'v':
-        f.fmt_float(v, 'g', -1);
-        break;
-
-    case 'g':
-    case 'G':
-        // if (f.sharp) {
-        //     // default precision %#g is 6
-        //     f.fmt_float(v, verb, 6);
-        //     break;
-        // } 
-        /* fallthrough */
-
-    case 'b':
-    case 'x':
-    case 'X':
-        f.fmt_float(v, verb, -1);
-        break;
-
-    case 'f':
-    case 'e':
-    case 'E':
-        f.fmt_float(v, verb, 6);
-        break;
-    case 'F':
-        f.fmt_float(v, 'f', 6);
-        break;
-    default:
-        f.bad_verb(f.verb);
-    }
-}
-
-void Fmt::bad_verb(rune) {
-    Fmt &f = *this;
-
-    // f.erroring = true;
-	f.write_string(percent_bang_string);
-	f.write_rune(verb);
-	f.write_byte('(');
-	
-	// case p.arg != nil:
-	// 	p.buf.writeString(reflect.TypeOf(p.arg).String())
-	// 	p.buf.writeByte('=')
-	// 	p.printArg(p.arg, 'v')
-	// case p.value.IsValid():
-	// 	p.buf.writeString(p.value.Type().String())
-	// 	p.buf.writeByte('=')
-	// 	p.printValue(p.value, 'v', 0)
-	// default:
-    // f.write_string(nil_angle_string);
-    f.write_string("!");
-	// }
-	f.write_byte(')');
-	// f.erroring = false;
-}
-
-void Fmt::write(io::WriterTo const& w) {
-    Fmt &f = *this;
-    switch (verb) {
-        case 'v':
-            if (f.sharp_v) {
-                f.fmt_qw(w);
-            } else {
-                f.fmt_w(w);
-            }
-            break;
-        case 's':
-            f.fmt_w(w);
-            break;
-        case 'x':
-            // f.write_string("<x unimplemented>");
-            f.fmt_wx(w, ldigits);
-            break;
-        case 'X':
-            //f.fmt_sx(v, udigits);
-            f.fmt_wx(w, udigits);
-            // f.write_string("<X unimplemented>");
-            break;
-        case 'q':
-            f.fmt_qw(w);
-            break;
-        default:
-            f.bad_verb(verb);
-            break;
-            
-    }
-
-    // write_padded(w);
-}
-
-void Fmt::write(unsigned char b) {
-    if constexpr (sizeof(b) <= sizeof(uintptr_t)) {
-        write_integer<uintptr_t>(b, false);
-    } else {
-        write_integer((unsigned short) b, false);
-    }
-}
-
-void Fmt::write(char c) {
-    if constexpr (sizeof(c) <= sizeof(uintptr_t)) {
-        write_char<uintptr_t>(c, true);
-    } else {
-        write_char<uint32>(c, true);
-    }
-}
-
-void Fmt::write(char32_t c) {
-    if constexpr (sizeof(c) <= sizeof(uintptr_t)) {
-        write_char<uintptr_t>(c, true);
-    } else {
-        write_char<uint32>(c, true);
-    }
-}
-
-void Fmt::write(bool b) {
-    if (b) {
-        write_padded("true");
-    } else {
-        write_padded("false");
-    }
-}
-
-void Fmt::write(short i) {
-    if constexpr (sizeof(i) <= sizeof(uintptr_t)) {
-        write_integer<uintptr_t>(i, true);
-    } else {
-        write_integer((unsigned short) i, true);
-    }
-}
-
-void Fmt::write(unsigned short i) {
-    if constexpr (sizeof(i) <= sizeof(uintptr_t)) {
-        write_integer<uintptr_t>(i, false);
-    } else {
-        write_integer(i, false);
-    }
-}
-
-void Fmt::write(int i) {
-    if constexpr (sizeof(i) <= sizeof(uintptr_t)) {
-        write_integer<uintptr_t>(i, true);
-    } else {
-        write_integer((unsigned int) i, true);
-    }
-}
-
-void Fmt::write(unsigned int i) {
-    if constexpr (sizeof(i) <= sizeof(uintptr_t)) {
-        write_integer<uintptr_t>(i, false);
-    } else {
-        write_integer(i, false);
-    }
-}
-
-void Fmt::write(long i) {
-    if constexpr (sizeof(i) <= sizeof(uintptr_t)) {
-        write_integer<uintptr_t>(i, true);
-    } else {
-        write_integer((unsigned long) i, true);
-    }
-}
-
-void Fmt::write(unsigned long i) {
-    if constexpr (sizeof(i) <= sizeof(uintptr_t)) {
-        write_integer<uintptr_t>(i, false);
-    } else {
-        write_integer(i, false);
-    }
-}
-
-void Fmt::write(long long i) {
-    if constexpr (sizeof(i) <= sizeof(uintptr_t)) {
-        write_integer<uintptr_t>(i, true);
-    } else {
-        write_integer((unsigned long long) i, true);
-    }
-}
-
-void Fmt::write(unsigned long long i) {
-    if constexpr (sizeof(i) <= sizeof(uintptr_t)) {
-        write_integer<uintptr_t>(i, false);
-    } else {
-        write_integer(i, false);
-    }
-}
-
-void Fmt::write(float f) {
-    write_float(f);
-}
-
-void Fmt::write(double d) {
-    write_float(d);
-}
-
-void Fmt::write(String const &s) {
-    write(str(s));
-}
-
-void Fmt::write(const char *p) {
-    if (p == nil) {
-        write(str("<nil>"));
-        return;
-    }
-    write(str::from_c_str(p));
-}
-
-void Fmt::write(char *p) {
-    write((const char *)p);
-}
-
-void Fmt::write(const wchar_t *p) {
-    // const rune *rp = (const rune*) p;
-    size length = wcslen(p);
-    arr<const wchar_t> data(p, length);
-
-    utf8::Encoder enc { data };
-    write((io::WriterTo &) enc);
-}
-
-void Fmt::write(wchar_t *p) {
-    write((const wchar_t *)p);
-}
-
-io::ReadResult BufferedWriter::direct_read(buf bytes, error err) {
-    panic("unimplemented");
-    return {};
-}
-
-size BufferedWriter::direct_write(str data, error err) {
-    return this->out.direct_write(data, err);
 }

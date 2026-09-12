@@ -12,7 +12,6 @@ pw_source_set("fmt") {
         "fmt.cc",
     ]
     public = [
-        "fmt.inlines.h",
         "fmt.h",
         "quote.h"
     ]

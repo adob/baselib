@@ -1,10 +1,10 @@
-import "lib/fmt/fmt.h";
-#include "lib/testing/testing.h"
-#include <boost/core/pointer_traits.hpp>
-#include <boost/move/utility_core.hpp>
-#include "lib/sync/chan.h"
-#include "lib/sync/once.h"
-#include "lib/sync/go.h"
+import lib.fmt;
+import lib.testing;
+import <boost/core/pointer_traits.hpp>;
+import <boost/move/utility_core.hpp>;
+import lib.sync.chan;
+import lib.sync.once;
+import lib.sync.go;
 
 using namespace lib;
 using namespace sync;

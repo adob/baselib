@@ -3,9 +3,9 @@ import lib.exceptions;
 import lib.types;
 import <cstdlib>;
 import <cstring>;
-#include <string>
+import <string>;
 import lib.str;
-import "lib/io/io.h";
+import lib.io;
 
 using namespace lib;
 

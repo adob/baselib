@@ -1,61 +1,27 @@
-import lib.array;
-import lib.str;
-import lib.types;
-#include <algorithm>
-#include "util.h"
+module;
+#include "util_impl.h"
 
-import lib.error;
-import "lib/io/io.h";
-#include "lib/math/math.h"
+export module lib.io.util;
+export import lib.error;
+export import lib.str;
+export import lib.types;
 
-using namespace lib;
-using namespace lib::io;
 
-#pragma GCC diagnostic ignored "-Wshadow"
 
-size io::read_full(Reader &input, buf buffer, error err) {
-    return read_at_least(input, buffer, len(buffer), err);
+export extern "C++" {
+namespace lib::io {
+    using namespace lib;
+
+    //struct EOF : ErrorBase<EOF, "EOF"> {};
+    struct ErrUnexpectedEOF : ErrorBase<ErrUnexpectedEOF, "unexpected EOF"> {};
+    struct ErrShortWrite    : ErrorBase<ErrShortWrite, "short write"> {};
+    struct ErrShortBuffer   : ErrorBase<ErrShortBuffer, "short buffer"> {};
+    struct ErrIO            : ErrorBase<ErrIO, "IO error"> {};
+    
+    size read_full(Reader &in, buf buffer, error err);
+    size discard(Reader &in, size nbytes, error err);
+    
+    size read_at_least(Reader &in, buf buffer, size min, error err);
 }
 
-size io::read_at_least(Reader &in, buf buffer, size min, error err) {
-    if (len(buffer) < min) {
-        err(ErrShortBuffer());
-        return 0;
-    }
-    
-    size n = 0;
-    while (n < min) {
-        ReadResult r = in.read(buffer + n, err);
-        n += r.nbytes;
-        if (err) {
-            return n;
-        }
-
-        if (r.eof) {
-            break;
-        }
-    }
-    
-    if (n < min) {
-        err(io::ErrUnexpectedEOF());
-    }
-    
-    return n;
-}
-
-size io::discard(Reader &in, size nbytes, error err) {
-    Array<byte, 512> buffer;
-    size amt = math::min(nbytes, len(buffer));
-    size bytes_read = 0;
-
-    while (amt > 0) {
-        bytes_read += io::read_full(in, buffer[0, amt], err);
-        if (err) {
-            return bytes_read;
-        }
-
-        amt -= bytes_read;
-    }
-
-    return bytes_read;
 }

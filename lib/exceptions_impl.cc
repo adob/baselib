@@ -4,9 +4,8 @@ import lib.types;
 import lib.exceptions;
 import lib.str;
 import lib.panic;
-import "lib/io/io.h";
-import "fmt/fmt.h";
-//#include "fmt/fmt.h"
+import lib.io;
+import lib.fmt;
 
 using namespace lib;
 using namespace exceptions;

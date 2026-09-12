@@ -1,10 +1,10 @@
-#include "lib/testing/testing.h"
+import lib.testing;
 import lib.base;
-import "errors.h";
-#include "join.h"
+import lib.errors;
+import lib.errors.join;
 import lib.error;
 import lib.exceptions;
-#include <initializer_list>
+import <initializer_list>;
 
 using namespace lib;
 using namespace errors;

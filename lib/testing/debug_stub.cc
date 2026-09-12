@@ -1,4 +1,4 @@
-#include "lib/debug/debug.h"
+import lib.debug;
 
 namespace lib::debug {
     void init() {}

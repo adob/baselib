@@ -1,22 +1,43 @@
-import lib.array;
-import lib.str;
-#include "lib/testing/testing.h"
-#include "fuzz.h"
-#include "lib/flag/flag.h"
+module;
+#include "fuzz_impl.h"
 
-using namespace lib;
-using namespace lib::testing;
-using namespace lib::testing::detail;
+export module lib.testing.fuzz;
+export import lib.array;
 
-String *detail::match_fuzz;
-String *detail::fuzz_cache_dir;
-bool *detail::is_fuzz_worker;
 
-bool detail::run_fuzzing(TestDeps *deps, view<InternalFuzzTarget> fuzzTests) {
-    return true;
+export extern "C++" {
+namespace lib::testing {
+    namespace detail {
+        struct TestDeps;
+        struct InternalFuzzTarget;
+        extern String *match_fuzz;
+        // fuzzDuration     durationOrCountFlag
+        // minimizeDuration = durationOrCountFlag{d: 60 * time.Second, allowZero: true}
+        extern String *fuzz_cache_dir;
+        extern bool *is_fuzz_worker;
+
+        // FuzzWorkerExitCode is used as an exit code by fuzz worker processes after an
+        // internal error. This distinguishes internal errors from uncontrolled panics
+        // and other failures. Keep in sync with internal/fuzz.workerExitCode.
+        inline constexpr int FuzzWorkerExitCode = 70;
+
+        // // corpusDir is the parent directory of the fuzz test's seed corpus within
+        // // the package.
+        // corpusDir = "testdata/fuzz"
+
+        struct F {
+
+        } ;
+
+        void init_fuzz_flags();
+
+        // runFuzzing runs the fuzz test matching the pattern for -fuzz. Only one such
+        // fuzz test must match. This will run the fuzzing engine to generate and
+        // mutate new inputs against the fuzz target.
+        //
+        // If fuzzing is disabled (-test.fuzz is not set), runFuzzing
+        // returns immediately.
+        bool run_fuzzing(TestDeps *deps, view<InternalFuzzTarget> fuzzTests);
+    }
 }
-void lib::testing::detail::init_fuzz_flags() {
-    match_fuzz = flag::define<String>("test.fuzz", "", "run the fuzz test matching `regexp`");
-    fuzz_cache_dir = flag::define<String>("test.fuzzcachedir", "", "directory where interesting fuzzing inputs are stored (for use only by cmd/go)");
-    is_fuzz_worker = flag::define<bool>("test.fuzzworker", false, "coordinate with the parent process to fuzz random values (for use only by cmd/go)");
 }

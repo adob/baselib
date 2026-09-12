@@ -1,143 +1,23 @@
-import lib.error;
-import lib.str;
-import lib.types;
-import <cstddef>;
-#include <cstdint>
-import <cstdio>;
-import <cstdlib>;
-#include <elf.h>
-#include <stdint.h>
-import <stdio.h>;
-import <stdlib.h>;
-#include <string>
-#include <vector>
-#include "func.h" 
+module;
+#include "func_impl.h"
 
-#include <fcntl.h>
-#include <libelf.h>
-#include <gelf.h>
-#include <cxxabi.h>
-#include <dlfcn.h>
-#include <unistd.h>
-#include <limits>
+export module lib.testing.func;
+import <vector>;
 
-using namespace lib;
-using namespace lib::testing;
-using namespace lib::testing::detail;
+export import lib.error;
+export import lib.str;
 
-std::vector<FuncData> detail::get_all_funcs(error) {
-    std::vector<FuncData> funcs;
+export extern "C++" {
+namespace lib::testing {
+    namespace detail {
+        struct FuncData {
+            String name;
+            void *ptr;
+        } ;
 
-    if (elf_version(EV_CURRENT) == EV_NONE) {
-        fprintf(stderr, "ELF library initialization failed: %s\n", elf_errmsg(-1));
-        exit(EXIT_FAILURE);
+        std::vector<FuncData> get_all_funcs(error);
+        String demangle(str mangled);
     }
-
-    int fd = open("/proc/self/exe", O_RDONLY, 0);
-        if (fd < 0) {
-        perror("open");
-        exit(EXIT_FAILURE);
-    }
-
-    Elf *e = elf_begin(fd, ELF_C_READ, NULL);
-        if (!e) {
-        fprintf(stderr, "elf_begin failed: %s\n", elf_errmsg(-1));
-        close(fd);
-        exit(EXIT_FAILURE);
-    }
-
-    GElf_Ehdr ehdr;
-    if (gelf_getehdr(e, &ehdr) != &ehdr) {
-        fprintf(stderr, "gelf_getehdr failed: %s\n", elf_errmsg(-1));
-        elf_end(e);
-        close(fd);
-        exit(EXIT_FAILURE);
-    }
-
-    uintptr_t load_bias = 0;
-    if (ehdr.e_type == ET_DYN) {
-        Dl_info info;
-        if (dladdr((void *)&detail::get_all_funcs, &info) == 0) {
-            fprintf(stderr, "dladdr failed\n");
-            elf_end(e);
-            close(fd);
-            exit(EXIT_FAILURE);
-        }
-        load_bias = (uintptr_t)info.dli_fbase;
-    }
-
-    size_t shstrndx;
-    if (elf_getshdrstrndx(e, &shstrndx) != 0) {
-        fprintf(stderr, "elf_getshdrstrndx failed: %s\n", elf_errmsg(-1));
-        elf_end(e);
-        close(fd);
-        exit(EXIT_FAILURE);
-    }
-
-    Elf_Scn *scn = NULL;
-    GElf_Shdr shdr;
-    while ((scn = elf_nextscn(e, scn)) != NULL) {
-    if (gelf_getshdr(scn, &shdr) != &shdr) {
-        fprintf(stderr, "gelf_getshdr failed: %s\n", elf_errmsg(-1));
-        elf_end(e);
-        close(fd);
-        exit(EXIT_FAILURE);
-    }
-
-    if (shdr.sh_type == SHT_SYMTAB) {
-        Elf_Data *data = elf_getdata(scn, NULL);
-        if (!data) {
-        fprintf(stderr, "elf_getdata failed: %s\n", elf_errmsg(-1));
-        elf_end(e);
-        close(fd);
-        exit(EXIT_FAILURE);
-        }
-
-        size_t num_symbols = shdr.sh_size / shdr.sh_entsize;
-        // gelf_getsym accepts int indices; check the largest index before narrowing.
-        if (num_symbols != 0 && num_symbols - 1 > size_t(std::numeric_limits<int>::max())) {
-            fprintf(stderr, "ELF symbol table is too large for gelf_getsym indices\n");
-            elf_end(e);
-            close(fd);
-            exit(EXIT_FAILURE);
-        }
-        for (size_t i = 0; i < num_symbols; ++i) {
-        GElf_Sym sym;
-        if (gelf_getsym(data, int(i), &sym) != &sym) {
-            fprintf(stderr, "gelf_getsym failed: %s\n", elf_errmsg(-1));
-            continue;
-        }
-
-        if (sym.st_shndx == SHN_UNDEF) {
-            continue;
-        }
-
-        uintptr_t address = sym.st_value;
-        if (ehdr.e_type == ET_DYN && sym.st_shndx != SHN_ABS) {
-            address += load_bias;
-        }
-
-        const char *name = elf_strptr(e, shdr.sh_link, sym.st_name);
-        funcs.push_back(
-            FuncData{.name = String(name), .ptr = (void *)address});
-        }
-    }
-    }
-
-    elf_end(e);
-    close(fd);
-
-    return funcs;
 }
-String detail::demangle(str mangled) {
-  int ok;
-  String s;
-  const char *demangled = abi::__cxa_demangle(mangled.c_str(), nil, nil, &ok);
-  if (ok != 0) {
-    return s;
-  }
 
-  s = str::from_c_str(demangled);
-  free((void *)demangled);
-  return s;
 }

@@ -2,11 +2,11 @@ import lib.error;
 #include <functional>
 #include <vector>
 
-#include "lib/debug/debug.h"
+import lib.debug;
 import lib.str;
-#include "lib/strings/strings.h"
-#include "testing.h"
-#include "func.h"
+import lib.strings;
+import lib.testing;
+import lib.testing.func;
 
 using namespace lib;
 using namespace testing;

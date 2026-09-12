@@ -1,13 +1,13 @@
-import "lib/fmt/fmt.h";
-#include <compare>
-#include <cstdint>
-#include <stdint.h>
-#include <concepts>
-#include <type_traits>
+import lib.fmt;
+import <compare>;
+import <cstdint>;
+import <stdint.h>;
+import <concepts>;
+import <type_traits>;
 
 import lib.types;
 
-#include "lib/testing/testing.h"
+import lib.testing;
 
 namespace {
 struct Count : lib::numeric {

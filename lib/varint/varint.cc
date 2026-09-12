@@ -1,168 +1,119 @@
-import lib.str;
-import lib.types;
-#include <cstdint>
-#include <stdint.h>
-#include "varint.h"
-import lib.error;
-import "lib/io/io.h";
-#include "lib/io/util.h"
+module;
+#include "varint_impl.h"
 
-using namespace lib;
+export module lib.varint;
+export import lib.error;
+export import lib.str;
+export import lib.types;
 
-uint32 varint::read_uint32(io::Reader &in, error  err) {
-    byte b = in.read_byte(err);
-    if (b < 0x80) {
-        return uint32(b);
-    }
+
+
+export extern "C++" {
+namespace lib::varint {
+    struct ErrOverflow : ErrorBase<ErrOverflow, "varint overflow"> {};
     
-    uint_fast8_t bitpos = 7;
-    uint32 result = b & 0x7F;
-    
-    do {
-        
-        b = in.read_byte(err);
-        if (err) {
-            return 0;
-        }
-        
-        if (bitpos >= 32) {
-            // Note: The varint could have trailing 0x80 bytes, or 0xFF for negative.
-            byte sign_extension = (bitpos < 63) ? 0xFF : 0x01;
-            bool valid_extension = ((b & 0x7F) == 0x00 ||
-                        ((result >> 31) != 0 && b == sign_extension));
+    uint32 read_uint32(io::Reader &in, error err);
+    // int decode_uint32(str data, uint32 *out, error err);
 
-            if (bitpos >= 64 || !valid_extension) {
-                err(ErrOverflow());
-                return 0;
-            }
-        } else if (bitpos == 28) {
-            if ((b & 0x70) != 0 && (b & 0x78) != 0x78) {
-                err(ErrOverflow());
-                return 0;
-            }
-            result |= (uint32_t)(b & 0x0F) << bitpos;
+    uint64 read_uint64(io::Reader &in, error err);
+    // int decode_uint64(str data, uint64 *out, error err);
+
+    void skip(io::Reader &in, error err);
+    void skip(str *data, error err);
+    
+    int32 read_sint32(io::Reader &in, error err);
+    int64 read_sint64(io::Reader &in, error err);
+    // int decode_sint32(str data, int32 *out, error err);
+    
+    void write_uint32(io::Writer &out, uint32 i, error err);
+    void write_sint32(io::Writer &out, int32 i, error err);
+    void write_uint64(io::Writer &out, uint64 i, error err);
+    void write_sint64(io::Writer &out, int64 i, error err);
+
+    // template <typename T>
+    // T read(io::Reader &in, error err) {
+    //     if constexpr (sizeof(T) == 4) {
+    //         if constexpr (std::is_signed_v<T>) {
+    //             return read_sint32(in, err);
+    //         } else {
+    //             return read_uint32(in, err);
+    //         }
+    //     } else if constexpr (sizeof(T) == 8) {
+    //         if constexpr (std::is_signed_v<T>) {
+    //             return read_sint64(in, err);
+    //         } else {
+    //             return read_uint64(in, err);
+    //         }
+    //     } else {
+    //         static_assert(false, "bad type");
+    //     }
+    //     return 0;
+    // }
+
+    template <typename T>
+    T read_unsigned(io::Reader &in, error err) {
+        if constexpr (sizeof(T) == 4) {
+            return read_uint32(in, err);
+        } else if constexpr (sizeof(T) == 8) {
+            return read_uint64(in, err);
         } else {
-            result |= (uint32_t)(b & 0x7F) << bitpos;
+            static_assert(false, "bad type");
         }
-        bitpos = (uint_fast8_t)(bitpos + 7);
-    } while (b & 0x80);
-    
-    return result;
-}
-
-uint64 varint::read_uint64(io::Reader &in, error err) {
-    byte b;
-    uint_fast8_t bitpos = 0;
-    uint64_t result = 0;
-    
-    do {
-        b = in.read_byte(err);
-        if (err) {
-            return 0;
-        }
-
-        if (bitpos >= 63 && (b & 0xFE) != 0) {
-            err(ErrOverflow());
-        }
-
-        result |= (uint64_t)(b & 0x7F) << bitpos;
-        bitpos = (uint_fast8_t)(bitpos + 7);
-    } while (b & 0x80);
-    
-    return result;
-}
-
-void varint::skip(str *data, error err) {
-    size n = len(*data);
-    size i = 0;
-    byte b;
-    do {
-        if (i >= n) {
-            err(io::ErrUnexpectedEOF());
-        }
-        b = (*data)[i];
-        i++;
-    } while (b & 0x80);
-
-    *data = (*data)+i;
-}
-
-void varint::skip(io::Reader &in, error err) {
-    byte b;
-    do {
-        b = in.read_byte(err);
-        if (err) {
-            return;
-        }
-    } while (b & 0x80);
-}
-
-int32 varint::read_sint32(io::Reader &in, error err) {
-    uint32 value = read_uint32(in, err);
-    
-    if (value & 1) {
-        return ~(value >> 1);
+        return 0;
     }
-    
-    return value >> 1;
-}
 
-int64 varint::read_sint64(io::Reader &in, error err) {
-    uint64 value = read_uint64(in, err);
-    
-    if (value & 1) {
-        return ~(value >> 1);
-    }
-    
-    return value >> 1;
-}
-
-void varint::write_uint32(io::Writer &out, uint32 i, error err) {
-    while (i >= 0x80) {
-        out.write_byte(byte(i) | 0x80, err);
-        if (err) {
-            return;
+    template <typename T>
+    T read_signed(io::Reader &in, error err) {
+        if constexpr (sizeof(T) == 4) {
+            return read_sint32(in, err);
+        } else if constexpr (sizeof(T) == 8) {
+            return read_sint64(in, err);
+        } else {
+            static_assert(false, "bad type");
         }
-        i >>= 7;
+        return 0;
     }
-    
-    out.write_byte(byte(i), err);
-}
 
-void varint::write_uint64(io::Writer &out, uint64 i, error err) {
-    while (i >= 0x80) {
-        out.write_byte(byte(i) | 0x80, err);
-        if (err) {
-            return;
+    // template <typename T>
+    // void write(io::Writer &out, T val, error err) {
+    //     if constexpr (sizeof(T) == 4) {
+    //         if constexpr (std::is_signed_v<T>) {
+    //             write_sint32(out, val, err);
+    //         } else {
+    //             write_uint32(out, val, err);
+    //         }
+    //     } else if constexpr (sizeof(T) == 8) {
+    //         if constexpr (std::is_signed_v<T>) {
+    //             write_sint64(out, val, err);
+    //         } else {
+    //             write_uint64(out, val, err);
+    //         }
+    //     } else {
+    //         static_assert(false, "bad type");
+    //     }
+    // }
+
+    template <typename T>
+    void write_unsigned(io::Writer &out, T val, error err) {
+        if constexpr (sizeof(T) == 4) {
+            write_uint32(out, val, err);
+        } else if constexpr (sizeof(T) == 8) {
+            write_uint64(out, val, err);
+        } else {
+            static_assert(false, "bad type");
         }
-        i >>= 7;
     }
-    
-    out.write_byte(byte(i), err);
+
+    template <typename T>
+    void write_signed(io::Writer &out, T val, error err) {
+        if constexpr (sizeof(T) == 4) {
+            write_sint32(out, val, err);
+        } else if constexpr (sizeof(T) == 8) {
+            write_sint64(out, val, err);
+        } else {
+            static_assert(false, "bad type");
+        }
+    }
 }
 
-void varint::write_sint32(io::Writer &out, int32 value, error err) {
-    uint32 zigzagged;
-    const uint32 mask = -1 >> 1;
-    
-    if (value < 0) {
-        zigzagged = ~((uint32(value) & mask) << 1);
-    } else {
-        zigzagged = uint32(value) << 1;
-    }
-    
-    return write_uint32(out, zigzagged, err);
-}
-
-void varint::write_sint64(io::Writer &out, int64 value, error err) {
-    uint64 zigzagged;
-    const uint64 mask = -1 >> 1;
-    
-    if (value < 0) {
-        zigzagged = ~((uint64(value) & mask) << 1);
-    } else {
-        zigzagged = uint64(value) << 1;
-    }
-    
-    return write_uint64(out, zigzagged, err);
 }
