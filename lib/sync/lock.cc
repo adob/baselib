@@ -11,7 +11,7 @@ import lib.sync.rwmutex;
 #endif
 
 
-export extern "C++" {
+export extern "C++"
 namespace lib::sync {
     struct Lock {
         Mutex *mutex = nil;
@@ -75,6 +75,4 @@ namespace lib::sync {
     //     operator bool() const;
     //     ~TryLock();
     // } ;
-}
-
 }

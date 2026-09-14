@@ -20,7 +20,7 @@ export import <boost/circular_buffer.hpp>;
 
 
 
-export extern "C++" {
+export extern "C++"
 namespace lib::sync {
     using namespace lib;
 
@@ -409,6 +409,4 @@ namespace lib::sync {
 
 
    
-}
-
 }

@@ -16,7 +16,7 @@ import lib.time;
 import <functional>;
 import <unordered_map>;
 
-export extern "C++" {
+export extern "C++"
 namespace lib::testing {
     struct B;
 
@@ -257,6 +257,4 @@ namespace lib::testing {
     BenchmarkResult benchmark(std::function<void(B &)>);
 
     void run_benchmarks();
-}
-
 }

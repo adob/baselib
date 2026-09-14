@@ -1,6 +1,6 @@
 import lib.array;
 import lib.testing;
-import lib.base;
+import lib;
 import lib.errors;
 import lib.errors.join;
 import lib.error;

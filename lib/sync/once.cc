@@ -6,7 +6,7 @@ import lib.sync.mutex;
 import lib.types;
 
 
-export extern "C++" {
+export extern "C++"
 namespace lib::sync {
 
     // Once is an object that will perform exactly one action.
@@ -59,5 +59,4 @@ namespace lib::sync {
             o.done.store(true);
         }
     };
-}
 }

@@ -7,9 +7,8 @@ import lib.error;
 import lib.os.file;
 
 
-export extern "C++" {
+export extern "C++"
 namespace lib::serial {
     struct Port : lib::os::File {} ;
     Port open(lib::str path, lib::error err);
-}
 }

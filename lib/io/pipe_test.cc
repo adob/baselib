@@ -7,11 +7,9 @@ import lib.types;
 import <algorithm>;
 import <functional>;
 import <vector>;
-import lib.io.pipe;
 
 import lib.error;
 import lib.io;
-import lib.io.util;
 import lib.sync.go;
 import lib.sync.gang;
 import lib.testing;

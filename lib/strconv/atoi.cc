@@ -7,7 +7,7 @@ import lib.types;
 import lib.error;
 import lib.str;
 
-export extern "C++" {
+export extern "C++"
 namespace lib::strconv {
 
     // ErrRange indicates that a value is out of range for the target type.
@@ -66,6 +66,4 @@ namespace lib::strconv {
     //
     // A sign prefix is not permitted.
     uint64 parse_uint(str s, int base, int bit_size, error err);
-}
-
 }

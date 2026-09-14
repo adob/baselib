@@ -8,7 +8,7 @@ import lib.str;
 import lib.type_id;
 
 
-export extern "C++" {
+export extern "C++"
 namespace lib::os {
 
     struct Errno : ErrorBase<Errno> {
@@ -189,6 +189,4 @@ namespace lib::os {
     // extern Error ErrUnknown;
 
     // Error &from_errno(int e);
-}
-
 }

@@ -9,7 +9,7 @@ import lib.types;
 
 
 
-export extern "C++" {
+export extern "C++"
 namespace lib::varint {
     struct ErrOverflow : ErrorBase<ErrOverflow, "varint overflow"> {};
     
@@ -115,6 +115,4 @@ namespace lib::varint {
             static_assert(false, "bad type");
         }
     }
-}
-
 }

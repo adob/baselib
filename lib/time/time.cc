@@ -13,7 +13,7 @@ import lib.types;
 #endif
 
 
-export extern "C++" {
+export extern "C++"
 namespace lib::time {
     using namespace lib;
 
@@ -141,6 +141,4 @@ namespace lib::time {
             return elapsed;
         }
     } ;
-}
-
 }

@@ -2,7 +2,7 @@ export module lib.utils;
 import <algorithm>;
 
 // Preserve compatibility with declarations in the remaining headers.
-export extern "C++" {
+export extern "C++"
 namespace lib {
     template <typename F>
     struct defer {
@@ -16,5 +16,4 @@ namespace lib {
 
     using std::min;
     using std::max;
-}
 }

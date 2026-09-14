@@ -6,7 +6,7 @@ import <utility>;
 import lib.types;
 import lib.str;
 
-export extern "C++" {
+export extern "C++"
 namespace lib::utf8 {
     struct DecodeRuneResult {
         rune r;
@@ -55,6 +55,4 @@ namespace lib::utf8 {
     } ;
 
     IterableStr runes(str s);
-}
-
 }

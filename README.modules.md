@@ -8,13 +8,13 @@ import lib.error;
 import lib.inline_string;
 ```
 
-`import lib.base;` provides the former umbrella header's APIs. The modules
+`import lib;` provides the former umbrella header's APIs. The modules
 re-export their public module dependencies. Declarations use `extern "C++"`
 to remain compatible with forward declarations and definitions in the
 remaining header-based code.
 
 Headers under subdirectories remain headers. The I/O, formatting, errors, and
-standard-stream headers are imported as header units where used by `lib.base`
+standard-stream headers are imported as header units where used by `lib`
 and `lib.print`. Consumers use those same header units to avoid mixing imported
 definitions with textual definitions in GCC.
 

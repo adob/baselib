@@ -4,7 +4,7 @@ module;
 export module lib.filepath.path;
 import lib.str;
 
-export extern "C++" {
+export extern "C++"
 namespace lib::filepath {
     inline constexpr char Separator     = '/'; // OS-specific path separator
 	inline constexpr char ListSeparator = ':'; // OS-specific path list separator)
@@ -28,5 +28,4 @@ namespace lib::filepath {
     // See also the Localize function, which converts a slash-separated path
     // as used by the io/fs package to an operating system path.
     String from_slash(str path);
-}
 }

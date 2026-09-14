@@ -7,7 +7,7 @@ import <limits>;
 import <numbers>;
 
 
-export extern "C++" {
+export extern "C++"
 namespace lib::math {
 
     inline constexpr size MaxSize = std::numeric_limits<size>::max();
@@ -29,6 +29,4 @@ namespace lib::math {
     
     using std::abs;
     using std::sqrt;
-}
-
 }

@@ -9,7 +9,7 @@ import lib.serial.serial_listener;
 import lib.types;
 
 
-export extern "C++" {
+export extern "C++"
 namespace lib::serial {
 
 class USBConn final : public Conn {
@@ -35,5 +35,3 @@ private:
 };
 
 } // namespace lib::serial
-
-}

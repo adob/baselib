@@ -3,7 +3,7 @@ import lib.types;
 import lib.utf8;
 
 
-export extern "C++" {
+export extern "C++"
 namespace lib::utf8::internal {
 
     inline constexpr rune SurrogateMin = 0xD800;
@@ -69,6 +69,4 @@ namespace lib::utf8::internal {
         rune_error_byte_0 = t3 | (RuneError >> 12),
         rune_error_byte_1 = tx | (RuneError>>6)&maskx,
         rune_error_byte_2 = tx | RuneError&maskx;
-}
-
 }

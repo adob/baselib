@@ -3,7 +3,7 @@ module;
 
 export module lib.runtime.debug;
 
-export extern "C++" {
+export extern "C++"
 namespace lib::runtime {
     // num_cpu returns the number of logical CPUs usable by the current process.
     //
@@ -11,5 +11,4 @@ namespace lib::runtime {
     // at process startup. Changes to operating system CPU allocation after
     // process startup are not reflected.
     int num_cpu();
-}
 }

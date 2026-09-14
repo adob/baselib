@@ -12,7 +12,7 @@ import lib.exceptions;
 export import <thread>;
 
 
-export extern "C++" {
+export extern "C++"
 namespace lib::sync {
 
     //void *thread_func(void *arg);
@@ -112,5 +112,4 @@ namespace lib::sync {
     // goexit terminates the goroutine that calls it.
     // Thros GoExit exception.
     void goexit();
-} 
 }

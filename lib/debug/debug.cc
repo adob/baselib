@@ -8,7 +8,7 @@ import <exception>;
 import <vector>;
 
 
-export extern "C++" {
+export extern "C++"
 namespace lib::debug {
     void init();
 
@@ -30,6 +30,4 @@ namespace lib::debug {
 
     void print_exception(std::exception_ptr excep);
     String format_exception(std::exception_ptr excep);
-}
-
 }

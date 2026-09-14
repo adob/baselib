@@ -10,7 +10,7 @@ import lib.io;
 import <type_traits>;
 
 
-export extern "C++" {
+export extern "C++"
 namespace lib::strconv {
     namespace detail {
         // format_bits computes the string representation of u in the given base.
@@ -49,5 +49,4 @@ namespace lib::strconv {
 
     // Itoa is equivalent to [FormatInt](int64(i), 10).
     Formatter<intmax> itoa(int64 i);
-}
 }

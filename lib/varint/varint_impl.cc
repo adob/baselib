@@ -5,7 +5,6 @@ import lib.types;
 import lib.varint;
 import lib.error;
 import lib.io;
-import lib.io.util;
 
 using namespace lib;
 

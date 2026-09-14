@@ -5,7 +5,7 @@ import <stdio.h>;
 import lib.error;
 import lib.fmt;
 
-export extern "C++" {
+export extern "C++"
 namespace prettyprint {
     using namespace lib;
 
@@ -89,6 +89,4 @@ namespace prettyprint {
         }
 
     } ;
-}
-
 }

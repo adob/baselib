@@ -6,7 +6,6 @@ import lib.io;
 import lib.fmt;
 import lib.mem;
 import lib.str;
-import lib.io.util;
 import lib.exceptions;
 
 import <algorithm>;

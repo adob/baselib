@@ -1,5 +1,5 @@
 import <string>;
-import lib.base;
+import lib;
 import lib.array;
 import lib.bitflag;
 import lib.concepts;

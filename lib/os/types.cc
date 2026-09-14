@@ -6,7 +6,7 @@ import lib.fs;
 
 
 
-export extern "C++" {
+export extern "C++"
 namespace lib::os {
     using namespace lib;
 
@@ -37,5 +37,4 @@ namespace lib::os {
         ModeType = fs::ModeType,
 
         ModePerm = fs::ModePerm; // Unix permission bits, 0o777
-}
 }

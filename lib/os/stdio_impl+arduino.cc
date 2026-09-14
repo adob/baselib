@@ -8,7 +8,6 @@ import lib.io;
 #ifdef ARDUINO
 
 import lib.os.stdio;
-import lib.io.util;
 #include <unistd.h>
 
 using namespace lib;

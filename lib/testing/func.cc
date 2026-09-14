@@ -7,7 +7,7 @@ import <vector>;
 import lib.error;
 import lib.str;
 
-export extern "C++" {
+export extern "C++"
 namespace lib::testing {
     namespace detail {
         struct FuncData {
@@ -18,6 +18,4 @@ namespace lib::testing {
         std::vector<FuncData> get_all_funcs(error);
         String demangle(str mangled);
     }
-}
-
 }

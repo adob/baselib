@@ -6,7 +6,7 @@ import lib.array;
 import lib.error;
 
 
-export extern "C++" {
+export extern "C++"
 namespace lib::errors {
     struct JoinError : ErrorBase<JoinError> {
         view<Error*> errs;
@@ -18,5 +18,4 @@ namespace lib::errors {
     } ;
 
     JoinError join(view<Error*>);
-}
 }

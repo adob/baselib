@@ -5,7 +5,7 @@ export module lib.runtime.mstats;
 import lib.types;
 
 
-export extern "C++" {
+export extern "C++"
 namespace lib::runtime {
     struct MemStats {
 
@@ -252,6 +252,4 @@ namespace lib::runtime {
     // Populate non-null m with allocation counters. Tracking is not implemented
     // yet: both fields are reset to zero, indicating unavailable statistics.
     void read_mem_stats(MemStats *m);
-}
-
 }

@@ -11,7 +11,7 @@ import lib.concepts;
 import lib.exceptions;
 
 // Preserve compatibility with declarations in the remaining headers.
-export extern "C++" {
+export extern "C++"
 namespace lib {
 
     template <typename T, size N>
@@ -402,5 +402,4 @@ namespace lib {
     constexpr size len(const T (&arr)[N]) {
         return N;
     }
-}
 }

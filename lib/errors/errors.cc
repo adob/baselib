@@ -8,7 +8,7 @@ import lib.types;
 import lib.error;
 
 
-export extern "C++" {
+export extern "C++"
 namespace lib::errors {
     BasicError create(str msg);
     bool is(Error const &err, TypeID target);
@@ -26,5 +26,4 @@ namespace lib::errors {
 
         virtual void fmt(io::Writer &out, error err) const override;
     } ;
-}
 }

@@ -6,7 +6,7 @@ import lib.error;
 import lib.os.file;
 
 
-export extern "C++" {
+export extern "C++"
 namespace lib::os {
     struct FilePair {
         File reader;
@@ -15,6 +15,4 @@ namespace lib::os {
     
     FilePair pipe(error err);
     FilePair pipe(int flags, error err);
-}
-
 }

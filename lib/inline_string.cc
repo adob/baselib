@@ -10,7 +10,7 @@ import lib.str;
 import lib.types;
 
 // Preserve compatibility with declarations in the remaining headers.
-export extern "C++" {
+export extern "C++"
 namespace lib {
 
     template <size N>
@@ -249,5 +249,4 @@ namespace lib {
         }
     };
 
-}
 }

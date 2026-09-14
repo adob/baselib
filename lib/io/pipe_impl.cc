@@ -4,7 +4,6 @@ import lib.str;
 import lib.sync.chan;
 import lib.sync.lock;
 import lib.types;
-import lib.io.pipe;
 import <memory>;
 
 using namespace lib;

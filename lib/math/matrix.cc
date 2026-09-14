@@ -4,7 +4,7 @@ import lib.types;
 import lib.fmt;
 
 
-export extern "C++" {
+export extern "C++"
 namespace lib::math {
     template <typename T, size N>
     struct Matrix {
@@ -78,7 +78,5 @@ namespace lib::math {
 
     using Matrix4x4 = Matrix<float64, 4>;
     using Matrix3x3 = Matrix<float64, 3>;
-
-}
 
 }

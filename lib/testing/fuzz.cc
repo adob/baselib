@@ -6,7 +6,7 @@ import lib.str;
 import lib.array;
 
 
-export extern "C++" {
+export extern "C++"
 namespace lib::testing {
     namespace detail {
         struct TestDeps;
@@ -40,5 +40,4 @@ namespace lib::testing {
         // returns immediately.
         bool run_fuzzing(TestDeps *deps, view<InternalFuzzTarget> fuzzTests);
     }
-}
 }

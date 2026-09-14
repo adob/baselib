@@ -6,7 +6,6 @@ import lib.types;
 import lib.os.stdio;
 import lib.io;
 import <stdio.h>;
-import lib.io.util;
 import <unistd.h>;
 
 using namespace lib;

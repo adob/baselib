@@ -8,7 +8,7 @@ import lib.types;
 export import <unordered_map>;
 
 
-export extern "C++" {
+export extern "C++"
 namespace lib::sync {
     template <typename K, typename V>
     struct Map : noncopyable {
@@ -28,5 +28,4 @@ namespace lib::sync {
             data[k] = v;
         }
     } ;
-}
 }

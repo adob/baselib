@@ -2,7 +2,6 @@ import lib.array;
 import lib.str;
 import lib.types;
 import <algorithm>;
-import lib.io.util;
 
 import lib.error;
 import lib.io;

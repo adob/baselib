@@ -16,7 +16,7 @@ import <pthread.h>;
 #endif
 
 
-export extern "C++" {
+export extern "C++"
 namespace lib::sync {
     struct Mutex : noncopyable {
 
@@ -42,6 +42,4 @@ namespace lib::sync {
         bool try_lock();
         void unlock();
     } ;
-}
-
 }

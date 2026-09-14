@@ -11,7 +11,7 @@ import <pthread.h>;
 #endif
 
 
-export extern "C++" {
+export extern "C++"
 namespace lib::sync {
     struct RWMutex : noncopyable {
     #ifdef __ZEPHYR__
@@ -36,6 +36,4 @@ namespace lib::sync {
 
         // ~RWMutex();
     } ;
-}
-
 }

@@ -4,7 +4,7 @@ import <type_traits>;
 import <concepts>;
 
 // Preserve compatibility with declarations in the remaining headers.
-export extern "C++" {
+export extern "C++"
 namespace lib::concepts {
     template <typename T>
     concept SimpleVector = requires(T t){
@@ -16,5 +16,4 @@ namespace lib::concepts {
     concept Sizeable = requires(T const &t){
         { t.size() } -> std::convertible_to<std::size_t>;
     } ;
-}
 }

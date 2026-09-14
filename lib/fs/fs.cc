@@ -10,7 +10,7 @@ import lib.time;
 
 
 
-export extern "C++" {
+export extern "C++"
 namespace lib::fs {
 
     // A FileMode represents a file's mode and permission bits.
@@ -68,5 +68,4 @@ namespace lib::fs {
         time::time mod_time;
         bool       is_dir {};
     } ;
-}
 }

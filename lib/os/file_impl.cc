@@ -14,7 +14,6 @@ import lib.fmt;
 import lib.fs;
 import lib.filepath.path;
 import lib.io;
-import lib.io.util;
 import lib.os.file;
 import lib.os.types;
 import lib.str;

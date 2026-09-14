@@ -8,7 +8,7 @@ import lib.str;
 import lib.io;
 
 
-export extern "C++" {
+export extern "C++"
 namespace lib::strconv {
     namespace detail {
         inline const char *lowerhex = "0123456789abcdef";
@@ -76,5 +76,4 @@ namespace lib::strconv {
     // the same definition as unicode.IsPrint: letters, numbers, punctuation,
     // symbols and ASCII space.
     bool is_print(rune r);
-}
 }

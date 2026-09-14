@@ -7,7 +7,7 @@ import "deps/atomic_queue/include/atomic_queue/atomic_queue.h";
 import <atomic>;
 import <pthread.h>;
 
-import lib.base;
+import lib;
 import lib.sync.atomic;
 import lib.io;
 import lib.str;
@@ -16,7 +16,7 @@ import lib.sync.cond;
 import lib.sync.lock;
 
 
-export extern "C++" {
+export extern "C++"
 namespace lib::sync {
     using namespace lib;
 
@@ -482,6 +482,4 @@ namespace lib::sync {
 
         return internal::select_i(arr(ops_data.data(), ops_data.size()), arr(ops_ptrs.data(), ops_ptrs.size()), false);
     }
-}
-
 }

@@ -8,7 +8,7 @@ import lib.io;
 import lib.types;
 import lib.str;
 
-export extern "C++" {
+export extern "C++"
 namespace lib::utf8 {
     /// encode(b, r) writes into b the UTF-8 encoding
     /// of the rune r. The resulting string is returned. If b is not large enough, an exception
@@ -34,7 +34,4 @@ namespace lib::utf8 {
 
         void write_to(io::Writer &out, error err) const override;
     };
-}
-    
-
 }

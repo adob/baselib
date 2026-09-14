@@ -6,7 +6,7 @@ import lib.sync.mutex;
 import lib.sync.cond;
 
 
-export extern "C++" {
+export extern "C++"
 namespace lib::sync {
     struct WaitGroup {
         int   cnt;
@@ -19,5 +19,4 @@ namespace lib::sync {
         void done();
         void wait();
     };
-}
 }

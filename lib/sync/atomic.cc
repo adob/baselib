@@ -5,7 +5,7 @@ import lib.types;
 // remove these re-exports if they are only compiler workarounds.
 export import <type_traits>;
 
-export extern "C++" {
+export extern "C++"
 namespace lib::sync {
     enum MemoryOrder {
         Relaxed = __ATOMIC_RELAXED,
@@ -97,5 +97,4 @@ namespace lib::sync {
         bool b = __atomic_compare_exchange_n(&ptr, oldval, newval, false, success_meemorder, failure_memorder);
         return b;
     }
-}
 }

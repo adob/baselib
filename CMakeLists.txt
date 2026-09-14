@@ -6,16 +6,34 @@ get_filename_component(
   NAME
 )
 
-project(baselib VERSION 0.0.0 LANGUAGES CXX)
+project(baselib VERSION 0.0.0 LANGUAGES C CXX)
 
 include(cmake/CPM.cmake)
+
+option(BASELIB_USE_MODULES "Register modules for buildtool consumers" ON)
+if(BASELIB_USE_MODULES)
+  cmake_minimum_required(VERSION 3.30)
+  # Load our module build dependency; CPM_buildtool_SOURCE can select a local checkout.
+  # TODO: Update this pin after publishing the bridge's dependency-scope fix.
+  CPMAddPackage(
+    NAME buildtool
+    GITHUB_REPOSITORY adob/buildtool
+    GIT_TAG 009106f44c16924bc742e584ddb5e4b787033aa1
+    DOWNLOAD_ONLY YES
+  )
+  include("${buildtool_SOURCE_DIR}/cmake/Buildtool.cmake")
+  include("${CMAKE_CURRENT_LIST_DIR}/cmake/BaselibModules.cmake")
+  return()
+endif()
 
 set(BASELIB_BOOST_VERSION "1.87.0" CACHE STRING "Boost version used by baselib CPM dependencies")
 set(BASELIB_BOOST_COMPONENTS "circular_buffer" CACHE STRING "Boost components required by baselib")
 
-CPMAddPackage(
+# Prefer the environment's Boost so consumers can share its imported targets.
+CPMFindPackage(
   NAME Boost
   VERSION ${BASELIB_BOOST_VERSION} # Versions less than 1.85.0 may need patches for installation targets.
+  FIND_PACKAGE_ARGUMENTS "CONFIG;COMPONENTS;${BASELIB_BOOST_COMPONENTS}"
   URL https://github.com/boostorg/boost/releases/download/boost-${BASELIB_BOOST_VERSION}/boost-${BASELIB_BOOST_VERSION}-cmake.tar.xz
   URL_HASH SHA256=7da75f171837577a52bbf217e17f8ea576c7c246e4594d617bfde7fafd408be5
   OPTIONS "BOOST_ENABLE_CMAKE ON" "BOOST_SKIP_INSTALL_RULES ON" # Set `OFF` for installation

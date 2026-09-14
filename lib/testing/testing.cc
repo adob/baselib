@@ -31,7 +31,7 @@ export import <typeinfo>;
 extern "C++" int main(int argc, char *argv[]);
 
 
-export extern "C++" {
+export extern "C++"
 namespace lib::testing {
     struct T;
     struct BenchmarkResult;
@@ -474,5 +474,4 @@ namespace lib::testing {
     //              view<detail::InternalBenchmark> benchmarks,
     //              view<detail::InternalFuzzTarget> fuzz_targets,
     //              view<detail::InternalExample> examples);
-}
 }

@@ -11,7 +11,7 @@ import lib.types;
 /// namespace utf8 implements functions and constants to support text encoded in UTF-8.
 /// It includes functions to translate between runes and UTF-8 byte sequences.
 
-export extern "C++" {
+export extern "C++"
 namespace lib::utf8 {
 
     inline constexpr rune RuneError = 0xFFFD;     ///< the "error" Rune or "Unicode replacement character"
@@ -90,7 +90,4 @@ namespace lib::utf8 {
 
     // rune_truncates w after n runes have been read
     RuneTruncater rune_truncate(io::WriterTo const &w, size n);
-}
-
-
 }

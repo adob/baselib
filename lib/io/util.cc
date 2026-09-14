@@ -1,15 +1,14 @@
 module;
 #include "util_impl.h"
 
-export module lib.io.util;
-import lib.io;
+export module lib.io:util;
+import :core;
 import lib.error;
 import lib.str;
 import lib.types;
 
 
-
-export extern "C++" {
+export extern "C++"
 namespace lib::io {
     using namespace lib;
 
@@ -23,6 +22,4 @@ namespace lib::io {
     size discard(Reader &in, size nbytes, error err);
     
     size read_at_least(Reader &in, buf buffer, size min, error err);
-}
-
 }

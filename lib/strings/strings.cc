@@ -20,7 +20,7 @@ import lib.utf8.decode;
 export import <array>;
 
 
-export extern "C++" {
+export extern "C++"
 namespace lib::strings {
 
     // contains_rune reports whether the Unicode code point r is within s.
@@ -385,6 +385,4 @@ namespace lib::strings {
     // count counts the number of non-overlapping instances of substr in s.
     // If substr is an empty string, Count returns 1 + the number of Unicode code points in s.
     size count(str s, str substr);
-}
-
 }

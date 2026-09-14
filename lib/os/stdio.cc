@@ -105,7 +105,7 @@ import <stdio.h>;
 #undef STRUCT_DECL
 
 
-export extern "C++" {
+export extern "C++"
 namespace lib::os {
     struct StdStream : io::ReaderWriter {
         FILE *file;
@@ -120,6 +120,4 @@ namespace lib::os {
     extern os::StdStream stdout;
     extern os::StdStream stderr;
     extern os::StdStream stdin;
-}
-
 }

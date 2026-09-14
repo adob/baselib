@@ -13,7 +13,7 @@ export import <deque>;
 export import <thread>;
 
 
-export extern "C++" {
+export extern "C++"
 namespace lib::sync {
     struct Gang {
         Mutex mtx;
@@ -29,5 +29,4 @@ namespace lib::sync {
         void join();
         ~Gang();
     } ;
-}
 }

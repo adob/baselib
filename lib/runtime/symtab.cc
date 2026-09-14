@@ -3,7 +3,7 @@ import lib.str;
 import lib.types;
 
 
-export extern "C++" {
+export extern "C++"
 namespace lib::runtime {
     struct Frame {
         // PC is the program counter for the location in this frame.
@@ -51,5 +51,4 @@ namespace lib::runtime {
         // // not for C functions.
         // funcInfo funcInfo
     } ;
-}
 }

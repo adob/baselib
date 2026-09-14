@@ -1,12 +1,12 @@
 module;
 #include "pipe_impl.h"
 
-export module lib.io.pipe;
+export module lib.io:pipe;
+import :core;
 import lib.str;
 import lib.types;
 import <boost/core/pointer_traits.hpp>;
 import lib.error;
-import lib.io;
 import lib.sync.chan;
 import lib.sync.mutex;
 import lib.sync.once;
@@ -14,7 +14,7 @@ import lib.sync.once;
 import <memory>;
 
 
-export extern "C++" {
+export extern "C++"
 namespace lib::io {
     namespace internal {
         struct Pipe {
@@ -93,5 +93,4 @@ namespace lib::io {
     // Parallel calls to Read and parallel calls to Write are also safe:
     // the individual calls will be gated sequentially.
     PipePair pipe();
-}
 }

@@ -7,7 +7,7 @@ import lib.types;
 import lib.io;
 
 
-export extern "C++" {
+export extern "C++"
 namespace lib::strconv {
     enum Flag {
         FlagPlus  = 1,
@@ -65,5 +65,4 @@ namespace lib::strconv {
     // for all formats other than 'b', it will be at least two digits.
     Float64Formatter format_float(float64 f, char fmt, int prec, int flags = 0, int width = 0);
     Float32Formatter format_float(float32 f, char fmt, int prec, int flags = 0, int width = 0);
-}
 }

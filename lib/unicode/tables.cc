@@ -6,7 +6,7 @@ import lib.array;
 import lib.types;
 
 
-export extern "C++" {
+export extern "C++"
 namespace lib::unicode {
         
     struct Range16 {
@@ -30,5 +30,4 @@ namespace lib::unicode {
     
     extern const RangeTable White_Space;
         
-}
 }

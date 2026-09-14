@@ -6,7 +6,7 @@ import lib.types;
 
     
 
-export extern "C++" {
+export extern "C++"
 namespace lib::unicode {
     
     // IsSpace reports whether the rune is a space character as defined
@@ -16,5 +16,4 @@ namespace lib::unicode {
     // Other definitions of spacing characters are set by category
     // Z and property Pattern_White_Space.
     bool is_space(rune r);
-}
 }

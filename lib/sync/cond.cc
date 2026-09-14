@@ -13,7 +13,7 @@ import <pthread.h>;
 
 
 
-export extern "C++" {
+export extern "C++"
 namespace lib::sync {
     struct Cond : noncopyable {
     #ifdef __ZEPHYR__
@@ -29,6 +29,4 @@ namespace lib::sync {
         void broadcast();
         //~Cond();
     } ;
-}
-
 }

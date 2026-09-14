@@ -4,7 +4,7 @@ import lib.types;
 import <cmath>;
 
 
-export extern "C++" {
+export extern "C++"
 namespace lib::math {
     inline constexpr float64 NaN = NAN;
     inline constexpr float64 Inf = INFINITY;
@@ -20,5 +20,4 @@ namespace lib::math {
     constexpr float64 nan() {
         return NaN;
     }
-}
 }

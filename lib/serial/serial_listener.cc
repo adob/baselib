@@ -4,7 +4,7 @@ import lib.io;
 import lib.sync.mutex;
 
 
-export extern "C++" {
+export extern "C++"
 namespace lib::serial {
     // Conn represents one logical session on a serial port. A peer establishes
     // a session by asserting the port's connection signals (such as DTR and
@@ -22,6 +22,4 @@ namespace lib::serial {
         virtual Conn& accept(error) = 0;
         virtual ~Listener() {}
     } ;
-}
-
 }

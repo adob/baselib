@@ -7,7 +7,7 @@ import <utility>;
 // remove these re-exports if they are only compiler workarounds.
 export import <future>;
 
-export extern "C++" {
+export extern "C++"
 namespace lib::async {
     template <typename T>
     struct Future {
@@ -27,5 +27,4 @@ namespace lib::async {
     go(Function &&f, Args &&...args) {
         return Future { std::async(std::launch::async, std::forward<Function>(f), std::forward<Args>(args)...) };
     }
-}
 }

@@ -5,7 +5,7 @@ export module lib.flag;
 import <functional>;
 import lib.str;
 
-export extern "C++" {
+export extern "C++"
 namespace lib::flag {
     struct FlagSet {
         // void var(str name, int value, str usage) {
@@ -35,5 +35,4 @@ namespace lib::flag {
     T *define(str name, T value, str usage) {
         return new T(value);
     }
-}
 }

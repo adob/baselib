@@ -1,7 +1,7 @@
 export module lib.bitflag;
 
 // Preserve compatibility with declarations in the remaining headers.
-export extern "C++" {
+export extern "C++"
 namespace  lib {
 
     template <typename T>
@@ -35,5 +35,4 @@ namespace  lib {
         }
     } ;
 
-}
 }

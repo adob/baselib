@@ -76,7 +76,7 @@ The legacy CMake/GN builds are not validated by this buildtool migration.
 | --- | --- |
 | `lib.array` | [lib/array.cc](lib/array.cc) |
 | `lib.async` | [lib/async/async.cc](lib/async/async.cc) |
-| `lib.base` | [lib/base.cc](lib/base.cc) |
+| `lib` | [lib/lib.cc](lib/lib.cc) |
 | `lib.bitflag` | [lib/bitflag.cc](lib/bitflag.cc) |
 | `lib.buf` | [lib/buf.cc](lib/buf.cc) |
 | `lib.concepts` | [lib/concepts.cc](lib/concepts.cc) |
@@ -93,8 +93,7 @@ The legacy CMake/GN builds are not validated by this buildtool migration.
 | `lib.fs` | [lib/fs/fs.cc](lib/fs/fs.cc) |
 | `lib.inline_string` | [lib/inline_string.cc](lib/inline_string.cc) |
 | `lib.io` | [lib/io/io.cc](lib/io/io.cc) |
-| `lib.io.pipe` | [lib/io/pipe.cc](lib/io/pipe.cc) |
-| `lib.io.util` | [lib/io/util.cc](lib/io/util.cc) |
+| `lib.io` (re-exports `:core`, `:pipe`, and `:util`) | [lib/io/io.cc](lib/io/io.cc), [lib/io/core.cc](lib/io/core.cc), [lib/io/pipe.cc](lib/io/pipe.cc), [lib/io/util.cc](lib/io/util.cc) |
 | `lib.math:bits` | [lib/math/bits+experimental.cc](lib/math/bits+experimental.cc) |
 | `lib.math.bits` | [lib/math/bits.cc](lib/math/bits.cc) |
 | `lib.math` | [lib/math/math+experimental.cc](lib/math/math+experimental.cc) |

@@ -12,7 +12,7 @@ import lib.types;
 
 
 
-export extern "C++" {
+export extern "C++"
 namespace lib::os {
 
     struct File : io::Buffered {
@@ -79,11 +79,9 @@ namespace lib::os {
 }
 
 
-}
 
-export extern "C++" {
+export extern "C++"
 namespace lib::os {
     // Translate portable mode bits for the POSIX file implementation.
     uint32 syscall_mode(FileMode mode);
-}
 }
