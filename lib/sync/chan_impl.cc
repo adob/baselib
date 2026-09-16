@@ -615,12 +615,24 @@ int internal::select_i(arr<OpData> ops, arr<OpData*> ops_ptrs, arr<OpData*> lock
     return selected->id;
 }
 void lib::sync::internal::Waiter::notify() {
+#ifdef TEENSYDUINO
+    Lock lock(mutex);
+    notified = true;
+    cond.signal();
+#else
     state.store(1, std::memory_order::release);
     state.notify_one();
     state.store(2);
+#endif
 }
 
 void lib::sync::internal::Waiter::wait() {
+#ifdef TEENSYDUINO
+    Lock lock(mutex);
+    while (!notified) {
+        cond.wait(mutex);
+    }
+#else
     for (;;) {
         int s = state.load(std::memory_order::acquire);
         if (s == 0) {
@@ -630,7 +642,8 @@ void lib::sync::internal::Waiter::wait() {
         if (s == 2) {
             return;
         }
-        // spin wait
+        // Spin until notify() completes after waking this waiter.
     }
+#endif
 }
 #endif

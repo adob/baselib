@@ -1,5 +1,6 @@
 import lib.error;
 import lib.io;
+import lib.panic;
 import lib.sync.go;
 
 using namespace lib;

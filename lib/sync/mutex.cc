@@ -1,8 +1,10 @@
-module;
-#include "mutex_impl.h"
-
 export module lib.sync.mutex;
+
+#ifdef TEENSYDUINO
+    export import lib.sync.mutex_teensy;
+#else
 import lib.types;
+#include "mutex_impl.h"
 
 #ifdef ESP_PLATFORM
 import <freertos/FreeRTOS.h>;
@@ -43,3 +45,4 @@ namespace lib::sync {
         void unlock();
     } ;
 }
+#endif

@@ -2,6 +2,7 @@ module;
 #include "serial_impl+linux.h"
 
 export module lib.serial;
+export import :serial_listener;
 import lib.str;
 import lib.error;
 import lib.os.file;

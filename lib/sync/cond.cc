@@ -1,7 +1,13 @@
+#ifndef TEENSYDUINO
 module;
 #include "cond_impl.h"
+#endif
 
 export module lib.sync.cond;
+
+#ifdef TEENSYDUINO
+    export import lib.sync.cond_teensy;
+#else
 import lib.sync.mutex;
 
 import lib.types;
@@ -30,3 +36,4 @@ namespace lib::sync {
         //~Cond();
     } ;
 }
+#endif

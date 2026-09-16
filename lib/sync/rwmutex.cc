@@ -1,7 +1,14 @@
+#ifndef TEENSYDUINO
 module;
 #include "rwmutex_impl.h"
+#endif
 
 export module lib.sync.rwmutex;
+
+#ifdef TEENSYDUINO
+    export import lib.sync.rwmutex_teensy;
+#else
+
 import lib.types;
 
 #ifdef __ZEPHYR__
@@ -37,3 +44,4 @@ namespace lib::sync {
         // ~RWMutex();
     } ;
 }
+#endif

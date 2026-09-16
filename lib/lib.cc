@@ -1,4 +1,5 @@
 export module lib;
+export import lib.array;
 export import lib.types;
 export import lib.type_id;
 export import lib.str;

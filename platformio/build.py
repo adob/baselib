@@ -35,7 +35,7 @@ def filter_dependency_sources(buildenv: Any, node: Any) -> Any:
 
 DefaultEnvironment().AddBuildMiddleware(filter_dependency_sources)
 
-if env.GetProjectOption('custom_buildtool_modules', '').strip():
+if env.GetProjectOption('buildtool_modules', '').strip():
     Import("projenv")
     import sys
 
@@ -59,6 +59,23 @@ if env.GetProjectOption('custom_buildtool_modules', '').strip():
         raise RuntimeError('buildtool dependency is missing; run pio pkg install')
     if not (checkout / 'platformio_adapter.py').is_file():
         raise RuntimeError(f'buildtool at {checkout} lacks the PlatformIO adapter; update the dependency')
+
+    defines = {item[0] if isinstance(item, (list, tuple)) else item
+               for item in env.get('CPPDEFINES', [])}
+    if 'TEENSYDUINO' in defines and not projenv.get('BASELIB_TEENSY_THREADS'):
+        framework = Path(env.PioPlatform().get_package_dir('framework-arduinoteensy'))
+        teensy_threads = framework / 'libraries' / 'TeensyThreads'
+        if not (teensy_threads / 'TeensyThreads.h').is_file():
+            raise RuntimeError(f'TeensyThreads is missing from Teensyduino at {teensy_threads}')
+        env.Append(CPPPATH=[str(teensy_threads)])
+        projenv.Append(CPPPATH=[str(teensy_threads)])
+        threadenv = projenv.Clone()
+        library = threadenv.BuildLibrary(
+            str(Path(projenv.subst('$BUILD_DIR')) / 'TeensyThreads'), str(teensy_threads),
+            '+<TeensyThreads.cpp> +<TeensyThreads-asm.S>')
+        projenv.Append(LIBS=[library])
+        projenv['BASELIB_TEENSY_THREADS'] = True
+
     sys.path.insert(0, str(checkout))
     from platformio_adapter import configure
     configure(env, projenv, Path(env.Dir('.').srcnode().abspath).parent)

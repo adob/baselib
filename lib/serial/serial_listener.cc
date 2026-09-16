@@ -1,4 +1,4 @@
-export module lib.serial.serial_listener;
+export module lib.serial:serial_listener;
 import lib.error;
 import lib.io;
 import lib.sync.mutex;

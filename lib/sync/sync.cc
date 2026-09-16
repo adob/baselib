@@ -1,0 +1,11 @@
+export module lib.sync;
+export import lib.sync.atomic;
+export import lib.sync.chan;
+export import lib.sync.cond;
+export import lib.sync.gang;
+export import lib.sync.go;
+export import lib.sync.lock;
+export import lib.sync.map;
+export import lib.sync.mutex;
+export import lib.sync.once;
+export import lib.sync.waitgroup;

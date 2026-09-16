@@ -3,9 +3,16 @@ import lib.error;
 import lib.panic;
 import lib.str;
 import lib.types;
+#ifdef TEENSYDUINO
+#include <core_pins.h>
+#include <TeensyThreads.h>
+#else
 import <cerrno>;
+#endif
 import <cstdlib>;
+#ifndef TEENSYDUINO
 #include <errno.h>
+#endif
 import <stdlib.h>;
 #include <sys/types.h>
 import <tuple>;
@@ -14,9 +21,11 @@ import lib.time;
 import <cmath>;
 import <time.h>;
 
+#if !defined(__ZEPHYR__) && !defined(TEENSYDUINO)
 import lib.os.error;
 import lib.os.file;
 import lib.strings;
+#endif
 
 #ifdef __ZEPHYR__
 #include "zephyr/kernel.h"
@@ -78,7 +87,7 @@ const arr<int32> DaysBefore = {{
 const time::duration MinDuration = int64(-1) << 63;
 const time::duration MaxDuration = (uint64(1)<<63) - 1;
 
-#ifdef __ZEPHYR__
+#if defined(__ZEPHYR__) || defined(TEENSYDUINO)
 #else
 const int64 btime_ns = []{
     String data = os::read_file("/proc/stat",error::panic);
@@ -91,16 +100,69 @@ const int64 btime_ns = []{
         if (btime == 0) {
             panic("invalid btime value in /proc/stat");
         }
-        return btime * 1'000'000;
+		return btime * 1'000'000'000;
     }
     panic("btime not found in /proc/stat");
     return int64(0);
 }();
 #endif
 
+#ifdef TEENSYDUINO
+namespace {
+	Threads::Mutex teensy_clock_mutex;
+	uint32 teensy_last_millis = 0;
+	uint64 teensy_elapsed_millis = 0;
+	bool teensy_wall_offset_initialized = false;
+	int64 teensy_wall_offset = 0;
+
+	int64 teensy_uptime_ns_locked() {
+		// Extend Teensy's 32-bit millisecond counter. Calling clock() or now()
+		// at least once per millis() rollover (about 49.7 days) preserves the
+		// full uptime across wraparound.
+		uint32 before;
+		uint32 usecs;
+		uint32 after;
+		do {
+			before = millis();
+			usecs = micros();
+			after = millis();
+		} while (before != after);
+
+		teensy_elapsed_millis += uint32(before - teensy_last_millis);
+		teensy_last_millis = before;
+		uint32 fractional_usecs = usecs - before * 1'000U;
+		return int64(teensy_elapsed_millis) * 1'000'000
+			 + int64(fractional_usecs) * 1'000;
+	}
+
+	int64 teensy_uptime_ns() {
+		teensy_clock_mutex.lock();
+		int64 result = teensy_uptime_ns_locked();
+		teensy_clock_mutex.unlock();
+		return result;
+	}
+
+	int64 teensy_wall_offset_ns() {
+		teensy_clock_mutex.lock();
+		if (!teensy_wall_offset_initialized) {
+			// rtc_get() is Unix time in whole seconds. Capture an offset once so
+			// subsequent wall-clock conversions retain monotonic subsecond time.
+			int64 uptime = teensy_uptime_ns_locked();
+			teensy_wall_offset = int64(rtc_get()) * 1'000'000'000 - uptime;
+			teensy_wall_offset_initialized = true;
+		}
+		int64 result = teensy_wall_offset;
+		teensy_clock_mutex.unlock();
+		return result;
+	}
+}
+#endif
+
 time::monotime time::clock() {
 #ifdef __ZEPHYR__
 	return { k_cyc_to_ns_floor64(k_cycle_get_64()) };
+#elif defined(TEENSYDUINO)
+	return { teensy_uptime_ns() };
 #else
     struct timespec ts;
     int ret = clock_gettime(CLOCK_BOOTTIME, &ts);
@@ -115,6 +177,8 @@ time::monotime time::clock() {
 time::time time::now() {
 #ifdef __ZEPHYR__
 	panic("unimplemented");
+#elif defined(TEENSYDUINO)
+    return { teensy_uptime_ns() };
 #else
     struct timespec boottime;
     int ret = clock_gettime(CLOCK_BOOTTIME, &boottime);
@@ -149,6 +213,27 @@ time::time time::now() {
 void time::sleep(duration d) {
 #ifdef __ZEPHYR__
 	panic("unimplemented");
+#elif defined(TEENSYDUINO)
+	if (d.nsecs <= 0) {
+		return;
+	}
+
+	uint64 usecs = uint64(d.nsecs / 1'000);
+	if (d.nsecs % 1'000 != 0) {
+		usecs++;
+	}
+
+	uint64 millisecs = usecs / 1'000;
+	while (millisecs > 0) {
+		int chunk = millisecs > 1'000'000 ? 1'000'000 : int(millisecs);
+		threads.delay(chunk);
+		millisecs -= uint64(chunk);
+	}
+
+	int remaining_usecs = int(usecs % 1'000);
+	if (remaining_usecs != 0) {
+		threads.delay_us(remaining_usecs);
+	}
 #else
     struct timespec req = {
         .tv_sec  = d.nsecs / 1'000'000'000,
@@ -288,11 +373,15 @@ time::time time::date(int year, Month month, int day, int hour, int min, int sec
 time::time time::unix(const struct timespec& walltime) {
 #ifdef __ZEPHYR__
 	panic("unimplemented");
+#elif defined(TEENSYDUINO)
+	int64 timestamp_ns = int64(walltime.tv_sec) * 1'000'000'000
+		+ int64(walltime.tv_nsec);
+	return {timestamp_ns - teensy_wall_offset_ns()};
 #else
     int64 sec = walltime.tv_sec;
     int32 nsec = int32(walltime.tv_nsec);
 
-	return time{ (sec*1'000'000 + nsec) - btime_ns };
+	return time{ (sec*1'000'000'000 + nsec) - btime_ns };
 	// return time {uint64(nsec), sec + UnixToInternal, /*Local*/};
 #endif
 }
@@ -300,8 +389,11 @@ time::time time::unix(const struct timespec& walltime) {
 time::time time::unix(int64 sec, int32 nsec) {
 #ifdef __ZEPHYR__
 	panic("unimplemented");
+#elif defined(TEENSYDUINO)
+	int64 timestamp_ns = sec * 1'000'000'000 + nsec;
+	return {timestamp_ns - teensy_wall_offset_ns()};
 #else
-	int64 timestamp_ns = sec*1'000'000 + nsec;
+	int64 timestamp_ns = sec*1'000'000'000 + nsec;
 	int64 since_boot_ns = timestamp_ns - btime_ns;
 	// if (nsec < 0 || nsec >= 1'000'000'000) {
 	// 	int32 n = nsec / 1'000'000'000;
@@ -338,12 +430,14 @@ time::duration time::monotime::sub(monotime other) {
 int64 time::time::unix() const {
 	time const &t = *this;
 
-	return t.unix_nano() / 1'000'000;
+	return t.unix_nano() / 1'000'000'000;
 }
 
 int64 time::time::unix_nano() const {
 #ifdef __ZEPHYR__
 	panic("unimplemented");
+#elif defined(TEENSYDUINO)
+	return teensy_wall_offset_ns() + nsecs;
 #else
 	time const &t = *this;
 	return btime_ns + t.nsecs;

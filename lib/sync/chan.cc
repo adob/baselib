@@ -6,6 +6,9 @@ import lib.sync.atomic;
 
 import lib.array;
 import lib.panic;
+#ifdef TEENSYDUINO
+import lib.sync.cond;
+#endif
 import lib.sync.lock;
 import lib.sync.mutex;
 import lib.types;
@@ -137,7 +140,13 @@ namespace lib::sync {
         } ;
 
         struct Waiter {
+#ifdef TEENSYDUINO
+            Mutex mutex;
+            Cond cond;
+            bool notified = false;
+#else
             std::atomic<int> state = 0;
+#endif
 
             void notify();
 
