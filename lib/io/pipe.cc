@@ -1,16 +1,17 @@
-module;
+export module lib.io:pipe;
+
+#if defined(__STDCPP_THREADS__) || defined(BASELIB_HAS_THREADS)
 #include "pipe_impl.h"
 
-export module lib.io:pipe;
 import :core;
 import lib.str;
 import lib.types;
-import <boost/core/pointer_traits.hpp>;
 import lib.error;
 import lib.sync.chan;
 import lib.sync.mutex;
 import lib.sync.once;
 
+import <boost/core/pointer_traits.hpp>;
 import <memory>;
 
 
@@ -94,3 +95,4 @@ namespace lib::io {
     // the individual calls will be gated sequentially.
     PipePair pipe();
 }
+#endif

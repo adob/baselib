@@ -3,19 +3,18 @@ import lib.error;
 import lib.types;
 // StdStream
 
-import lib.os.stdio;
 import lib.io;
 import <stdio.h>;
 import <unistd.h>;
 
 using namespace lib;
-using namespace os;
+using namespace io;
 
-StdStream os::stdin(::stdin, 0);
-StdStream os::stdout(::stdout, 1);
-StdStream os::stderr(::stderr, 2);
+StdStream io::in(::stdin, 0);
+StdStream io::out(::stdout, 1);
+StdStream io::err(::stderr, 2);
 
-io::ReadResult os::StdStream::direct_read(buf bytes, error err) {
+io::ReadResult io::StdStream::direct_read(buf bytes, error err) {
     size n = size(::fread(bytes.data, 1, usize(len(bytes)), file));
  
      if (n != len(bytes)) {
@@ -32,7 +31,7 @@ io::ReadResult os::StdStream::direct_read(buf bytes, error err) {
     return {n, false};
  }
  
- size os::StdStream::direct_write(str data, error err) {
+ size io::StdStream::direct_write(str data, error err) {
     // ::write(1, "<", 1);
     size n = ::write(fd, data.data, data.len);
     // ::write(1, ">", 1);

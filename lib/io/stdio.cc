@@ -5,15 +5,17 @@ module;
 #include "stdio_impl+posix.h"
 #endif
 
-export module lib.os.stdio;
+export module lib.io:stdio;
 import lib.str;
 import lib.error;
 import lib.types;
-import lib.io;
+import :core;
 import <stdio.h>;
 
 
 
+// Disabled: named-module imports do not propagate these macro changes to consumers.
+/*
 #define SECOND(a, b, ...) b
 
 #define IS_PROBE(...) SECOND(__VA_ARGS__, 0)
@@ -104,9 +106,10 @@ import <stdio.h>;
 #undef NS_DECL
 #undef STRUCT_DECL
 
+*/
 
 export extern "C++"
-namespace lib::os {
+namespace lib::io {
     struct StdStream : io::ReaderWriter {
         FILE *file;
         int fd;
@@ -117,7 +120,7 @@ namespace lib::os {
         size           direct_write(str data, error err) override;
     };
 
-    extern os::StdStream stdout;
-    extern os::StdStream stderr;
-    extern os::StdStream stdin;
+    extern StdStream out;
+    extern StdStream err;
+    extern StdStream in;
 }

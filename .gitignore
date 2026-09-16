@@ -2,3 +2,6 @@
 /deps/atomic_queue/
 /deps/boost/
 /deps/fmt/
+
+# Python build-script caches
+__pycache__/

@@ -1,4 +1,4 @@
-import lib.os.stdio;
+import lib.io;
 import lib.os.stat;
 
 

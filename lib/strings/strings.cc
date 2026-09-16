@@ -3,6 +3,7 @@ module;
 
 export module lib.strings;
 import lib.error;
+import lib.fallback;
 import lib.str;
 import lib.utf8;
 import <cstring>;

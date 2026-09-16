@@ -14,11 +14,10 @@ option(BASELIB_USE_MODULES "Register modules for buildtool consumers" ON)
 if(BASELIB_USE_MODULES)
   cmake_minimum_required(VERSION 3.30)
   # Load our module build dependency; CPM_buildtool_SOURCE can select a local checkout.
-  # TODO: Update this pin after publishing the bridge's dependency-scope fix.
   CPMAddPackage(
     NAME buildtool
     GITHUB_REPOSITORY adob/buildtool
-    GIT_TAG 009106f44c16924bc742e584ddb5e4b787033aa1
+    GIT_TAG 3a25aa64ab643f76260cba9e4818954ea4dac038
     DOWNLOAD_ONLY YES
   )
   include("${buildtool_SOURCE_DIR}/cmake/Buildtool.cmake")

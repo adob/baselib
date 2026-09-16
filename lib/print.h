@@ -1,8 +1,8 @@
 #pragma once
 
 import lib.print;
-import lib.os.stdio;
+import lib.io;
 
 // Named modules cannot export these expression-style macros.
-#define print  (::prettyprint::Print(::lib::os::stdout))*
-#define eprint (::prettyprint::Print(::lib::os::stderr))*
+#define print  (::prettyprint::Print(::lib::io::out))*
+#define eprint (::prettyprint::Print(::lib::io::err))*

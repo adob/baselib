@@ -1,7 +1,7 @@
 import lib.array;
 import lib.error;
 import lib.fmt;
-import lib.os.stdio;
+import lib.io;
 import lib.panic;
 import lib.str;
 import lib.sync.atomic;
@@ -23,7 +23,6 @@ import lib.testing.benchmark;
 import <unordered_map>;
 
 import lib.flag;
-import lib.io;
 import lib.math;
 import lib.runtime.debug;
 import lib.runtime.mstats;
@@ -705,7 +704,7 @@ bool detail::run_benchmarks(std::vector<FuncData> const &bench_funcs) {
     };
 
     B main {};
-    main.w      = & ((io::Writer&) os::stdout),
+    main.w      = & ((io::Writer&) io::out),
     main.bench  = true,
     main.name   = "Main",
     main.bench_func = bench_func,

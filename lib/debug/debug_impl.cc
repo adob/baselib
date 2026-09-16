@@ -9,7 +9,7 @@
 // #include "../../deps/backward-cpp/backward.hpp"
 
 import lib.error;
-import lib.os.stdio;
+import lib.io;
 import lib.str;
 import <cstddef>;
 import <cstdio>;
@@ -18,7 +18,6 @@ import <stdio.h>;
 import <string>;
 import <vector>;
 import lib.fmt;
-import lib.io;
 import lib.sync.lock;
 import lib.sync.mutex;
 import <cpptrace/basic.hpp>;
@@ -70,7 +69,7 @@ static String stringify_stack_trace() {
 }
 
 void debug::print_exception(std::exception_ptr excep) {
-    fmt::fprintf(os::stderr, format_exception(excep));
+    fmt::fprintf(io::err, format_exception(excep));
 }
 
 String debug::format_exception(std::exception_ptr excep) {
@@ -131,7 +130,7 @@ static void crash_handler() {
     ::close(1);
 
     String s = debug::format_exception(std::current_exception());    
-    fmt::fprintf(os::stderr, "\nTerminated due to %s\n", s);
+    fmt::fprintf(io::err, "\nTerminated due to %s\n", s);
 
     std::abort();
 }
@@ -173,7 +172,7 @@ static void sigsegv_handler(int /*signum*/, siginfo_t *siginfo, void*) {
 }
 
 static void sigquit_handler(int /*signum*/, siginfo_t */*siginfo*/, void*) {
-    fmt::fprintf(os::stderr, "caught SIGQUIT\n");
+    fmt::fprintf(io::err, "caught SIGQUIT\n");
     debugme_debug(0, "");
 }
 

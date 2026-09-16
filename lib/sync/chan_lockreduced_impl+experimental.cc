@@ -1597,7 +1597,7 @@ int lib::sync::Chan<void>::unread() const {
 //     // }
 
 //     // fmt::fprintf(b, "]\n");
-//     // os::stdout.write(b.str(), error::ignore);
+//     // io::out.write(b.str(), error::ignore);
 // }
 
 // bool IntrusiveList::contains(Selector *e) {

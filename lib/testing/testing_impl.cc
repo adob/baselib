@@ -1,7 +1,7 @@
 import lib.array;
 import lib.error;
 import lib.fmt;
-import lib.os.stdio;
+import lib.io;
 import lib.panic;
 import lib.sync.atomic;
 import lib.sync.chan;
@@ -13,7 +13,6 @@ import <stdio.h>;
 import <tuple>;
 import <vector>;
 import lib.testing;
-import lib.io;
 import lib.sync.map;
 import lib.testing.matcher;
 import lib.testing.example;
@@ -671,13 +670,13 @@ std::tuple<bool, bool> detail::run_tests(
 		TestState tstate = new_test_state(*parallel, &matcher);
 		tstate.deadline = deadline;
 		T t;
-		t.w = & (io::Writer&) os::stdout;
+		t.w = & (io::Writer&) io::out;
 		t.tstate = &tstate;
 		//  = {
 		// 	{
 		// 		// .signal =    make(chan bool, 1),
 		// 		// barrier:   make(chan bool),
-		// 		.w =         os::stdout,
+		// 		.w =         io::out,
 		// 		// ctx:       ctx,
 		// 		// cancelCtx: cancelCtx,
 		// 	},
@@ -767,13 +766,13 @@ int M::run() {
 	}
 
 	if (*parallel < 1) {
-		fmt::fprintln(os::stderr, "testing: -parallel can only be given a positive integer");
+		fmt::fprintln(io::err, "testing: -parallel can only be given a positive integer");
 		flag::usage();
 		return m.exit_code = 2;
 	}
 
 	if (*match_fuzz != "" && *fuzz_cache_dir == "") {
-		fmt::fprintln(os::stderr, "testing: -test.fuzzcachedir must be set if -test.fuzz is set");
+		fmt::fprintln(io::err, "testing: -test.fuzzcachedir must be set if -test.fuzz is set");
 		flag::usage();
 		return m.exit_code = 2;
 	}
@@ -819,7 +818,7 @@ int M::run() {
 		auto [example_ran, example_ok] = run_examples(m.deps->match_string, m.examples);
 		m.stop_alarm();
 		if (!test_ran && !example_ran && !fuzz_targets_ran && *match_benchmarks == "" && *match_fuzz == "") {
-			fmt::fprintln(os::stderr, "testing: warning: no tests to run");
+			fmt::fprintln(io::err, "testing: warning: no tests to run");
 			if (testing_testing && *match != "^$") {
 				// If this happens during testing of package testing it could be that
 				// package testing's own logic for when to run a test is broken,

@@ -2,9 +2,10 @@ module;
 #include "fmt_impl.h"
 
 export module lib.fmt;
-import lib.error;
-import lib.str;
-import lib.types;
+import lib;
+import lib.errors;
+import lib.io;
+
 import <concepts>;
 import <cstdlib>;
 import <iterator>;
@@ -15,9 +16,6 @@ import <utility>;
 import <variant>;
 import <stdio.h>;
 
-import lib.io;
-import lib.errors;
-import lib.os.stdio;
 
 // TODO: Investigate Clang template visibility failures with plain imports;
 // remove these re-exports if they are only compiler workarounds.
@@ -384,7 +382,7 @@ namespace lib::fmt {
 
     template <typename... Args>
     void printf(str format, const Args  & ... args) {
-        BufferedWriter bw(os::stdout);
+        BufferedWriter bw(io::out);
         fprintf(bw, format, args...);
         bw.flush(error::ignore);
     }
@@ -403,7 +401,7 @@ namespace lib::fmt {
 
     template <typename... Args>
     void fprintf(FILE *file, str format, const Args  & ... args) {
-        os::StdStream out(file, ::fileno(file));
+        io::StdStream out(file, ::fileno(file));
         fprintf(out, format, args...);
     }
 
@@ -432,7 +430,7 @@ namespace lib::fmt {
     // print
     template <typename ...Args>
     void print(const Args &...arg) {
-        fprint(os::stdout, error::ignore, arg...);
+        fprint(io::out, error::ignore, arg...);
     }
 
     // fprintln
@@ -452,7 +450,7 @@ namespace lib::fmt {
     // println
     template <typename ...Args>
     void println(const Args &...arg) {
-        fprint(os::stdout, error::ignore, arg..., '\n');
+        fprint(io::out, error::ignore, arg..., '\n');
     }
 
      
