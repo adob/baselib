@@ -1,7 +1,7 @@
 export module lib.sync.mutex;
 
 #ifdef TEENSYDUINO
-    export import lib.sync.mutex_teensy;
+    export import :teensy;
 #else
 import lib.types;
 #include "mutex_impl.h"

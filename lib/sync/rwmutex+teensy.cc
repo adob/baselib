@@ -2,7 +2,7 @@ module;
 
 #include <TeensyThreads.h>
 
-export module lib.sync.rwmutex_teensy;
+export module lib.sync.rwmutex:teensy;
 
 import lib;
 

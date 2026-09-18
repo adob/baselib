@@ -6,7 +6,7 @@ module;
 export module lib.sync.cond;
 
 #ifdef TEENSYDUINO
-    export import lib.sync.cond_teensy;
+    export import :teensy;
 #else
 import lib.sync.mutex;
 

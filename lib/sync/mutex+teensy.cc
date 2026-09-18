@@ -2,7 +2,7 @@ module;
 
 #include <TeensyThreads.h>
 
-export module lib.sync.mutex_teensy;
+export module lib.sync.mutex:teensy;
 
 import lib;
 

@@ -1,15 +1,11 @@
-#ifndef TEENSYDUINO
-module;
-#include "rwmutex_impl.h"
-#endif
-
 export module lib.sync.rwmutex;
 
 #ifdef TEENSYDUINO
-    export import lib.sync.rwmutex_teensy;
+    export import :teensy;
 #else
+#include "rwmutex_impl.h"
 
-import lib.types;
+import lib;
 
 #ifdef __ZEPHYR__
 import <zephyr/kernel.h>;
