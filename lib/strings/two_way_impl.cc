@@ -147,7 +147,7 @@ std::pair<size, size> detail::critical_factorization_rev(str s) {
 	        k = p = 1;
 	    }
     }
-    usize max_suffix_rev = i;
+    size max_suffix_rev = i;
 
     // Choose the longer suffix. Return the first byte of the right
     // half, rather than the last byte of the left half.
@@ -176,7 +176,7 @@ size detail::two_way_search_fwd(str haystack, str needle) {
     // shift_table[c] is the distance from the last occurrence of c to
     // the end of NEEDLE, or NEEDLE_LEN if c is absent from the NEEDLE.
     // shift_table[NEEDLE[NEEDLE_LEN - 1]] contains the only 0.  */
-    for (int i = 0; i < 1U << 8; i++) {
+    for (int i = 0; i < 1 << 8; i++) {
         shift_table[i] = needle_len;
     }
     for (size i = 0; i < needle_len; i++) {
@@ -251,7 +251,7 @@ size detail::two_way_search_fwd(str haystack, str needle) {
             }
             // Scan for matches in right half.  The last byte has
             // already been matched, by virtue of the shift table.  */
-            usize i = suffix;
+            size i = suffix;
             while (i < needle_len - 1 && (needle[i] == haystack[i + j])) {
                 i++;
             }
@@ -290,7 +290,7 @@ size detail::two_way_search_rev(str haystack, str needle) {
     // shift_table[c] is the distance from the last occurrence of c to
     // the end of NEEDLE, or NEEDLE_LEN if c is absent from the NEEDLE.
     // shift_table[NEEDLE[NEEDLE_LEN - 1]] contains the only 0.  */
-    for (int i = 0; i < 1U << 8; i++) {
+    for (int i = 0; i < 1 << 8; i++) {
         shift_table[i] = needle_len;
     }
     for (size i = needle_len - 1; i >= 0; i--) {
