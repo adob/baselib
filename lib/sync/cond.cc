@@ -1,6 +1,6 @@
-#ifndef TEENSYDUINO
 module;
-#include "cond_impl.h"
+#if !defined(TEENSYDUINO) && !defined(__ZEPHYR__)
+#include <pthread.h>
 #endif
 
 export module lib.sync.cond;
@@ -8,13 +8,12 @@ export module lib.sync.cond;
 #ifdef TEENSYDUINO
     export import :teensy;
 #else
+import lib;
 import lib.sync.mutex;
+#include "cond_impl.h"
 
-import lib.types;
 #ifdef __ZEPHYR__
 import <zephyr/kernel.h>;
-#else
-import <pthread.h>;
 #endif
 
 
