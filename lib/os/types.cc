@@ -5,7 +5,6 @@ import <sys/stat.h>;
 import lib.fs;
 
 
-
 export extern "C++"
 namespace lib::os {
     using namespace lib;
